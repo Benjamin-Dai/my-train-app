@@ -125,7 +125,7 @@ class TrainApp:
         </head>
         <body>
             <div class="container">
-                <div class="update-time">上次更新時間(約每五分鐘)：""" + datetime.now().strftime("%H:%M:%S") + """</div>
+                <div class="update-time">上次更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
                 <div class="header">
                     <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
                     <span style="color: #3a3a3c; font-size: 0.7rem;">by Benjamin Dai</span>
