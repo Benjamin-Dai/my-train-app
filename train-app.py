@@ -120,7 +120,7 @@ class TrainApp:
                 .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
                 .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 4px 0; }
                 .arrow { margin: 0 12px; color: #2c2c2e; font-size: 0.8rem; }
-                .sub-time { text-align: center; color: #3a3a3c; font-size: 0.7rem; }
+                .sub-time { text-align: center; color: #bfbfbf; font-size: 0.7rem; }
             </style>
         </head>
         <body>
