@@ -49,29 +49,44 @@ class TrainApp:
                     
                     if idx_start < idx_end:
                         no = t['DailyTrainInfo']['TrainNo']
-                        type_name = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
+                        raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
+                        
+                        # --- 精確名稱簡化與顏色邏輯 ---
+                        display_type = raw_type
+                        type_color = "#ffffff" # 預設白
+                        
+                        if "區間快" in raw_type:
+                            display_type = "區間快"
+                            type_color = "#007aff" # 藍
+                        elif "區間" in raw_type:
+                            display_type = "區間車"
+                            type_color = "#007aff" # 藍
+                        elif "普悠瑪" in raw_type:
+                            display_type = "普悠瑪"
+                            type_color = "#800020" # 酒紅
+                        elif "3000" in raw_type:
+                            display_type = "自強3000"
+                            type_color = "#334439" # 深綠
+                        elif "自強" in raw_type:
+                            display_type = "自強號"
+                            type_color = "#ff3b30" # 亮紅
+                        elif "太魯閣" in raw_type:
+                            display_type = "太魯閣"
+                            type_color = "#800020" # 酒紅
+
                         dep_s = stop_times[idx_start]['DepartureTime']
                         arr_s = stop_times[idx_end]['ArrivalTime']
                         delay = delays.get(no, 0)
-                        
-                        # 定義顏色邏輯
-                        card_color = "#334439" # 預設深綠
-                        if "區間" in type_name:
-                            card_color = "#007aff" # 藍色
-                        elif "自強" in type_name:
-                            if any(x in type_name for x in ["3000", "普悠瑪", "太魯閣"]):
-                                card_color = "#800020" # 酒紅
-                            else:
-                                card_color = "#ff3b30" # 亮紅
                         
                         dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
                         arr_dt = datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M")
                         real_dep = dep_dt + timedelta(minutes=delay)
                         real_arr = arr_dt + timedelta(minutes=delay)
                         
+                        # 過濾：顯示 10 分鐘前到今天的車
                         if real_dep > now - timedelta(minutes=10):
                             processed.append({
-                                "no": no, "type": type_name, "delay": delay, "color": card_color,
+                                "no": no, "type": display_type, "delay": delay, "color": type_color,
                                 "act_dep": real_dep.strftime("%H:%M"),
                                 "act_arr": real_arr.strftime("%H:%M"),
                                 "sch_dep": dep_s, "sch_arr": arr_s,
@@ -90,26 +105,26 @@ class TrainApp:
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <meta http-equiv="refresh" content="60">
-            <title>列車時刻</title>
+            <title>列車時刻導引</title>
             <style>
                 body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
-                .header { padding: 5px; display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; }
-                .update-time { color: #48484a; font-size: 0.7rem; font-weight: 400; }
-                .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 4px solid #333; position: relative; }
-                .delay-badge { position: absolute; top: 12px; right: 16px; background: hsl(40, 100%, 50%); color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 800; }
-                .train-info { font-size: 0.8rem; font-weight: 500; margin-bottom: 2px; }
-                .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 5px 0; }
-                .arrow { margin: 0 15px; color: #2c2c2e; font-size: 0.8rem; }
-                .sub-time { text-align: center; color: #48484a; font-size: 0.7rem; margin-top: 5px; }
+                .update-time { color: #3a3a3c; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
+                .header { padding: 0 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; }
+                .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
+                .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
+                .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 4px 0; }
+                .arrow { margin: 0 12px; color: #2c2c2e; font-size: 0.8rem; }
+                .sub-time { text-align: center; color: #3a3a3c; font-size: 0.7rem; }
             </style>
         </head>
         <body>
             <div class="container">
-                <div class="update-time" style="text-align: right; margin-bottom: 5px;">最後更新：""" + datetime.now().strftime("%H:%M:%S") + """</div>
+                <div class="update-time">最後數據更新：""" + datetime.now().strftime("%H:%M:%S") + """</div>
                 <div class="header">
-                    <h1 style="margin:0; font-size:1.4rem; letter-spacing: -0.5px;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
-                    <span style="color: #636366; font-size: 0.75rem;">列車動態導引</span>
+                    <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
+                    <span style="color: #48484a; font-size: 0.7rem;">專屬導引</span>
                 </div>
                 {% CARDS %}
             </div>
@@ -118,12 +133,9 @@ class TrainApp:
         """
         cards_html = ""
         for t in data:
-            delay_tag = f'<div class="delay-badge">晚 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
-            # 如果誤點，邊框改為橘色，否則使用車種顏色
-            border_color = "hsl(40, 100%, 50%)" if t['delay'] > 0 else t['color']
-            
+            delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
             cards_html += f"""
-            <div class="card" style="border-left-color: {border_color};">
+            <div class="card" style="border-left-color: {t['color']};">
                 {delay_tag}
                 <div class="train-info" style="color: {t['color']};">{t['type']} {t['no']} 次</div>
                 <div class="main-time"><span>{t['act_dep']}</span><span class="arrow">➔</span><span>{t['act_arr']}</span></div>
