@@ -128,7 +128,7 @@ class TrainApp:
                 <div class="update-time">資料更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
                 <div class="header">
                     <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
-                    <span style="color: #999999; font-size: 0.7rem;">專屬導引</span>
+                    <span style="color: #999999; font-size:by Benjamin Dai<0.7rem;"></span>
                 </div>
                 {% CARDS %}
             </div>
