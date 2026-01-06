@@ -50,6 +50,7 @@ class TrainApp:
                     if idx_start < idx_end:
                         no = t['DailyTrainInfo']['TrainNo']
                         raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
+                        type_id = t['DailyTrainInfo'].get('TrainTypeCode', '6') # 預設區間
 
                         # --- 精確名稱簡化與顏色邏輯 ---
                         display_type = raw_type
@@ -83,10 +84,9 @@ class TrainApp:
                         real_dep = dep_dt + timedelta(minutes=delay)
                         real_arr = arr_dt + timedelta(minutes=delay)
 
-                        # 過濾：顯示 10 分鐘前到今天的車
                         if real_dep > now - timedelta(minutes=10):
                             processed.append({
-                                "no": no, "type": display_type, "delay": delay, "color": type_color,
+                                "no": no, "type": display_type, "type_id": type_id, "delay": delay, "color": type_color,
                                 "act_dep": real_dep.strftime("%H:%M"),
                                 "act_arr": real_arr.strftime("%H:%M"),
                                 "sch_dep": dep_s, "sch_arr": arr_s,
@@ -107,7 +107,7 @@ class TrainApp:
             <meta http-equiv="Expires" content="0">
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <meta http-equiv="refresh" content="30">
+            <meta http-equiv="refresh" content="10">
             <title>列車時刻</title>
             <style>
                 body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
@@ -140,8 +140,9 @@ class TrainApp:
         for t in data:
             delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
             
-            # 使用 tip115 連結，可直接查即時位置
-            train_url = f"https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip115/query?trainNo={t['no']}"
+            # 修正後的跳轉網址：加入 trainType 才能正確對應 tip115 列車動態
+            # 台鐵 tip115 格式範例：/query?trainNo=3083&trainType=6
+            train_url = f"https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip115/query?trainNo={t['no']}&trainType={t['type_id']}"
             
             cards_html += f"""
             <a href="{train_url}" target="_blank">
