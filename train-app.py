@@ -83,6 +83,7 @@ class TrainApp:
                         real_dep = dep_dt + timedelta(minutes=delay)
                         real_arr = arr_dt + timedelta(minutes=delay)
 
+                        # 過濾：顯示 10 分鐘前到今天的車
                         if real_dep > now - timedelta(minutes=10):
                             processed.append({
                                 "no": no, "type": display_type, "delay": delay, "color": type_color,
@@ -97,7 +98,6 @@ class TrainApp:
             return []
 
     def generate_html(self, data):
-        ride_date = datetime.now().strftime("%Y/%m/%d")
         html_template = """
         <!DOCTYPE html>
         <html lang="zh-TW">
@@ -139,7 +139,9 @@ class TrainApp:
         cards_html = ""
         for t in data:
             delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
-            train_url = f"https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip112/querybytrainno?trainNo={t['no']}&rideDate={ride_date}"
+            
+            # 使用 tip115 連結，可直接查即時位置
+            train_url = f"https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip115/query?trainNo={t['no']}"
             
             cards_html += f"""
             <a href="{train_url}" target="_blank">
