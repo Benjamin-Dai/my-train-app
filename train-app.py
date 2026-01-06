@@ -3,13 +3,12 @@ import json
 import os
 from datetime import datetime, timedelta
 
-# ================= 設定區 (請再次檢查 GitHub Secrets) =================
+# ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
-# 車站代碼必須是字串格式
 START_STATION_ID = '5000' # 屏東
 END_STATION_ID = '5030'   # 潮州
-# =================================================================
+# =========================================
 
 class TrainApp:
     def __init__(self, cid, csecret):
@@ -24,65 +23,64 @@ class TrainApp:
             'client_id': self.cid,
             'client_secret': self.csecret
         })
-        token = res.json().get('access_token')
-        if not token:
-            print("【警告】無法取得 API Token，請檢查 ID 和 Secret 是否正確。")
-        return token
+        return res.json().get('access_token')
 
     def fetch_data(self):
         headers = {'authorization': f'Bearer {self.token}'}
-        # 使用台灣時間
         now = datetime.now()
         today = now.strftime('%Y-%m-%d')
         
-        # 修正後的 API 網址格式
-        url = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTimetable/OD/{START_STATION_ID}/to/{END_STATION_ID}/{today}"
+        # 改用最穩定的「全台當日時刻表」API
+        url = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTimetable/Today"
         delay_url = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/LiveTrainDelay"
         
         print(f"--- 執行除錯資訊 ---")
         print(f"目前台灣時間: {now.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"查詢路徑: {START_STATION_ID} ➔ {END_STATION_ID} (日期: {today})")
         
         try:
+            # 抓取全台資料
             res = requests.get(url, headers=headers)
-            trains = res.json().get('TrainTimetables', [])
-            print(f"成功連線 API，原始資料包含 {len(trains)} 班車次")
+            all_trains = res.json().get('TrainTimetables', [])
+            print(f"成功連線 API，原始資料包含 {len(all_trains)} 班車次")
             
-            # 如果還是 0 班，印出 API 回傳的錯誤訊息方便診斷
-            if len(trains) == 0:
-                print(f"API 回傳訊息內容: {res.text}")
-            
+            # 抓取誤點資料
             delay_res = requests.get(delay_url, headers=headers).json()
             delays = {t['TrainNo']: t.get('DelayTime', 0) for t in delay_res.get('LiveTrainDelays', [])}
+            
+            processed = []
+            for t in all_trains:
+                # 篩選邏輯：只要這班車有停靠屏東(5000) 且 隨後停靠潮州(5030)
+                stop_stations = [s['StationID'] for s in t['StopTimes']]
+                if START_STATION_ID in stop_stations and END_STATION_ID in stop_stations:
+                    idx_start = stop_stations.index(START_STATION_ID)
+                    idx_end = stop_stations.index(END_STATION_ID)
+                    
+                    # 確保是往正確的方向（起點要在終點前面）
+                    if idx_start < idx_end:
+                        no = t['TrainInfo']['TrainNo']
+                        type_name = t['TrainInfo']['TrainTypeName']['Zh_tw']
+                        dep_s = t['StopTimes'][idx_start]['DepartureTime']
+                        arr_s = t['StopTimes'][idx_end]['ArrivalTime']
+                        delay = delays.get(no, 0)
+                        
+                        dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
+                        real_dep = dep_dt + timedelta(minutes=delay)
+                        
+                        # 過濾：顯示 10 分鐘前之後的車
+                        if real_dep > now - timedelta(minutes=10):
+                            processed.append({
+                                "no": no, "type": type_name, "delay": delay,
+                                "act_dep": real_dep.strftime("%H:%M"),
+                                "sch_dep": dep_s, "sch_arr": arr_s,
+                                "sort_key": real_dep
+                            })
+            
+            print(f"篩選出屏東往潮州班次，預計顯示 {len(processed)} 班")
+            return sorted(processed, key=lambda x: x['sort_key'])
+            
         except Exception as e:
-            print(f"資料處理發生異常: {e}")
+            print(f"發生異常: {e}")
             return []
-        
-        processed = []
-        for t in trains:
-            no = t['TrainInfo']['TrainNo']
-            type_name = t['TrainInfo']['TrainTypeName']['Zh_tw']
-            dep_s = t['StopTimes'][0]['DepartureTime']
-            arr_s = t['StopTimes'][1]['ArrivalTime']
-            delay = delays.get(no, 0)
-            
-            dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
-            arr_dt = datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M")
-            real_dep = dep_dt + timedelta(minutes=delay)
-            real_arr = arr_dt + timedelta(minutes=delay)
-            
-            # 過濾條件：顯示 10 分鐘前到今天的車
-            if real_dep > now - timedelta(minutes=10):
-                processed.append({
-                    "no": no, "type": type_name, "delay": delay,
-                    "act_dep": real_dep.strftime("%H:%M"),
-                    "act_arr": real_arr.strftime("%H:%M"),
-                    "sch_dep": dep_s, "sch_arr": arr_s,
-                    "sort_key": real_dep
-                })
-        
-        print(f"經過時間過濾後，準備顯示的車次共 {len(processed)} 班")
-        return sorted(processed, key=lambda x: x['sort_key'])
 
     def generate_html(self, data):
         html_template = """
@@ -127,14 +125,12 @@ class TrainApp:
             cards_html += f"""
             <div class="card {card_style}">
                 <div class="train-info"><span class="train-no">{t['type']} {t['no']} 次</span>{delay_tag}</div>
-                <div class="main-time"><span>{t['act_dep']}</span><span class="arrow">➔</span><span>{t['act_arr']}</span></div>
-                <div class="sub-time">原定：{t['sch_dep']} ➔ {t['sch_arr']}</div>
+                <div class="main-time"><span>{t['act_dep']}</span><span class="arrow">➔</span><span>（到站時間）</span></div>
+                <div class="sub-time">原定發車：{t['sch_dep']}</div>
             </div>
             """
-        
         if not data:
             cards_html = '<div style="text-align:center; padding:50px; color:#666;">目前時段暫無班次</div>'
-
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(html_template.replace("{% CARDS %}", cards_html))
 
@@ -143,6 +139,4 @@ if __name__ == "__main__":
         app = TrainApp(CLIENT_ID, CLIENT_SECRET)
         data = app.fetch_data()
         app.generate_html(data)
-    else:
-        print("【錯誤】找不到 Secrets，請檢查 GitHub 設定。")
 
