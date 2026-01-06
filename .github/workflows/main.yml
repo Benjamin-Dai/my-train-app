@@ -1,0 +1,41 @@
+name: Auto Update Train Schedule
+
+# 設定觸發條件
+on:
+  schedule:
+    - cron: '*/5 * * * *' # 每 5 分鐘自動執行一次
+  workflow_dispatch:      # 讓你可以手動點擊按鈕測試執行
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # 賦予程式寫入檔案的權限 (這很重要，否則無法產出網頁)
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run script
+        env:
+          # 這裡會從你設定的 Secrets 保險箱抓取金鑰
+          TDX_ID: ${{ secrets.TDX_ID }}
+          TDX_SECRET: ${{ secrets.TDX_SECRET }}
+        run: python train-app.py
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./        # 產出的 index.html 在根目錄
+          publish_branch: gh-pages # 把結果放在這個分支，用來跑網頁
