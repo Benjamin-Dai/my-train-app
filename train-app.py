@@ -51,6 +51,7 @@ class TrainApp:
                         no = t['DailyTrainInfo']['TrainNo']
                         raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
 
+                        # --- 精確名稱簡化與顏色邏輯 ---
                         display_type = raw_type
                         type_color = "#ffffff" 
 
@@ -82,12 +83,13 @@ class TrainApp:
                         real_dep = dep_dt + timedelta(minutes=delay)
                         real_arr = arr_dt + timedelta(minutes=delay)
 
+                        # 過濾：顯示 10 分鐘前到今天的車
                         if real_dep > now - timedelta(minutes=10):
                             processed.append({
                                 "no": no, "type": display_type, "delay": delay, "color": type_color,
                                 "act_dep": real_dep.strftime("%H:%M"),
                                 "act_arr": real_arr.strftime("%H:%M"),
-                                "sch_dep": dep_s, "sch_arr": arr_s,
+                                "sch_dep": dep_s, "sch_arr": sch_arr,
                                 "sort_key": real_dep
                             })
             return sorted(processed, key=lambda x: x['sort_key'])
@@ -96,6 +98,9 @@ class TrainApp:
             return []
 
     def generate_html(self, data):
+        # 取得今天日期，格式為 yyyy-mm-dd，這是跳轉 Chienwen 網站的關鍵
+        target_date = datetime.now().strftime("%Y-%m-%d")
+        
         html_template = """
         <!DOCTYPE html>
         <html lang="zh-TW">
@@ -112,7 +117,7 @@ class TrainApp:
                 .container { max-width: 500px; margin: 0 auto; }
                 .update-time { color: #999999; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
                 .header { padding: 0 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
+                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, background 0.1s; }
                 .card:active { background: #1c1c1e; transform: scale(0.97); }
                 .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
                 .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
@@ -138,8 +143,8 @@ class TrainApp:
         for t in data:
             delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
             
-            # 修正跳轉網址為 Chienwen 的時刻表網址格式
-            train_url = f"https://railway.chienwen.net/taiwan/list/trains/{t['no']}"
+            # 正確的 Chienwen 時刻表跳轉格式：/trains/{日期}/{車次}
+            train_url = f"https://railway.chienwen.net/taiwan/list/trains/{target_date}/{t['no']}"
             
             cards_html += f"""
             <a href="{train_url}" target="_blank">
