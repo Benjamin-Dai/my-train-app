@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 # ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
-# 如果要換地點，直接修改這裡
 START_STATION_NAME = '屏東'
 END_STATION_NAME = '潮州'
 # =========================================
@@ -30,7 +29,6 @@ class TrainApp:
         headers = {'authorization': f'Bearer {self.token}'}
         now = datetime.now()
         today = now.strftime('%Y-%m-%d')
-        
         url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Today"
         delay_url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveTrainDelay"
         
@@ -56,6 +54,18 @@ class TrainApp:
                         arr_s = stop_times[idx_end]['ArrivalTime']
                         delay = delays.get(no, 0)
                         
+                        # 顏色分類邏輯
+                        text_color = "#ffffff" # 預設白色
+                        if "區間" in type_name:
+                            text_color = "#007aff" # 藍色 (區間)
+                        elif "自強" in type_name:
+                            if "3000" in type_name or "普悠瑪" in type_name or "太魯閣" in type_name:
+                                text_color = "#800020" # 酒紅色 (不可嗶卡)
+                            else:
+                                text_color = "#ff3b30" # 亮紅色 (可嗶卡自強)
+                        elif "莒光" in type_name:
+                            text_color = "#ff9500" # 橘色
+
                         dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
                         arr_dt = datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M")
                         real_dep = dep_dt + timedelta(minutes=delay)
@@ -63,13 +73,12 @@ class TrainApp:
                         
                         if real_dep > now - timedelta(minutes=10):
                             processed.append({
-                                "no": no, "type": type_name, "delay": delay,
+                                "no": no, "type": type_name, "delay": delay, "color": text_color,
                                 "act_dep": real_dep.strftime("%H:%M"),
                                 "act_arr": real_arr.strftime("%H:%M"),
                                 "sch_dep": dep_s, "sch_arr": arr_s,
                                 "sort_key": real_dep
                             })
-            
             return sorted(processed, key=lambda x: x['sort_key'])
         except Exception as e:
             print(f"發生異常: {e}")
@@ -91,7 +100,7 @@ class TrainApp:
                 .card { background: #151517; border-radius: 14px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #334439; }
                 .late-card { border-left-color: hsl(40, 100%, 50%); }
                 .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-                .train-no { color: #8e8e93; font-size: 0.8rem; font-weight: 500; }
+                .train-no { font-size: 0.85rem; font-weight: 600; }
                 .delay-badge { background: hsl(40, 100%, 50%); color: #000; padding: 2px 7px; border-radius: 5px; font-size: 0.7rem; font-weight: 900; }
                 .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; }
                 .arrow { margin: 0 10px; color: #2c2c2e; font-size: 0.9rem; }
@@ -115,9 +124,10 @@ class TrainApp:
         for t in data:
             delay_tag = f'<div class="delay-badge">晚 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
             card_style = "late-card" if t['delay'] > 0 else ""
+            # 將分類好的顏色套用到車次文字上
             cards_html += f"""
             <div class="card {card_style}">
-                <div class="train-info"><span class="train-no">{t['type']} {t['no']} 次</span>{delay_tag}</div>
+                <div class="train-info"><span class="train-no" style="color: {t['color']};">{t['type']} {t['no']} 次</span>{delay_tag}</div>
                 <div class="main-time"><span>{t['act_dep']}</span><span class="arrow">➔</span><span>{t['act_arr']}</span></div>
                 <div class="sub-time">原定：{t['sch_dep']} ➔ {t['sch_arr']}</div>
             </div>
