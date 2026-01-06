@@ -53,7 +53,8 @@ class TrainApp:
             real_arr = arr_dt + timedelta(minutes=delay)
             
             # 顯示「現在時間前 15 分鐘」到「未來 120 分鐘」的車
-            if now - timedelta(minutes=15) < real_dep < now + timedelta(minutes=120):
+            # 只要是「現在之後」發車的班次，全部都顯示出來
+if real_dep > now - timedelta(minutes=10):
                 processed.append({
                     "no": no, "type": type_name, "delay": delay,
                     "act_dep": real_dep.strftime("%H:%M"),
