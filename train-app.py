@@ -113,7 +113,7 @@ class TrainApp:
             <style>
                 body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
-                .update-time { color: #3a3a3c; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
+                .update-time { color: #999999; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
                 .header { padding: 0 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
                 .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; }
                 .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
@@ -125,10 +125,10 @@ class TrainApp:
         </head>
         <body>
             <div class="container">
-                <div class="update-time">資料更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
+                <div class="update-time">上次更新時間(約每五分鐘)：""" + datetime.now().strftime("%H:%M:%S") + """</div>
                 <div class="header">
                     <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
-                    <span style="color: #999999; font-size: 0.7rem;">by Benjamin Dai</span>
+                    <span style="color: #3a3a3c; font-size: 0.7rem;">by Benjamin Dai</span>
                 </div>
                 {% CARDS %}
             </div>
