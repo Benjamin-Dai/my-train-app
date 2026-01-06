@@ -17,7 +17,6 @@ class TrainApp:
         self.token = self.get_token()
 
     def get_token(self):
-        # 取得 TDX 認證 Token
         auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
         res = requests.post(auth_url, data={
             'grant_type': 'client_credentials',
@@ -30,9 +29,7 @@ class TrainApp:
         headers = {'authorization': f'Bearer {self.token}'}
         today = datetime.now().strftime('%Y-%m-%d')
         
-        # 1. 抓取 O-D 時刻表
         url = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTimetable/OD/{START_STATION_ID}/to/{END_STATION_ID}/{today}"
-        # 2. 抓取即時誤點資訊
         delay_url = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/LiveTrainDelay"
         
         try:
@@ -55,15 +52,12 @@ class TrainApp:
             arr_s = t['StopTimes'][1]['ArrivalTime']
             delay = delays.get(no, 0)
             
-            # 轉換為 datetime 物件進行運算
             dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
             arr_dt = datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M")
-            
-            # 計算包含誤點的實際時間
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
             
-            # 修正後的邏輯：只要是 10 分鐘前到今天結束前的班次都顯示
+            # --- 核心邏輯：顯示從 10 分鐘前到今天結束的所有車次 ---
             if real_dep > now - timedelta(minutes=10):
                 processed.append({
                     "no": no,
@@ -76,7 +70,6 @@ class TrainApp:
                     "sort_key": real_dep
                 })
         
-        # 依照「實際發車時間」排序，確保誤點太久的車會往後排
         return sorted(processed, key=lambda x: x['sort_key'])
 
     def generate_html(self, data):
@@ -89,10 +82,10 @@ class TrainApp:
             <meta http-equiv="refresh" content="60">
             <title>智慧火車時刻表</title>
             <style>
-                body { background: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 15px; margin: 0; }
+                body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 15px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
                 .header { padding: 20px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
-                .card { background: #1c1c1e; border-radius: 16px; padding: 20px; margin-bottom: 15px; border-left: 6px solid #30d158; transition: transform 0.2s; }
+                .card { background: #1c1c1e; border-radius: 16px; padding: 20px; margin-bottom: 15px; border-left: 6px solid #30d158; }
                 .late-card { border-left-color: #ff453a; }
                 .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
                 .train-no { color: #8e8e93; font-size: 0.9rem; font-weight: bold; }
@@ -121,15 +114,8 @@ class TrainApp:
             card_style = "late-card" if t['delay'] > 0 else ""
             cards_html += f"""
             <div class="card {card_style}">
-                <div class="train-info">
-                    <span class="train-no">{t['type']} {t['no']} 次</span>
-                    {delay_tag}
-                </div>
-                <div class="main-time">
-                    <span>{t['act_dep']}</span>
-                    <span class="arrow">➔</span>
-                    <span>{t['act_arr']}</span>
-                </div>
+                <div class="train-info"><span class="train-no">{t['type']} {t['no']} 次</span>{delay_tag}</div>
+                <div class="main-time"><span>{t['act_dep']}</span><span class="arrow">➔</span><span>{t['act_arr']}</span></div>
                 <div class="sub-time">原定：{t['sch_dep']} ➔ {t['sch_arr']}</div>
             </div>
             """
@@ -141,9 +127,7 @@ class TrainApp:
             f.write(html_template.replace("{% CARDS %}", cards_html))
 
 if __name__ == "__main__":
-    if not CLIENT_ID or not CLIENT_SECRET:
-        print("錯誤：找不到 API 金鑰。請確認 GitHub Secrets 設定。")
-    else:
+    if CLIENT_ID and CLIENT_SECRET:
         app = TrainApp(CLIENT_ID, CLIENT_SECRET)
         data = app.fetch_data()
         app.generate_html(data)
