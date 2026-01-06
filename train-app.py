@@ -1,3 +1,4 @@
+
 import requests
 import json
 import os
@@ -35,6 +36,7 @@ class TrainApp:
         try:
             trains_res = requests.get(url, headers=headers).json()
             trains = trains_res.get('TrainTimetables', [])
+            print(f"成功抓取原始時刻表，共 {len(trains)} 班車次")
             
             delays_res = requests.get(delay_url, headers=headers).json()
             delays = {t['TrainNo']: t.get('DelayTime', 0) for t in delays_res.get('LiveTrainDelays', [])}
@@ -44,6 +46,7 @@ class TrainApp:
         
         processed = []
         now = datetime.now()
+        print(f"目前台灣時間: {now.strftime('%Y-%m-%d %H:%M:%S')}")
         
         for t in trains:
             no = t['TrainInfo']['TrainNo']
@@ -57,19 +60,17 @@ class TrainApp:
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
             
-            # --- 核心邏輯：顯示從 10 分鐘前到今天結束的所有車次 ---
+            # 關鍵修正：只要發車時間在「現在」的 10 分鐘前之後，就全部顯示
             if real_dep > now - timedelta(minutes=10):
                 processed.append({
-                    "no": no,
-                    "type": type_name,
-                    "delay": delay,
+                    "no": no, "type": type_name, "delay": delay,
                     "act_dep": real_dep.strftime("%H:%M"),
                     "act_arr": real_arr.strftime("%H:%M"),
-                    "sch_dep": dep_s,
-                    "sch_arr": arr_s,
+                    "sch_dep": dep_s, "sch_arr": arr_s,
                     "sort_key": real_dep
                 })
         
+        print(f"過濾後預計顯示 {len(processed)} 班車次")
         return sorted(processed, key=lambda x: x['sort_key'])
 
     def generate_html(self, data):
@@ -125,6 +126,7 @@ class TrainApp:
 
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(html_template.replace("{% CARDS %}", cards_html))
+        print("成功產生 index.html")
 
 if __name__ == "__main__":
     if CLIENT_ID and CLIENT_SECRET:
