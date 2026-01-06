@@ -1,18 +1,13 @@
-name: Auto Update Train Schedule
+name: Train Timetable Update
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # 每 5 分鐘自動執行一次
-  workflow_dispatch:      # 讓你可以手動點擊按鈕測試執行
+    - cron: "*/5 * * * *"  # 每 5 分鐘執行一次
+  workflow_dispatch:      # 允許手動點擊按鈕執行
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      TZ: Asia/Taipei     # 強制伺服器使用台灣時間
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -25,10 +20,11 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run script
+      - name: Run Python script
         env:
           TDX_ID: ${{ secrets.TDX_ID }}
           TDX_SECRET: ${{ secrets.TDX_SECRET }}
+          TZ: 'Asia/Taipei'  # 強制設定時區為台北
         run: python train-app.py
 
       - name: Deploy to GitHub Pages
@@ -36,4 +32,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
-          publish_branch: gh-pages
+          publish_files: index.html
