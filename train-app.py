@@ -53,26 +53,26 @@ class TrainApp:
 
                         # --- 精確名稱簡化與顏色邏輯 ---
                         display_type = raw_type
-                        type_color = "#ffffff" # 預設白
+                        type_color = "#ffffff" 
 
                         if "區間快" in raw_type:
                             display_type = "區間快"
-                            type_color = "#0076B2" # 藍
+                            type_color = "#0076B2" 
                         elif "區間" in raw_type:
                             display_type = "區間車"
-                            type_color = "#0076B2" # 藍
+                            type_color = "#0076B2" 
                         elif "普悠瑪" in raw_type:
                             display_type = "普悠瑪"
-                            type_color = "#9C1637" # 酒紅
+                            type_color = "#9C1637" 
                         elif "3000" in raw_type:
                             display_type = "自強3000"
-                            type_color = "#85a38f" # 深綠
+                            type_color = "#85a38f" 
                         elif "自強" in raw_type:
                             display_type = "自強號"
-                            type_color = "#DF3F1F" # 亮紅
+                            type_color = "#DF3F1F" 
                         elif "太魯閣" in raw_type:
                             display_type = "太魯閣"
-                            type_color = "#9C1637" # 酒紅
+                            type_color = "#9C1637" 
 
                         dep_s = stop_times[idx_start]['DepartureTime']
                         arr_s = stop_times[idx_end]['ArrivalTime']
@@ -83,7 +83,6 @@ class TrainApp:
                         real_dep = dep_dt + timedelta(minutes=delay)
                         real_arr = arr_dt + timedelta(minutes=delay)
 
-                        # 過濾：顯示 10 分鐘前到今天的車
                         if real_dep > now - timedelta(minutes=10):
                             processed.append({
                                 "no": no, "type": display_type, "delay": delay, "color": type_color,
@@ -98,6 +97,7 @@ class TrainApp:
             return []
 
     def generate_html(self, data):
+        ride_date = datetime.now().strftime("%Y/%m/%d")
         html_template = """
         <!DOCTYPE html>
         <html lang="zh-TW">
@@ -139,8 +139,7 @@ class TrainApp:
         cards_html = ""
         for t in data:
             delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
-            # 台鐵車次即時位置查詢連結
-            train_url = f"https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip112/querybytrainno?trainNo={t['no']}"
+            train_url = f"https://www.railway.gov.tw/tra-tip-web/tip/tip001/tip112/querybytrainno?trainNo={t['no']}&rideDate={ride_date}"
             
             cards_html += f"""
             <a href="{train_url}" target="_blank">
