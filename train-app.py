@@ -57,22 +57,22 @@ class TrainApp:
                         
                         if "區間快" in raw_type:
                             display_type = "區間快"
-                            type_color = "#007aff" # 藍
+                            type_color = "#0076B2" # 藍
                         elif "區間" in raw_type:
                             display_type = "區間車"
-                            type_color = "#007aff" # 藍
+                            type_color = "#0076B2" # 藍
                         elif "普悠瑪" in raw_type:
                             display_type = "普悠瑪"
-                            type_color = "#800020" # 酒紅
+                            type_color = "#9C1637" # 酒紅
                         elif "3000" in raw_type:
                             display_type = "自強3000"
                             type_color = "#85a38f" # 深綠
                         elif "自強" in raw_type:
                             display_type = "自強號"
-                            type_color = "#ff3b30" # 亮紅
+                            type_color = "#DF3F1F" # 亮紅
                         elif "太魯閣" in raw_type:
                             display_type = "太魯閣"
-                            type_color = "#800020" # 酒紅
+                            type_color = "#9C1637" # 酒紅
 
                         dep_s = stop_times[idx_start]['DepartureTime']
                         arr_s = stop_times[idx_end]['ArrivalTime']
