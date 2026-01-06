@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 # ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
+# 如果要換地點，直接修改這裡
 START_STATION_NAME = '屏東'
 END_STATION_NAME = '潮州'
 # =========================================
@@ -80,34 +81,32 @@ class TrainApp:
         <html lang="zh-TW">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <meta http-equiv="refresh" content="60">
-            <title>智慧火車時刻表</title>
+            <title>列車動態時刻表</title>
             <style>
-                body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 15px; margin: 0; }
+                body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 12px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
-                .header { padding: 20px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
-                /* 正常顏色設定 */
-                .card { background: #1c1c1e; border-radius: 16px; padding: 20px; margin-bottom: 15px; border-left: 6px solid #334439; }
-                /* 誤點顏色設定 (色相 40°) */
+                .header { padding: 10px 5px; border-bottom: 1px solid #1c1c1e; margin-bottom: 15px; }
+                .card { background: #151517; border-radius: 14px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #334439; }
                 .late-card { border-left-color: hsl(40, 100%, 50%); }
-                .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-                .train-no { color: #8e8e93; font-size: 0.9rem; font-weight: bold; }
-                .delay-badge { background: hsl(40, 100%, 50%); color: #000; padding: 3px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
-                .main-time { display: flex; align-items: center; justify-content: center; font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; }
-                .arrow { margin: 0 10px; color: #444; font-size: 1.2rem; }
-                .sub-time { text-align: center; color: #636366; font-size: 0.85rem; margin-top: 12px; padding-top: 10px; border-top: 1px solid #2c2c2e; }
-                .update-time { text-align: center; color: #48484a; font-size: 0.75rem; margin-top: 30px; }
+                .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+                .train-no { color: #8e8e93; font-size: 0.8rem; font-weight: 500; }
+                .delay-badge { background: hsl(40, 100%, 50%); color: #000; padding: 2px 7px; border-radius: 5px; font-size: 0.7rem; font-weight: 900; }
+                .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; }
+                .arrow { margin: 0 10px; color: #2c2c2e; font-size: 0.9rem; }
+                .sub-time { text-align: center; color: #48484a; font-size: 0.7rem; margin-top: 8px; padding-top: 8px; border-top: 1px solid #1c1c1e; }
+                .update-time { text-align: center; color: #2c2c2e; font-size: 0.65rem; margin-top: 25px; }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin:0; font-size:1.6rem;">屏東 ➔ 潮州</h1>
-                    <div style="color:#8e8e93; font-size:0.9rem; margin-top:5px;">智慧時刻看板 (自訂色彩版)</div>
+                    <h1 style="margin:0; font-size:1.4rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
+                    <div style="color:#8e8e93; font-size:0.85rem; margin-top:4px; font-weight: 300; letter-spacing: 1px;">專屬列車時刻導引</div>
                 </div>
                 {% CARDS %}
-                <div class="update-time">最後更新時間：""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """</div>
+                <div class="update-time">最後數據更新：""" + datetime.now().strftime("%H:%M:%S") + """</div>
             </div>
         </body>
         </html>
@@ -124,7 +123,7 @@ class TrainApp:
             </div>
             """
         if not data:
-            cards_html = '<div style="text-align:center; padding:50px; color:#666;">目前時段暫無班次</div>'
+            cards_html = '<div style="text-align:center; padding:50px; color:#444;">目前時段暫無班次</div>'
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(html_template.replace("{% CARDS %}", cards_html))
 
@@ -132,4 +131,3 @@ if __name__ == "__main__":
     app = TrainApp(CLIENT_ID, CLIENT_SECRET)
     data = app.fetch_data()
     app.generate_html(data)
-

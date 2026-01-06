@@ -3,31 +3,29 @@
         <html lang="zh-TW">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <meta http-equiv="refresh" content="60">
-            <title>智慧火車時刻表</title>
+            <title>列車動態時刻表</title>
             <style>
-                body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 15px; margin: 0; }
+                body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 12px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
-                .header { padding: 20px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
-                /* 正常顏色設定 */
-                .card { background: #1c1c1e; border-radius: 16px; padding: 20px; margin-bottom: 15px; border-left: 6px solid #334439; }
-                /* 誤點顏色設定 (色相 40°) */
+                .header { padding: 10px 5px; border-bottom: 1px solid #1c1c1e; margin-bottom: 15px; }
+                .card { background: #151517; border-radius: 14px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #334439; }
                 .late-card { border-left-color: hsl(40, 100%, 50%); }
-                .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-                .train-no { color: #8e8e93; font-size: 0.9rem; font-weight: bold; }
-                .delay-badge { background: hsl(40, 100%, 50%); color: #000; padding: 3px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
-                .main-time { display: flex; align-items: center; justify-content: center; font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; }
-                .arrow { margin: 0 10px; color: #444; font-size: 1.2rem; }
-                .sub-time { text-align: center; color: #636366; font-size: 0.85rem; margin-top: 12px; padding-top: 10px; border-top: 1px solid #2c2c2e; }
-                .update-time { text-align: center; color: #48484a; font-size: 0.75rem; margin-top: 30px; }
+                .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+                .train-no { color: #8e8e93; font-size: 0.8rem; font-weight: 500; }
+                .delay-badge { background: hsl(40, 100%, 50%); color: #000; padding: 2px 7px; border-radius: 5px; font-size: 0.7rem; font-weight: 900; }
+                .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; }
+                .arrow { margin: 0 10px; color: #2c2c2e; font-size: 0.9rem; }
+                .sub-time { text-align: center; color: #48484a; font-size: 0.7rem; margin-top: 8px; padding-top: 8px; border-top: 1px solid #1c1c1e; }
+                .update-time { text-align: center; color: #2c2c2e; font-size: 0.65rem; margin-top: 25px; }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin:0; font-size:1.6rem;">屏東 ➔ 潮州</h1>
-                    <div style="color:#8e8e93; font-size:0.9rem; margin-top:5px;">智慧時刻看板 (自訂色彩版)</div>
+                    <h1 style="margin:0; font-size:1.4rem;">屏東 ➔ 潮州</h1>
+                    <div style="color:#8e8e93; font-size:0.85rem; margin-top:4px; font-weight: 300; letter-spacing: 1px;">專屬列車時刻導引</div>
                 </div>
                 
             <div class="card ">
@@ -66,21 +64,21 @@
                 <div class="sub-time">原定：12:31 ➔ 12:50</div>
             </div>
             
-            <div class="card late-card">
-                <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 105 次</span><div class="delay-badge">晚 7 分</div></div>
-                <div class="main-time"><span>12:47</span><span class="arrow">➔</span><span>13:01</span></div>
-                <div class="sub-time">原定：12:40 ➔ 12:54</div>
-            </div>
-            
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3165 次</span></div>
                 <div class="main-time"><span>12:47</span><span class="arrow">➔</span><span>13:06</span></div>
                 <div class="sub-time">原定：12:47 ➔ 13:06</div>
             </div>
             
-            <div class="card ">
-                <div class="train-info"><span class="train-no">區間 3167 次</span></div>
-                <div class="main-time"><span>12:58</span><span class="arrow">➔</span><span>13:17</span></div>
+            <div class="card late-card">
+                <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 105 次</span><div class="delay-badge">晚 8 分</div></div>
+                <div class="main-time"><span>12:48</span><span class="arrow">➔</span><span>13:02</span></div>
+                <div class="sub-time">原定：12:40 ➔ 12:54</div>
+            </div>
+            
+            <div class="card late-card">
+                <div class="train-info"><span class="train-no">區間 3167 次</span><div class="delay-badge">晚 3 分</div></div>
+                <div class="main-time"><span>13:01</span><span class="arrow">➔</span><span>13:20</span></div>
                 <div class="sub-time">原定：12:58 ➔ 13:17</div>
             </div>
             
@@ -91,8 +89,8 @@
             </div>
             
             <div class="card late-card">
-                <div class="train-info"><span class="train-no">區間 3171 次</span><div class="delay-badge">晚 7 分</div></div>
-                <div class="main-time"><span>13:32</span><span class="arrow">➔</span><span>13:51</span></div>
+                <div class="train-info"><span class="train-no">區間 3171 次</span><div class="delay-badge">晚 8 分</div></div>
+                <div class="main-time"><span>13:33</span><span class="arrow">➔</span><span>13:52</span></div>
                 <div class="sub-time">原定：13:25 ➔ 13:44</div>
             </div>
             
@@ -144,15 +142,15 @@
                 <div class="sub-time">原定：15:13 ➔ 15:23</div>
             </div>
             
-            <div class="card ">
-                <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 117 次</span></div>
-                <div class="main-time"><span>15:19</span><span class="arrow">➔</span><span>15:30</span></div>
+            <div class="card late-card">
+                <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 117 次</span><div class="delay-badge">晚 5 分</div></div>
+                <div class="main-time"><span>15:24</span><span class="arrow">➔</span><span>15:35</span></div>
                 <div class="sub-time">原定：15:19 ➔ 15:30</div>
             </div>
             
-            <div class="card ">
-                <div class="train-info"><span class="train-no">區間 3197 次</span></div>
-                <div class="main-time"><span>15:32</span><span class="arrow">➔</span><span>15:51</span></div>
+            <div class="card late-card">
+                <div class="train-info"><span class="train-no">區間 3197 次</span><div class="delay-badge">晚 1 分</div></div>
+                <div class="main-time"><span>15:33</span><span class="arrow">➔</span><span>15:52</span></div>
                 <div class="sub-time">原定：15:32 ➔ 15:51</div>
             </div>
             
@@ -402,7 +400,7 @@
                 <div class="sub-time">原定：23:49 ➔ 00:08</div>
             </div>
             
-                <div class="update-time">最後更新時間：2026-01-06 11:41:43</div>
+                <div class="update-time">最後數據更新：11:48:06</div>
             </div>
         </body>
         </html>
