@@ -119,7 +119,7 @@ class TrainApp:
                 .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
                 .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
                 .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 4px 0; }
-                .arrow { margin: 0 12px; color: #2c2c2e; font-size: 0.8rem; }
+                .arrow { margin: 0 12px; color: #999999; font-size: 0.8rem; }
                 .sub-time { text-align: center; color: #999999; font-size: 0.7rem; }
             </style>
         </head>
@@ -128,7 +128,7 @@ class TrainApp:
                 <div class="update-time">上次更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
                 <div class="header">
                     <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
-                    <span style="color: #3a3a3c; font-size: 0.7rem;">by Benjamin Dai</span>
+                    <span style="color: #000000; font-size: 0.7rem;">by Benjamin Dai</span>
                 </div>
                 {% CARDS %}
             </div>
