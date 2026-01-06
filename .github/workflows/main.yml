@@ -2,7 +2,7 @@ name: Train Timetable Update
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # 每 5 分鐘執行一次
+    - cron: "*/6 * * * *"  # 每 6 分鐘執行一次
   workflow_dispatch:      # 允許手動執行
 
 permissions:
