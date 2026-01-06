@@ -1,12 +1,12 @@
-
 import requests
 import json
 import os
 from datetime import datetime, timedelta
 
-# ================= 設定區 (從 GitHub Secrets 讀取) =================
+# ================= 設定區 (請再次檢查 GitHub Secrets) =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
+# 車站代碼必須是字串格式
 START_STATION_ID = '5000' # 屏東
 END_STATION_ID = '5030'   # 潮州
 # =================================================================
@@ -24,30 +24,41 @@ class TrainApp:
             'client_id': self.cid,
             'client_secret': self.csecret
         })
-        return res.json().get('access_token')
+        token = res.json().get('access_token')
+        if not token:
+            print("【警告】無法取得 API Token，請檢查 ID 和 Secret 是否正確。")
+        return token
 
     def fetch_data(self):
         headers = {'authorization': f'Bearer {self.token}'}
-        today = datetime.now().strftime('%Y-%m-%d')
+        # 使用台灣時間
+        now = datetime.now()
+        today = now.strftime('%Y-%m-%d')
         
+        # 修正後的 API 網址格式
         url = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTimetable/OD/{START_STATION_ID}/to/{END_STATION_ID}/{today}"
         delay_url = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/LiveTrainDelay"
         
+        print(f"--- 執行除錯資訊 ---")
+        print(f"目前台灣時間: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"查詢路徑: {START_STATION_ID} ➔ {END_STATION_ID} (日期: {today})")
+        
         try:
-            trains_res = requests.get(url, headers=headers).json()
-            trains = trains_res.get('TrainTimetables', [])
-            print(f"成功抓取原始時刻表，共 {len(trains)} 班車次")
+            res = requests.get(url, headers=headers)
+            trains = res.json().get('TrainTimetables', [])
+            print(f"成功連線 API，原始資料包含 {len(trains)} 班車次")
             
-            delays_res = requests.get(delay_url, headers=headers).json()
-            delays = {t['TrainNo']: t.get('DelayTime', 0) for t in delays_res.get('LiveTrainDelays', [])}
+            # 如果還是 0 班，印出 API 回傳的錯誤訊息方便診斷
+            if len(trains) == 0:
+                print(f"API 回傳訊息內容: {res.text}")
+            
+            delay_res = requests.get(delay_url, headers=headers).json()
+            delays = {t['TrainNo']: t.get('DelayTime', 0) for t in delay_res.get('LiveTrainDelays', [])}
         except Exception as e:
-            print(f"資料抓取失敗: {e}")
+            print(f"資料處理發生異常: {e}")
             return []
         
         processed = []
-        now = datetime.now()
-        print(f"目前台灣時間: {now.strftime('%Y-%m-%d %H:%M:%S')}")
-        
         for t in trains:
             no = t['TrainInfo']['TrainNo']
             type_name = t['TrainInfo']['TrainTypeName']['Zh_tw']
@@ -60,7 +71,7 @@ class TrainApp:
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
             
-            # 關鍵修正：只要發車時間在「現在」的 10 分鐘前之後，就全部顯示
+            # 過濾條件：顯示 10 分鐘前到今天的車
             if real_dep > now - timedelta(minutes=10):
                 processed.append({
                     "no": no, "type": type_name, "delay": delay,
@@ -70,7 +81,7 @@ class TrainApp:
                     "sort_key": real_dep
                 })
         
-        print(f"過濾後預計顯示 {len(processed)} 班車次")
+        print(f"經過時間過濾後，準備顯示的車次共 {len(processed)} 班")
         return sorted(processed, key=lambda x: x['sort_key'])
 
     def generate_html(self, data):
@@ -91,17 +102,17 @@ class TrainApp:
                 .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
                 .train-no { color: #8e8e93; font-size: 0.9rem; font-weight: bold; }
                 .delay-badge { background: #ff453a; color: white; padding: 3px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
-                .main-time { display: flex; align-items: center; justify-content: center; font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; }
+                .main-time { display: flex; align-items: center; justify-content: center; font-size: 2.8rem; font-weight: 900; }
                 .arrow { margin: 0 15px; color: #444; font-size: 1.5rem; }
                 .sub-time { text-align: center; color: #636366; font-size: 0.85rem; margin-top: 12px; padding-top: 10px; border-top: 1px solid #2c2c2e; }
-                .update-time { text-align: center; color: #48484a; font-size: 0.75rem; margin-top: 30px; padding-bottom: 20px; }
+                .update-time { text-align: center; color: #48484a; font-size: 0.75rem; margin-top: 30px; }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
                     <h1 style="margin:0; font-size:1.6rem;">屏東 ➔ 潮州</h1>
-                    <div style="color:#8e8e93; font-size:0.9rem; margin-top:5px;">智慧即時排序看板</div>
+                    <div style="color:#8e8e93; font-size:0.9rem; margin-top:5px;">智慧時刻看板 (更新完成)</div>
                 </div>
                 {% CARDS %}
                 <div class="update-time">最後更新時間：""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """</div>
@@ -126,10 +137,12 @@ class TrainApp:
 
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(html_template.replace("{% CARDS %}", cards_html))
-        print("成功產生 index.html")
 
 if __name__ == "__main__":
     if CLIENT_ID and CLIENT_SECRET:
         app = TrainApp(CLIENT_ID, CLIENT_SECRET)
         data = app.fetch_data()
         app.generate_html(data)
+    else:
+        print("【錯誤】找不到 Secrets，請檢查 GitHub 設定。")
+
