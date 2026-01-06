@@ -66,7 +66,7 @@ class TrainApp:
                             type_color = "#800020" # 酒紅
                         elif "3000" in raw_type:
                             display_type = "自強3000"
-                            type_color = "#334439" # 深綠
+                            type_color = "#85a38f" # 深綠
                         elif "自強" in raw_type:
                             display_type = "自強號"
                             type_color = "#ff3b30" # 亮紅
@@ -104,7 +104,7 @@ class TrainApp:
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <meta http-equiv="refresh" content="60">
+            <meta http-equiv="refresh" content="30">
             <title>列車時刻導引</title>
             <style>
                 body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
