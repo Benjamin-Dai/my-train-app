@@ -120,15 +120,15 @@ class TrainApp:
                 .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
                 .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 4px 0; }
                 .arrow { margin: 0 12px; color: #2c2c2e; font-size: 0.8rem; }
-                .sub-time { text-align: center; color: #bfbfbf; font-size: 0.7rem; }
+                .sub-time { text-align: center; color: #999999; font-size: 0.7rem; }
             </style>
         </head>
         <body>
             <div class="container">
-                <div class="update-time">最後數據更新：""" + datetime.now().strftime("%H:%M:%S") + """</div>
+                <div class="update-time">資料更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
                 <div class="header">
                     <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
-                    <span style="color: #48484a; font-size: 0.7rem;">專屬導引</span>
+                    <span style="color: #999999; font-size: 0.7rem;">專屬導引</span>
                 </div>
                 {% CARDS %}
             </div>
