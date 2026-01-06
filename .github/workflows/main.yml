@@ -1,6 +1,5 @@
 name: Auto Update Train Schedule
 
-# 設定觸發條件
 on:
   schedule:
     - cron: '*/5 * * * *' # 每 5 分鐘自動執行一次
@@ -9,8 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # 賦予程式寫入檔案的權限 (這很重要，否則無法產出網頁)
+    env:
+      TZ: Asia/Taipei     # 強制伺服器使用台灣時間
     permissions:
       contents: write
 
@@ -28,7 +27,6 @@ jobs:
 
       - name: Run script
         env:
-          # 這裡會從你設定的 Secrets 保險箱抓取金鑰
           TDX_ID: ${{ secrets.TDX_ID }}
           TDX_SECRET: ${{ secrets.TDX_SECRET }}
         run: python train-app.py
@@ -37,5 +35,5 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./        # 產出的 index.html 在根目錄
-          publish_branch: gh-pages # 把結果放在這個分支，用來跑網頁
+          publish_dir: ./
+          publish_branch: gh-pages
