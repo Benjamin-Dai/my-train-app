@@ -17,6 +17,7 @@ class TrainApp:
         self.token = self.get_token()
 
     def get_token(self):
+        # 取得 TDX 認證 Token
         auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
         res = requests.post(auth_url, data={
             'grant_type': 'client_credentials',
@@ -28,13 +29,20 @@ class TrainApp:
     def fetch_data(self):
         headers = {'authorization': f'Bearer {self.token}'}
         today = datetime.now().strftime('%Y-%m-%d')
+        
+        # 1. 抓取 O-D 時刻表
         url = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTimetable/OD/{START_STATION_ID}/to/{END_STATION_ID}/{today}"
+        # 2. 抓取即時誤點資訊
         delay_url = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/LiveTrainDelay"
         
         try:
-            trains = requests.get(url, headers=headers).json().get('TrainTimetables', [])
-            delays = {t['TrainNo']: t.get('DelayTime', 0) for t in requests.get(delay_url, headers=headers).json().get('LiveTrainDelays', [])}
-        except:
+            trains_res = requests.get(url, headers=headers).json()
+            trains = trains_res.get('TrainTimetables', [])
+            
+            delays_res = requests.get(delay_url, headers=headers).json()
+            delays = {t['TrainNo']: t.get('DelayTime', 0) for t in delays_res.get('LiveTrainDelays', [])}
+        except Exception as e:
+            print(f"資料抓取失敗: {e}")
             return []
         
         processed = []
@@ -47,22 +55,28 @@ class TrainApp:
             arr_s = t['StopTimes'][1]['ArrivalTime']
             delay = delays.get(no, 0)
             
+            # 轉換為 datetime 物件進行運算
             dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
             arr_dt = datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M")
+            
+            # 計算包含誤點的實際時間
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
             
-            # 顯示「現在時間前 15 分鐘」到「未來 120 分鐘」的車
-            # 只要是「現在之後」發車的班次，全部都顯示出來
-        if real_dep > now - timedelta(minutes=10):
+            # 修正後的邏輯：只要是 10 分鐘前到今天結束前的班次都顯示
+            if real_dep > now - timedelta(minutes=10):
                 processed.append({
-                    "no": no, "type": type_name, "delay": delay,
+                    "no": no,
+                    "type": type_name,
+                    "delay": delay,
                     "act_dep": real_dep.strftime("%H:%M"),
                     "act_arr": real_arr.strftime("%H:%M"),
-                    "sch_dep": dep_s, "sch_arr": arr_s,
+                    "sch_dep": dep_s,
+                    "sch_arr": arr_s,
                     "sort_key": real_dep
                 })
         
+        # 依照「實際發車時間」排序，確保誤點太久的車會往後排
         return sorted(processed, key=lambda x: x['sort_key'])
 
     def generate_html(self, data):
@@ -73,26 +87,26 @@ class TrainApp:
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta http-equiv="refresh" content="60">
-            <title>智慧時刻表</title>
+            <title>智慧火車時刻表</title>
             <style>
-                body { background: #000; color: #fff; font-family: sans-serif; padding: 15px; margin: 0; }
+                body { background: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 15px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
                 .header { padding: 20px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
-                .card { background: #1c1c1e; border-radius: 16px; padding: 20px; margin-bottom: 15px; border-left: 6px solid #30d158; }
+                .card { background: #1c1c1e; border-radius: 16px; padding: 20px; margin-bottom: 15px; border-left: 6px solid #30d158; transition: transform 0.2s; }
                 .late-card { border-left-color: #ff453a; }
                 .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
                 .train-no { color: #8e8e93; font-size: 0.9rem; font-weight: bold; }
                 .delay-badge { background: #ff453a; color: white; padding: 3px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
-                .main-time { display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 900; }
+                .main-time { display: flex; align-items: center; justify-content: center; font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; }
                 .arrow { margin: 0 15px; color: #444; font-size: 1.5rem; }
                 .sub-time { text-align: center; color: #636366; font-size: 0.85rem; margin-top: 12px; padding-top: 10px; border-top: 1px solid #2c2c2e; }
-                .update-time { text-align: center; color: #48484a; font-size: 0.75rem; margin-top: 20px; }
+                .update-time { text-align: center; color: #48484a; font-size: 0.75rem; margin-top: 30px; padding-bottom: 20px; }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin:0; font-size:1.5rem;">屏東 ➔ 潮州</h1>
+                    <h1 style="margin:0; font-size:1.6rem;">屏東 ➔ 潮州</h1>
                     <div style="color:#8e8e93; font-size:0.9rem; margin-top:5px;">智慧即時排序看板</div>
                 </div>
                 {% CARDS %}
@@ -107,11 +121,19 @@ class TrainApp:
             card_style = "late-card" if t['delay'] > 0 else ""
             cards_html += f"""
             <div class="card {card_style}">
-                <div class="train-info"><span class="train-no">{t['type']} {t['no']} 次</span>{delay_tag}</div>
-                <div class="main-time"><span>{t['act_dep']}</span><span class="arrow">➔</span><span>{t['act_arr']}</span></div>
+                <div class="train-info">
+                    <span class="train-no">{t['type']} {t['no']} 次</span>
+                    {delay_tag}
+                </div>
+                <div class="main-time">
+                    <span>{t['act_dep']}</span>
+                    <span class="arrow">➔</span>
+                    <span>{t['act_arr']}</span>
+                </div>
                 <div class="sub-time">原定：{t['sch_dep']} ➔ {t['sch_arr']}</div>
             </div>
             """
+        
         if not data:
             cards_html = '<div style="text-align:center; padding:50px; color:#666;">目前時段暫無班次</div>'
 
@@ -119,7 +141,9 @@ class TrainApp:
             f.write(html_template.replace("{% CARDS %}", cards_html))
 
 if __name__ == "__main__":
-    if CLIENT_ID and CLIENT_SECRET:
+    if not CLIENT_ID or not CLIENT_SECRET:
+        print("錯誤：找不到 API 金鑰。請確認 GitHub Secrets 設定。")
+    else:
         app = TrainApp(CLIENT_ID, CLIENT_SECRET)
         data = app.fetch_data()
         app.generate_html(data)
