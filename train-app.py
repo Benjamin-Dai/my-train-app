@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 # ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
-START_STATION_NAME = '潮州'
-END_STATION_NAME = '屏東'
+START_STATION_NAME = '屏東'
+END_STATION_NAME = '潮州'
 # =========================================
 
 class TrainApp:
