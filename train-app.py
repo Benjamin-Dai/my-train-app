@@ -98,8 +98,6 @@ class TrainApp:
             return []
 
     def generate_html(self, data):
-        target_date = datetime.now().strftime("%Y-%m-%d")
-        
         html_template = """
         <!DOCTYPE html>
         <html lang="zh-TW">
@@ -141,7 +139,9 @@ class TrainApp:
         cards_html = ""
         for t in data:
             delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
-            train_url = f"https://railway.chienwen.net/taiwan/list/trains/{target_date}/{t['no']}"
+            
+            # 使用您提供的精確連結：/train/TRA-{車次}/live
+            train_url = f"https://railway.chienwen.net/taiwan/train/TRA-{t['no']}/live"
             
             cards_html += f"""
             <a href="{train_url}" target="_blank">
