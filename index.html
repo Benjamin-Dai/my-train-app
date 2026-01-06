@@ -7,16 +7,19 @@
             <meta http-equiv="refresh" content="60">
             <title>智慧火車時刻表</title>
             <style>
-                body { background: #000; color: #fff; font-family: sans-serif; padding: 15px; margin: 0; }
+                body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 15px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
                 .header { padding: 20px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
-                .card { background: #1c1c1e; border-radius: 16px; padding: 20px; margin-bottom: 15px; border-left: 6px solid #30d158; }
-                .late-card { border-left-color: #ff453a; }
+                /* 正常顏色設定 */
+                .card { background: #1c1c1e; border-radius: 16px; padding: 20px; margin-bottom: 15px; border-left: 6px solid #334439; }
+                /* 誤點顏色設定 (色相 40°) */
+                .late-card { border-left-color: hsl(40, 100%, 50%); }
                 .train-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
                 .train-no { color: #8e8e93; font-size: 0.9rem; font-weight: bold; }
-                .delay-badge { background: #ff453a; color: white; padding: 3px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
-                .main-time { display: flex; align-items: center; justify-content: center; font-size: 2.8rem; font-weight: 900; }
-                .arrow { margin: 0 15px; color: #444; font-size: 1.5rem; }
+                .delay-badge { background: hsl(40, 100%, 50%); color: #000; padding: 3px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
+                .main-time { display: flex; align-items: center; justify-content: center; font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; }
+                .arrow { margin: 0 10px; color: #444; font-size: 1.2rem; }
+                .sub-time { text-align: center; color: #636366; font-size: 0.85rem; margin-top: 12px; padding-top: 10px; border-top: 1px solid #2c2c2e; }
                 .update-time { text-align: center; color: #48484a; font-size: 0.75rem; margin-top: 30px; }
             </style>
         </head>
@@ -24,382 +27,382 @@
             <div class="container">
                 <div class="header">
                     <h1 style="margin:0; font-size:1.6rem;">屏東 ➔ 潮州</h1>
-                    <div style="color:#8e8e93; font-size:0.9rem; margin-top:5px;">智慧時刻看板 (V2 穩定版)</div>
+                    <div style="color:#8e8e93; font-size:0.9rem; margin-top:5px;">智慧時刻看板 (自訂色彩版)</div>
                 </div>
                 
-            <div class="card late-card">
-                <div class="train-info"><span class="train-no">普悠瑪(普悠瑪) 107 次</span><div class="delay-badge">晚 1 分</div></div>
-                <div class="main-time"><span>11:42</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：11:41</div>
+            <div class="card ">
+                <div class="train-info"><span class="train-no">普悠瑪(普悠瑪) 107 次</span></div>
+                <div class="main-time"><span>11:41</span><span class="arrow">➔</span><span>11:52</span></div>
+                <div class="sub-time">原定：11:41 ➔ 11:52</div>
             </div>
             
-            <div class="card late-card">
-                <div class="train-info"><span class="train-no">區間 3157 次</span><div class="delay-badge">晚 1 分</div></div>
-                <div class="main-time"><span>11:51</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：11:50</div>
+            <div class="card ">
+                <div class="train-info"><span class="train-no">區間 3157 次</span></div>
+                <div class="main-time"><span>11:50</span><span class="arrow">➔</span><span>12:09</span></div>
+                <div class="sub-time">原定：11:50 ➔ 12:09</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 103 次</span></div>
-                <div class="main-time"><span>12:04</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：12:04</div>
+                <div class="main-time"><span>12:04</span><span class="arrow">➔</span><span>12:17</span></div>
+                <div class="sub-time">原定：12:04 ➔ 12:17</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3061 次</span></div>
-                <div class="main-time"><span>12:09</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：12:09</div>
+                <div class="main-time"><span>12:09</span><span class="arrow">➔</span><span>12:31</span></div>
+                <div class="sub-time">原定：12:09 ➔ 12:31</div>
             </div>
             
             <div class="card late-card">
-                <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 111 次</span><div class="delay-badge">晚 9 分</div></div>
-                <div class="main-time"><span>12:25</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：12:16</div>
+                <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 111 次</span><div class="delay-badge">晚 8 分</div></div>
+                <div class="main-time"><span>12:24</span><span class="arrow">➔</span><span>12:34</span></div>
+                <div class="sub-time">原定：12:16 ➔ 12:26</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3161 次</span></div>
-                <div class="main-time"><span>12:31</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：12:31</div>
+                <div class="main-time"><span>12:31</span><span class="arrow">➔</span><span>12:50</span></div>
+                <div class="sub-time">原定：12:31 ➔ 12:50</div>
+            </div>
+            
+            <div class="card late-card">
+                <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 105 次</span><div class="delay-badge">晚 7 分</div></div>
+                <div class="main-time"><span>12:47</span><span class="arrow">➔</span><span>13:01</span></div>
+                <div class="sub-time">原定：12:40 ➔ 12:54</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3165 次</span></div>
-                <div class="main-time"><span>12:47</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：12:47</div>
-            </div>
-            
-            <div class="card late-card">
-                <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 105 次</span><div class="delay-badge">晚 8 分</div></div>
-                <div class="main-time"><span>12:48</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：12:40</div>
+                <div class="main-time"><span>12:47</span><span class="arrow">➔</span><span>13:06</span></div>
+                <div class="sub-time">原定：12:47 ➔ 13:06</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3167 次</span></div>
-                <div class="main-time"><span>12:58</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：12:58</div>
+                <div class="main-time"><span>12:58</span><span class="arrow">➔</span><span>13:17</span></div>
+                <div class="sub-time">原定：12:58 ➔ 13:17</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 431 次</span></div>
-                <div class="main-time"><span>13:11</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：13:11</div>
+                <div class="main-time"><span>13:11</span><span class="arrow">➔</span><span>13:21</span></div>
+                <div class="sub-time">原定：13:11 ➔ 13:21</div>
             </div>
             
             <div class="card late-card">
-                <div class="train-info"><span class="train-no">區間 3171 次</span><div class="delay-badge">晚 8 分</div></div>
-                <div class="main-time"><span>13:33</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：13:25</div>
+                <div class="train-info"><span class="train-no">區間 3171 次</span><div class="delay-badge">晚 7 分</div></div>
+                <div class="main-time"><span>13:32</span><span class="arrow">➔</span><span>13:51</span></div>
+                <div class="sub-time">原定：13:25 ➔ 13:44</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3063 次</span></div>
-                <div class="main-time"><span>13:47</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：13:47</div>
+                <div class="main-time"><span>13:47</span><span class="arrow">➔</span><span>14:01</span></div>
+                <div class="sub-time">原定：13:47 ➔ 14:01</div>
             </div>
             
             <div class="card late-card">
-                <div class="train-info"><span class="train-no">區間 3177 次</span><div class="delay-badge">晚 4 分</div></div>
-                <div class="main-time"><span>14:03</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：13:59</div>
+                <div class="train-info"><span class="train-no">區間 3177 次</span><div class="delay-badge">晚 3 分</div></div>
+                <div class="main-time"><span>14:02</span><span class="arrow">➔</span><span>14:21</span></div>
+                <div class="sub-time">原定：13:59 ➔ 14:18</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3181 次</span></div>
-                <div class="main-time"><span>14:21</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：14:21</div>
+                <div class="main-time"><span>14:21</span><span class="arrow">➔</span><span>14:41</span></div>
+                <div class="sub-time">原定：14:21 ➔ 14:41</div>
             </div>
             
             <div class="card late-card">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 131 次</span><div class="delay-badge">晚 5 分</div></div>
-                <div class="main-time"><span>14:23</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：14:18</div>
+                <div class="main-time"><span>14:23</span><span class="arrow">➔</span><span>14:34</span></div>
+                <div class="sub-time">原定：14:18 ➔ 14:29</div>
             </div>
             
-            <div class="card ">
-                <div class="train-info"><span class="train-no">區間 3187 次</span></div>
-                <div class="main-time"><span>14:42</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：14:42</div>
+            <div class="card late-card">
+                <div class="train-info"><span class="train-no">區間 3187 次</span><div class="delay-badge">晚 1 分</div></div>
+                <div class="main-time"><span>14:43</span><span class="arrow">➔</span><span>15:02</span></div>
+                <div class="sub-time">原定：14:42 ➔ 15:01</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3067 次</span></div>
-                <div class="main-time"><span>14:49</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：14:49</div>
+                <div class="main-time"><span>14:49</span><span class="arrow">➔</span><span>15:04</span></div>
+                <div class="sub-time">原定：14:49 ➔ 15:04</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3191 次</span></div>
-                <div class="main-time"><span>15:01</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：15:01</div>
+                <div class="main-time"><span>15:01</span><span class="arrow">➔</span><span>15:20</span></div>
+                <div class="sub-time">原定：15:01 ➔ 15:20</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 313 次</span></div>
-                <div class="main-time"><span>15:13</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：15:13</div>
+                <div class="main-time"><span>15:13</span><span class="arrow">➔</span><span>15:23</span></div>
+                <div class="sub-time">原定：15:13 ➔ 15:23</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 117 次</span></div>
-                <div class="main-time"><span>15:19</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：15:19</div>
+                <div class="main-time"><span>15:19</span><span class="arrow">➔</span><span>15:30</span></div>
+                <div class="sub-time">原定：15:19 ➔ 15:30</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3197 次</span></div>
-                <div class="main-time"><span>15:32</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：15:32</div>
+                <div class="main-time"><span>15:32</span><span class="arrow">➔</span><span>15:51</span></div>
+                <div class="sub-time">原定：15:32 ➔ 15:51</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3071 次</span></div>
-                <div class="main-time"><span>15:38</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：15:38</div>
+                <div class="main-time"><span>15:38</span><span class="arrow">➔</span><span>15:58</span></div>
+                <div class="sub-time">原定：15:38 ➔ 15:58</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3201 次</span></div>
-                <div class="main-time"><span>16:03</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：16:03</div>
+                <div class="main-time"><span>16:03</span><span class="arrow">➔</span><span>16:22</span></div>
+                <div class="sub-time">原定：16:03 ➔ 16:22</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 317 次</span></div>
-                <div class="main-time"><span>16:24</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：16:24</div>
+                <div class="main-time"><span>16:24</span><span class="arrow">➔</span><span>16:34</span></div>
+                <div class="sub-time">原定：16:24 ➔ 16:34</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3073 次</span></div>
-                <div class="main-time"><span>16:47</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：16:47</div>
+                <div class="main-time"><span>16:47</span><span class="arrow">➔</span><span>17:01</span></div>
+                <div class="sub-time">原定：16:47 ➔ 17:01</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3211 次</span></div>
-                <div class="main-time"><span>17:04</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：17:04</div>
+                <div class="main-time"><span>17:04</span><span class="arrow">➔</span><span>17:24</span></div>
+                <div class="sub-time">原定：17:04 ➔ 17:24</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">普悠瑪(普悠瑪) 165 次</span></div>
-                <div class="main-time"><span>17:28</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：17:28</div>
+                <div class="main-time"><span>17:28</span><span class="arrow">➔</span><span>17:37</span></div>
+                <div class="sub-time">原定：17:28 ➔ 17:37</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3217 次</span></div>
-                <div class="main-time"><span>17:37</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：17:37</div>
+                <div class="main-time"><span>17:37</span><span class="arrow">➔</span><span>17:56</span></div>
+                <div class="sub-time">原定：17:37 ➔ 17:56</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3021 次</span></div>
-                <div class="main-time"><span>17:47</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：17:47</div>
+                <div class="main-time"><span>17:47</span><span class="arrow">➔</span><span>17:59</span></div>
+                <div class="sub-time">原定：17:47 ➔ 17:59</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3331 次</span></div>
-                <div class="main-time"><span>17:55</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：17:55</div>
+                <div class="main-time"><span>17:55</span><span class="arrow">➔</span><span>18:13</span></div>
+                <div class="sub-time">原定：17:55 ➔ 18:13</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3221 次</span></div>
-                <div class="main-time"><span>18:13</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：18:13</div>
+                <div class="main-time"><span>18:13</span><span class="arrow">➔</span><span>18:38</span></div>
+                <div class="sub-time">原定：18:13 ➔ 18:38</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 125 次</span></div>
-                <div class="main-time"><span>18:20</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：18:20</div>
+                <div class="main-time"><span>18:20</span><span class="arrow">➔</span><span>18:33</span></div>
+                <div class="sub-time">原定：18:20 ➔ 18:33</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3023 次</span></div>
-                <div class="main-time"><span>18:30</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：18:30</div>
+                <div class="main-time"><span>18:30</span><span class="arrow">➔</span><span>18:42</span></div>
+                <div class="sub-time">原定：18:30 ➔ 18:42</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3227 次</span></div>
-                <div class="main-time"><span>18:42</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：18:42</div>
+                <div class="main-time"><span>18:42</span><span class="arrow">➔</span><span>19:01</span></div>
+                <div class="sub-time">原定：18:42 ➔ 19:01</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 129 次</span></div>
-                <div class="main-time"><span>19:12</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：19:12</div>
+                <div class="main-time"><span>19:12</span><span class="arrow">➔</span><span>19:25</span></div>
+                <div class="sub-time">原定：19:12 ➔ 19:25</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 323 次</span></div>
-                <div class="main-time"><span>19:18</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：19:18</div>
+                <div class="main-time"><span>19:18</span><span class="arrow">➔</span><span>19:28</span></div>
+                <div class="sub-time">原定：19:18 ➔ 19:28</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3231 次</span></div>
-                <div class="main-time"><span>19:20</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：19:20</div>
+                <div class="main-time"><span>19:20</span><span class="arrow">➔</span><span>19:40</span></div>
+                <div class="sub-time">原定：19:20 ➔ 19:40</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3029 次</span></div>
-                <div class="main-time"><span>19:31</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：19:31</div>
+                <div class="main-time"><span>19:31</span><span class="arrow">➔</span><span>19:44</span></div>
+                <div class="sub-time">原定：19:31 ➔ 19:44</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3335 次</span></div>
-                <div class="main-time"><span>19:36</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：19:36</div>
+                <div class="main-time"><span>19:36</span><span class="arrow">➔</span><span>20:00</span></div>
+                <div class="sub-time">原定：19:36 ➔ 20:00</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">普悠瑪(普悠瑪) 137 次</span></div>
-                <div class="main-time"><span>19:45</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：19:45</div>
+                <div class="main-time"><span>19:45</span><span class="arrow">➔</span><span>19:56</span></div>
+                <div class="sub-time">原定：19:45 ➔ 19:56</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3237 次</span></div>
-                <div class="main-time"><span>19:52</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：19:52</div>
+                <div class="main-time"><span>19:52</span><span class="arrow">➔</span><span>20:11</span></div>
+                <div class="sub-time">原定：19:52 ➔ 20:11</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 133 次</span></div>
-                <div class="main-time"><span>20:04</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：20:04</div>
+                <div class="main-time"><span>20:04</span><span class="arrow">➔</span><span>20:15</span></div>
+                <div class="sub-time">原定：20:04 ➔ 20:15</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3031 次</span></div>
-                <div class="main-time"><span>20:15</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：20:15</div>
+                <div class="main-time"><span>20:15</span><span class="arrow">➔</span><span>20:30</span></div>
+                <div class="sub-time">原定：20:15 ➔ 20:30</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3241 次</span></div>
-                <div class="main-time"><span>20:18</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：20:18</div>
+                <div class="main-time"><span>20:18</span><span class="arrow">➔</span><span>20:38</span></div>
+                <div class="sub-time">原定：20:18 ➔ 20:38</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 385 次</span></div>
-                <div class="main-time"><span>20:31</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：20:31</div>
+                <div class="main-time"><span>20:31</span><span class="arrow">➔</span><span>20:41</span></div>
+                <div class="sub-time">原定：20:31 ➔ 20:41</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3035 次</span></div>
-                <div class="main-time"><span>20:50</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：20:50</div>
+                <div class="main-time"><span>20:50</span><span class="arrow">➔</span><span>21:05</span></div>
+                <div class="sub-time">原定：20:50 ➔ 21:05</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3247 次</span></div>
-                <div class="main-time"><span>20:53</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：20:53</div>
+                <div class="main-time"><span>20:53</span><span class="arrow">➔</span><span>21:13</span></div>
+                <div class="sub-time">原定：20:53 ➔ 21:13</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3081 次</span></div>
-                <div class="main-time"><span>21:08</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：21:08</div>
+                <div class="main-time"><span>21:08</span><span class="arrow">➔</span><span>21:22</span></div>
+                <div class="sub-time">原定：21:08 ➔ 21:22</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3251 次</span></div>
-                <div class="main-time"><span>21:20</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：21:20</div>
+                <div class="main-time"><span>21:20</span><span class="arrow">➔</span><span>21:45</span></div>
+                <div class="sub-time">原定：21:20 ➔ 21:45</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 175 次</span></div>
-                <div class="main-time"><span>21:27</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：21:27</div>
+                <div class="main-time"><span>21:27</span><span class="arrow">➔</span><span>21:40</span></div>
+                <div class="sub-time">原定：21:27 ➔ 21:40</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3257 次</span></div>
-                <div class="main-time"><span>21:46</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：21:46</div>
+                <div class="main-time"><span>21:46</span><span class="arrow">➔</span><span>22:05</span></div>
+                <div class="sub-time">原定：21:46 ➔ 22:05</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 327 次</span></div>
-                <div class="main-time"><span>22:01</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：22:01</div>
+                <div class="main-time"><span>22:01</span><span class="arrow">➔</span><span>22:11</span></div>
+                <div class="sub-time">原定：22:01 ➔ 22:11</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3261 次</span></div>
-                <div class="main-time"><span>22:06</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：22:06</div>
+                <div class="main-time"><span>22:06</span><span class="arrow">➔</span><span>22:25</span></div>
+                <div class="sub-time">原定：22:06 ➔ 22:25</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 139 次</span></div>
-                <div class="main-time"><span>22:16</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：22:16</div>
+                <div class="main-time"><span>22:16</span><span class="arrow">➔</span><span>22:29</span></div>
+                <div class="sub-time">原定：22:16 ➔ 22:29</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 143 次</span></div>
-                <div class="main-time"><span>22:22</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：22:22</div>
+                <div class="main-time"><span>22:22</span><span class="arrow">➔</span><span>22:33</span></div>
+                <div class="sub-time">原定：22:22 ➔ 22:33</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3267 次</span></div>
-                <div class="main-time"><span>22:40</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：22:40</div>
+                <div class="main-time"><span>22:40</span><span class="arrow">➔</span><span>22:59</span></div>
+                <div class="sub-time">原定：22:40 ➔ 22:59</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間快 3087 次</span></div>
-                <div class="main-time"><span>22:49</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：22:49</div>
+                <div class="main-time"><span>22:49</span><span class="arrow">➔</span><span>23:03</span></div>
+                <div class="sub-time">原定：22:49 ➔ 23:03</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(推拉式自強號且無自行車車廂) 141 次</span></div>
-                <div class="main-time"><span>22:56</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：22:56</div>
+                <div class="main-time"><span>22:56</span><span class="arrow">➔</span><span>23:09</span></div>
+                <div class="sub-time">原定：22:56 ➔ 23:09</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">莒光(無身障座位) 521 次</span></div>
-                <div class="main-time"><span>23:12</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：23:12</div>
+                <div class="main-time"><span>23:12</span><span class="arrow">➔</span><span>23:25</span></div>
+                <div class="sub-time">原定：23:12 ➔ 23:25</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3277 次</span></div>
-                <div class="main-time"><span>23:17</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：23:17</div>
+                <div class="main-time"><span>23:17</span><span class="arrow">➔</span><span>23:36</span></div>
+                <div class="sub-time">原定：23:17 ➔ 23:36</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">自強(3000)(EMU3000 型電車) 145 次</span></div>
-                <div class="main-time"><span>23:29</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：23:29</div>
+                <div class="main-time"><span>23:29</span><span class="arrow">➔</span><span>23:40</span></div>
+                <div class="sub-time">原定：23:29 ➔ 23:40</div>
             </div>
             
             <div class="card ">
                 <div class="train-info"><span class="train-no">區間 3281 次</span></div>
-                <div class="main-time"><span>23:49</span><span class="arrow">➔</span><span>GO</span></div>
-                <div class="sub-time">原定：23:49</div>
+                <div class="main-time"><span>23:49</span><span class="arrow">➔</span><span>00:08</span></div>
+                <div class="sub-time">原定：23:49 ➔ 00:08</div>
             </div>
             
-                <div class="update-time">最後更新時間：2026-01-06 11:34:37</div>
+                <div class="update-time">最後更新時間：2026-01-06 11:41:43</div>
             </div>
         </body>
         </html>
