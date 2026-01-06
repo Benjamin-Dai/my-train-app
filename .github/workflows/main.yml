@@ -3,7 +3,10 @@ name: Train Timetable Update
 on:
   schedule:
     - cron: "*/5 * * * *"  # 每 5 分鐘執行一次
-  workflow_dispatch:      # 允許手動點擊按鈕執行
+  workflow_dispatch:      # 允許手動執行
+
+permissions:
+  contents: write         # 顯式聲明允許寫入內容
 
 jobs:
   build:
@@ -24,7 +27,7 @@ jobs:
         env:
           TDX_ID: ${{ secrets.TDX_ID }}
           TDX_SECRET: ${{ secrets.TDX_SECRET }}
-          TZ: 'Asia/Taipei'  # 強制設定時區為台北
+          TZ: 'Asia/Taipei'
         run: python train-app.py
 
       - name: Deploy to GitHub Pages
@@ -32,4 +35,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
-          publish_files: index.html
+          # 移除了無效的 publish_files 參數，會自動同步 publish_dir 內的檔案
