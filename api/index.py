@@ -4,12 +4,11 @@ import os
 import json
 from datetime import datetime, timedelta, timezone
 
-# ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
-START_STATION_ID = '5000'  # 屏東站
-# =========================================
+START_STATION_ID = '5000'
 
+# Token 快取
 CACHED_TOKEN = None
 TOKEN_EXPIRY = datetime.min.replace(tzinfo=timezone.utc)
 
@@ -49,13 +48,13 @@ class handler(BaseHTTPRequestHandler):
 
             if isinstance(res, list):
                 for t in res:
-                    if t.get('Direction') == 0: 
+                    # ★★★ 修正重點：改抓 Direction 1 (逆行/往南) ★★★
+                    # 如果你發現這次變成全空，那代表我們要拿掉方向篩選，改用「終點站名稱」來篩
+                    if t.get('Direction') == 1: 
                         train_no = t['TrainNo']
                         t_type = t['TrainTypeName']['Zh_tw'].replace("自強(3000)", "自強3000")
                         
-                        # --- 修正時間解析邏輯 ---
                         raw_time = t['ScheduledDepartureTime']
-                        # 如果時間字串長度 > 5 (代表有秒數，如 13:00:00)，只取前 5 碼
                         sch_dep = raw_time[:5] 
                         
                         delay = t.get('DelayTime', 0)
@@ -65,8 +64,7 @@ class handler(BaseHTTPRequestHandler):
                             dep_dt = datetime.strptime(f"{now_dt.strftime('%Y-%m-%d')} {sch_dep}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
                             if dep_dt < now_dt - timedelta(hours=12): dep_dt += timedelta(days=1)
                             real_dep = dep_dt + timedelta(minutes=delay)
-                        except:
-                            continue # 如果時間格式真的太奇怪就跳過這班
+                        except: continue
 
                         color = "#ffffff"
                         if "區間" in t_type: color = "#0076B2"
@@ -90,14 +88,14 @@ class handler(BaseHTTPRequestHandler):
                 <a href="{train_url}" target="_blank">
                     <div class="card" style="border-left-color: {t['color']};">
                         {delay_tag}
-                        <div class="train-info" style="color: {t['color']};">{t['type']} {t['no']} 次 (往{t['dest']})</div>
+                        <div class="train-info" style="color: {t['color']};">{t['type']} {t['no']} 次 <span style="color:#aaa; font-size:0.8em;">(往{t['dest']})</span></div>
                         <div class="main-time"><span>{t['act_dep']}</span></div>
                         <div class="sub-time">原定 {t['sch_dep']} 開</div>
                     </div>
                 </a>"""
 
             if not data:
-                cards_html = f'<div style="text-align:center; padding:50px; color:#444;">目前無南下班次</div>'
+                cards_html = f'<div style="text-align:center; padding:50px; color:#444;">目前無南下班次 (Dir=1)</div>'
 
             html = f"""
             <!DOCTYPE html>
