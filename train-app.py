@@ -5,7 +5,6 @@ import sys
 from datetime import datetime, timedelta
 
 # ================= 設定區 =================
-# 為了方便偵錯，我們強制輸出緩衝區，確保 Log 即時顯示
 sys.stdout.reconfigure(encoding='utf-8')
 
 CLIENT_ID = os.environ.get('TDX_ID')
@@ -13,12 +12,10 @@ CLIENT_SECRET = os.environ.get('TDX_SECRET')
 START_STATION_NAME = '屏東'
 END_STATION_NAME = '潮州'
 
-# TDX V3 API URL 基礎
 API_BASE_URL = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA"
 # =========================================
 
 def log(msg):
-    """加上時間戳記的 Log 函式"""
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
 class TrainApp:
@@ -26,7 +23,7 @@ class TrainApp:
         self.cid = cid
         self.csecret = csecret
         self.token = None
-        self.station_map = {} # 儲存 { '屏東': '5000', ... }
+        self.station_map = {} 
 
     def get_token(self):
         log("正在取得 Access Token...")
@@ -49,9 +46,6 @@ class TrainApp:
             return None
 
     def get_station_ids(self):
-        """
-        V3 查詢通常需要 StationID，這裡先抓一次車站列表來做名稱對應
-        """
         log("正在下載車站列表以取得 StationID...")
         url = f"{API_BASE_URL}/Station"
         headers = {'authorization': f'Bearer {self.token}'}
@@ -62,12 +56,29 @@ class TrainApp:
                 log(f"車站列表下載失敗: {res.status_code} - {res.text}")
                 return False
             
-            stations = res.json()
-            # 建立 名稱 -> ID 的對應表
+            data = res.json()
+            
+            # --- V3 結構修正關鍵點 ---
+            # V3 通常會回傳 {"Stations": [...]}，我們需要先取出這個 List
+            if isinstance(data, dict) and 'Stations' in data:
+                stations = data['Stations']
+                log("已識別 V3 結構 (Stations 包裹)")
+            elif isinstance(data, list):
+                stations = data
+                log("識別為列表結構")
+            else:
+                log(f"⚠️ 未知的資料結構，頂層 Keys: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+                return False
+            # -----------------------
+
             for s in stations:
-                name = s['StationName']['Zh_tw']
-                sid = s['StationID']
-                self.station_map[name] = sid
+                # 防呆：確保 s 是字典
+                if not isinstance(s, dict): continue
+                
+                name = s.get('StationName', {}).get('Zh_tw')
+                sid = s.get('StationID')
+                if name and sid:
+                    self.station_map[name] = sid
             
             start_id = self.station_map.get(START_STATION_NAME)
             end_id = self.station_map.get(END_STATION_NAME)
@@ -76,18 +87,22 @@ class TrainApp:
             
             if not start_id or not end_id:
                 log("❌ 找不到起點或終點的 StationID，請檢查站名設定")
+                # 為了除錯，印出前 5 個車站看看
+                sample = [s.get('StationName', {}).get('Zh_tw') for s in stations[:5]]
+                log(f"前 5 個車站範例: {sample}")
                 return False
                 
             return True
         except Exception as e:
             log(f"取得車站列表時發生例外: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def fetch_data(self):
         if not self.token and not self.get_token():
             return []
         
-        # 步驟 1: 取得車站 ID
         if not self.get_station_ids():
             return []
 
@@ -96,14 +111,10 @@ class TrainApp:
         
         now = datetime.now()
         today_str = now.strftime('%Y-%m-%d')
-        
         headers = {'authorization': f'Bearer {self.token}'}
 
-        # 步驟 2: 使用 OD (起訖) 查詢 API (這是 V3 的精華，直接抓兩站之間的車)
-        # 格式: /DailyTrainTimetable/OD/{OriginStationID}/to/{DestinationStationID}/{TrainDate}
+        # OD (起訖) 查詢 API
         timetable_url = f"{API_BASE_URL}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{today_str}"
-        
-        # 步驟 3: 取得即時誤點資訊
         delay_url = f"{API_BASE_URL}/LiveTrainDelay"
 
         try:
@@ -112,60 +123,59 @@ class TrainApp:
             
             if res.status_code != 200:
                 log(f"❌ 時刻表請求失敗: {res.status_code}")
-                log(f"回應內容: {res.text[:500]}") # 印出前500字錯誤訊息
+                log(f"回應內容: {res.text[:200]}")
                 return []
             
             timetable_data = res.json()
-            trains_count = len(timetable_data.get('TrainTimetables', [])) # V3 結構通常包在 TrainTimetables 裡
-            log(f"時刻表下載成功，共找到 {trains_count} 班次")
+            
+            # V3 結構拆包
+            if isinstance(timetable_data, dict) and 'TrainTimetables' in timetable_data:
+                raw_list = timetable_data['TrainTimetables']
+            else:
+                raw_list = timetable_data if isinstance(timetable_data, list) else []
 
-            # --- DEBUG: 印出第一筆資料的結構，讓我們確認 V3 的欄位名稱 ---
-            if trains_count > 0:
-                first_train = timetable_data['TrainTimetables'][0]
+            log(f"時刻表下載成功，共找到 {len(raw_list)} 班次")
+
+            # --- DEBUG: 印出第一筆資料結構 ---
+            if len(raw_list) > 0:
                 log("--- DEBUG: 第一筆列車資料結構 ---")
-                log(json.dumps(first_train, indent=2, ensure_ascii=False))
+                log(json.dumps(raw_list[0], indent=2, ensure_ascii=False))
                 log("--------------------------------")
-            # -----------------------------------------------------
+            # ---------------------------------
 
             log(f"正在抓取誤點資訊 (V3): {delay_url}")
             delay_res = requests.get(delay_url, headers=headers)
             if delay_res.status_code != 200:
-                log(f"❌ 誤點資訊請求失敗: {res.status_code}")
-                return []
-            
-            delay_data = delay_res.json()
-            # V3 的誤點資料結構可能也不同，我們這裡做個保護
-            delays = {}
-            if 'LiveTrainDelay' in delay_data: # 有時候會包一層
-                delay_list = delay_data['LiveTrainDelay']
+                log(f"❌ 誤點資訊請求失敗")
+                delays = {}
             else:
-                delay_list = delay_data # 有時候是直接 List
-
-            for t in delay_list:
-                delays[t['TrainNo']] = t.get('DelayTime', 0)
-            
-            log(f"誤點資訊下載成功，共 {len(delays)} 筆")
+                delay_data = delay_res.json()
+                delays = {}
+                # 誤點資料拆包
+                if isinstance(delay_data, dict) and 'LiveTrainDelay' in delay_data:
+                    delay_list = delay_data['LiveTrainDelay']
+                elif isinstance(delay_data, list):
+                    delay_list = delay_data
+                else:
+                    delay_list = []
+                
+                for t in delay_list:
+                    delays[t.get('TrainNo')] = t.get('DelayTime', 0)
+                
+                log(f"誤點資訊下載成功，共 {len(delays)} 筆")
 
             processed = []
             
-            # 開始處理資料
-            # V3 OD 介面回傳的結構通常是: { "TrainTimetables": [ { "TrainInfo": {...}, "StopTimes": [...] } ] }
-            raw_list = timetable_data.get('TrainTimetables', [])
-            
             for item in raw_list:
-                # V3 欄位名稱防呆處理
                 info = item.get('TrainInfo', {})
                 no = info.get('TrainNo')
                 raw_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
                 
-                # 找出出發和抵達時間
-                # OD API 回傳的 StopTimes 通常只有起點和終點兩個，或者包含中間站
-                # 我們需要找到符合 start_id 和 end_id 的時間
                 stop_times = item.get('StopTimes', [])
-                
                 dep_time = None
                 arr_time = None
                 
+                # 尋找起訖時間
                 for stop in stop_times:
                     s_id = stop.get('StationID')
                     if s_id == start_id:
@@ -174,9 +184,9 @@ class TrainApp:
                         arr_time = stop.get('ArrivalTime')
                 
                 if not dep_time or not arr_time:
-                    continue # 找不到時間就跳過
+                    continue 
 
-                # --- 名稱簡化與顏色 (沿用你的邏輯) ---
+                # 處理顏色與名稱
                 display_type = raw_type
                 type_color = "#ffffff" 
                 if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
@@ -186,14 +196,13 @@ class TrainApp:
                 elif "自強" in raw_type: display_type, type_color = "自強號", "#DF3F1F"
                 elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
 
-                delay = delays.get(no, 0)
+                delay = int(delays.get(no, 0)) # 確保是數字
 
                 dep_dt = datetime.strptime(f"{today_str} {dep_time}", "%Y-%m-%d %H:%M")
                 arr_dt = datetime.strptime(f"{today_str} {arr_time}", "%Y-%m-%d %H:%M")
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
 
-                # 顯示 10 分鐘前到今天的車
                 if real_dep > now - timedelta(minutes=10):
                     processed.append({
                         "no": no, "type": display_type, "delay": delay, "color": type_color,
@@ -210,7 +219,7 @@ class TrainApp:
         except Exception as e:
             log(f"❌ 發生異常: {e}")
             import traceback
-            traceback.print_exc() # 印出詳細錯誤位置
+            traceback.print_exc()
             return []
 
     def generate_html(self, data):
@@ -219,13 +228,10 @@ class TrainApp:
         <!DOCTYPE html>
         <html lang="zh-TW">
         <head>
-            <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-            <meta http-equiv="Pragma" content="no-cache">
-            <meta http-equiv="Expires" content="0">
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <meta http-equiv="refresh" content="10">
-            <title>列車時刻 (V3測試)</title>
+            <meta http-equiv="refresh" content="60">
+            <title>列車時刻 V3</title>
             <style>
                 body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
@@ -243,10 +249,10 @@ class TrainApp:
         </head>
         <body>
             <div class="container">
-                <div class="update-time">上次更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
+                <div class="update-time">更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
                 <div class="header">
                     <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
-                    <span style="color: #444; font-size: 0.7rem;">V3 Test</span>
+                    <span style="color: #444; font-size: 0.7rem;">V3 Live</span>
                 </div>
                 {% CARDS %}
             </div>
@@ -269,7 +275,7 @@ class TrainApp:
             </a>
             """
         if not data:
-            cards_html = '<div style="text-align:center; padding:50px; color:#444;">目前無符合班次 (或 API 錯誤)</div>'
+            cards_html = '<div style="text-align:center; padding:50px; color:#444;">目前無符合班次</div>'
         
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(html_template.replace("{% CARDS %}", cards_html))
