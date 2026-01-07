@@ -30,8 +30,13 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e: return None, str(e)
 
     def do_GET(self):
+        # 1. 先設定好台灣時間，讓 Log 顯示正確
+        tz_taiwan = timezone(timedelta(hours=8))
+        now_dt = datetime.now(tz_taiwan)
+        today_str = now_dt.strftime('%Y-%m-%d')
+
         logs = []
-        logs.append(f"時間: {datetime.now().strftime('%H:%M:%S')}")
+        logs.append(f"台灣時間: {now_dt.strftime('%H:%M:%S')}")
         
         token, error_msg = self.get_token()
         if not token:
@@ -41,20 +46,21 @@ class handler(BaseHTTPRequestHandler):
 
         headers = {'authorization': f'Bearer {token}'}
         
-        tz_taiwan = timezone(timedelta(hours=8))
-        now_dt = datetime.now(tz_taiwan)
-        today_str = now_dt.strftime('%Y-%m-%d')
-        
-        # 使用全日時刻表
         url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/{START_STATION_ID}/{today_str}"
         delay_url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveTrainDelay"
 
         try:
-            logs.append(f"正在查詢時刻表: {url}")
+            logs.append(f"正在查詢: {url}")
             res = requests.get(url, headers=headers).json()
             delay_res = requests.get(delay_url, headers=headers).json()
             
-            logs.append(f"API 回傳原始筆數: {len(res) if isinstance(res, list) else '錯誤'}")
+            # ★★★ 診斷重點：如果是錯誤，印出內容 ★★★
+            if isinstance(res, list):
+                logs.append(f"API 狀態正常，回傳 {len(res)} 筆")
+            else:
+                logs.append(f"⚠️ API 回傳錯誤: {str(res)}")
+                # 如果真的是被鎖，就這裡中斷
+                raise Exception(f"TDX API 拒絕存取: {str(res)}")
 
             delays = {}
             if isinstance(delay_res, list):
@@ -63,72 +69,65 @@ class handler(BaseHTTPRequestHandler):
 
             processed = []
             
-            # ★★★ 南下終點站白名單 (包含所有可能的寫法) ★★★
+            # 南下白名單
             SOUTH_DESTS = ['潮州', '枋寮', '臺東', '台東', '花蓮', '知本', '玉里', '南州', '林邊', '大武', '枋野', '太麻里']
             
-            # 統計用
-            stats = {"total": 0, "pass_dest": 0, "pass_time": 0, "skipped_samples": []}
+            stats = {"total": len(res), "pass_dest": 0, "pass_time": 0, "skipped": []}
 
-            if isinstance(res, list):
-                stats["total"] = len(res)
+            for t in res:
+                info = t.get('DailyTrainInfo', {})
+                train_no = info.get('TrainNo')
+                dest = info.get('EndingStationName', {}).get('Zh_tw', '未知')
                 
-                for t in res:
-                    info = t.get('DailyTrainInfo', {})
-                    train_no = info.get('TrainNo')
-                    dest = info.get('EndingStationName', {}).get('Zh_tw', '未知')
+                # 1. 終點站過濾
+                if dest not in SOUTH_DESTS:
+                    if len(stats["skipped"]) < 2: 
+                        stats["skipped"].append(f"{train_no}往{dest}")
+                    continue
+                
+                stats["pass_dest"] += 1
+
+                # 2. 找出屏東發車時間
+                stop_times = t.get('StopTimes', [])
+                dep_time = ""
+                for s in stop_times:
+                    if s['StationID'] == START_STATION_ID:
+                        dep_time = s['DepartureTime']
+                        break
+                
+                if not dep_time: continue
+
+                # 3. 時間過濾
+                sch_dep = dep_time[:5]
+                delay = delays.get(train_no, 0)
+                
+                try:
+                    dep_dt = datetime.strptime(f"{today_str} {sch_dep}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
+                    real_dep = dep_dt + timedelta(minutes=delay)
                     
-                    # 1. 終點站過濾 (Destination Filter)
-                    # 只要終點站不在白名單裡，就當作是北上車 (往高雄/新左營/台北...)
-                    if dest not in SOUTH_DESTS:
-                        if len(stats["skipped_samples"]) < 3: # 記錄前3個被踢掉的，方便除錯
-                            stats["skipped_samples"].append(f"{train_no}往{dest}")
+                    if real_dep < now_dt - timedelta(minutes=10):
                         continue
-                    
-                    stats["pass_dest"] += 1
-
-                    # 2. 找出屏東發車時間
-                    stop_times = t.get('StopTimes', [])
-                    dep_time = ""
-                    for s in stop_times:
-                        if s['StationID'] == START_STATION_ID:
-                            dep_time = s['DepartureTime']
-                            break
-                    
-                    if not dep_time: continue
-
-                    # 3. 時間過濾
-                    sch_dep = dep_time[:5]
-                    delay = delays.get(train_no, 0)
-                    
-                    try:
-                        dep_dt = datetime.strptime(f"{today_str} {sch_dep}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
-                        real_dep = dep_dt + timedelta(minutes=delay)
                         
-                        # 只顯示「現在 - 10分鐘」以後的車
-                        if real_dep < now_dt - timedelta(minutes=10):
-                            continue
-                            
-                        stats["pass_time"] += 1
-                        
-                    except: continue
-
-                    t_type = info.get('TrainTypeName', {}).get('Zh_tw', '').replace("自強(3000)", "自強3000")
+                    stats["pass_time"] += 1
                     
-                    color = "#ffffff"
-                    if "區間" in t_type: color = "#0076B2"
-                    elif "3000" in t_type: color = "#85a38f"
-                    elif "自強" in t_type: color = "#DF3F1F"
-                    elif "普悠瑪" in t_type: color = "#9C1637"
+                except: continue
 
-                    processed.append({
-                        "no": train_no, "type": t_type, "delay": delay, "color": color,
-                        "act_dep": real_dep.strftime("%H:%M"), "sch_dep": sch_dep, "dest": dest,
-                        "sort_key": real_dep
-                    })
+                t_type = info.get('TrainTypeName', {}).get('Zh_tw', '').replace("自強(3000)", "自強3000")
+                
+                color = "#ffffff"
+                if "區間" in t_type: color = "#0076B2"
+                elif "3000" in t_type: color = "#85a38f"
+                elif "自強" in t_type: color = "#DF3F1F"
+                elif "普悠瑪" in t_type: color = "#9C1637"
+
+                processed.append({
+                    "no": train_no, "type": t_type, "delay": delay, "color": color,
+                    "act_dep": real_dep.strftime("%H:%M"), "sch_dep": sch_dep, "dest": dest,
+                    "sort_key": real_dep
+                })
 
             data = sorted(processed, key=lambda x: x['sort_key'])
-            logs.append(f"過濾統計: Total={stats['total']}, 終點站符合={stats['pass_dest']}, 時間符合={stats['pass_time']}")
-            logs.append(f"被過濾的範例(北上): {', '.join(stats['skipped_samples'])}")
+            logs.append(f"統計: 符合終點={stats['pass_dest']}, 符合時間={stats['pass_time']}")
             logs.append(f"最終顯示: {len(data)} 筆")
 
             cards_html = ""
@@ -146,7 +145,7 @@ class handler(BaseHTTPRequestHandler):
                 </a>"""
 
             if not data:
-                cards_html = f'<div style="text-align:center; padding:50px; color:#444;">無符合班次</div>'
+                cards_html = f'<div style="text-align:center; padding:50px; color:#444;">暫無班次或 API 限制中</div>'
             
             debug_html = "<br>".join(logs)
 
@@ -170,20 +169,20 @@ class handler(BaseHTTPRequestHandler):
                     .sub-time {{ text-align: center; color: #999; font-size: 0.7rem; }}
                     details {{ margin-top: 30px; border: 1px solid #333; border-radius: 8px; padding: 10px; background: #111; }}
                     summary {{ color: #888; cursor: pointer; font-size: 0.8rem; }}
-                    pre {{ color: #0f0; font-size: 0.7rem; white-space: pre-wrap; margin: 10px 0 0 0; }}
+                    pre {{ color: #ff5555; font-size: 0.7rem; white-space: pre-wrap; margin: 10px 0 0 0; }}
                     a {{ text-decoration: none; color: inherit; }}
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <div class="update-time">全日時刻+終點過濾版</div>
+                    <div class="update-time">全日時刻 (Debug)</div>
                     <div class="header">
                         <h1 style="margin:0; font-size:1.3rem;">屏東 ➔ 往南 (潮州/台東)</h1>
                     </div>
                     {cards_html}
                     
-                    <details>
-                        <summary>🛠️ 開發者診斷資訊</summary>
+                    <details open>
+                        <summary>🛠️ 系統診斷</summary>
                         <pre>{debug_html}</pre>
                     </details>
                 </div>
@@ -193,7 +192,11 @@ class handler(BaseHTTPRequestHandler):
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.send_header('Cache-Control', 's-maxage=60, stale-while-revalidate')
+            # 發生錯誤時，不要快取，方便你馬上重試
+            if isinstance(res, list):
+                self.send_header('Cache-Control', 's-maxage=60, stale-while-revalidate')
+            else:
+                self.send_header('Cache-Control', 'no-store')
             self.end_headers()
             self.wfile.write(html.encode('utf-8'))
 
