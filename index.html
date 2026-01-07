@@ -4,31 +4,28 @@
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <title>屏東車站全診斷</title>
+            <meta http-equiv="refresh" content="60">
+            <title>屏東車站看板</title>
             <style>
                 body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
-                .header { padding: 10px; background: #222; margin-bottom: 10px; border-radius: 8px; }
-                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #666; position: relative; }
-                .debug-box { background: #330000; color: #ffcccc; padding: 15px; margin-top: 20px; font-size: 0.8rem; border-radius: 8px; font-family: monospace; word-break: break-all; }
-                .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
-                .sub-info { font-size: 0.8rem; color: #aaa; }
-                .time { font-size: 1.5rem; font-weight: bold; color: #fff; }
+                .update-time { color: #999; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
+                .header { padding: 0 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; }
+                .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid #f2a900; color: #f2a900; padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
+                .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
+                .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 4px 0; }
+                .sub-time { text-align: center; color: #999; font-size: 0.7rem; }
+                a { text-decoration: none; color: inherit; }
             </style>
         </head>
         <body>
             <div class="container">
+                <div class="update-time">Github 快照時間：13:36:07</div>
                 <div class="header">
-                    <h3>🔍 超級診斷模式</h3>
-                    <small>更新時間: 13:30:03</small>
+                    <h1 style="margin:0; font-size:1.3rem;">屏東 ➔ 往南 (潮州/台東)</h1>
                 </div>
-                
-                <div style="text-align:center; padding:30px; color:#888;">⚠️ 沒有抓到任何車次</div>
-                
-                <div class="debug-box">
-                    <strong>開發者診斷資訊：</strong><br>
-                    正在連線: https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveBoard/Station/5000<br>API 回傳資料型態: <class 'dict'><br>原始回傳內容: {'message': 'API rate limit exceeded'}
-                </div>
+                <div style="text-align:center; padding:50px; color:#444;">看板目前無資料</div>
             </div>
         </body>
         </html>
