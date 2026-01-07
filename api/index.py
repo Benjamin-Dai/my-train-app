@@ -5,17 +5,10 @@ from datetime import datetime, timedelta
 import os
 
 # ================= 設定區 =================
-# 1. 取得台灣時間 (UTC+8)
-def get_taiwan_time():
-    return datetime.utcnow() + timedelta(hours=8)
-
-# 2. 讀取環境變數 (TDX_ID, TDX_SECRET)
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
-
-# 3. 車站設定 (屏東 -> 潮州)
-STATION_ID = '5000' 
-DEST_ID = '5050'
+STATION_ID = '5000' # 屏東
+DEST_ID = '5050'    # 潮州
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -23,120 +16,71 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
 
-        # 取得當下台灣日期與時間
-        tw_now = get_taiwan_time()
+        # 1. 取得台灣時間
+        tw_now = datetime.utcnow() + timedelta(hours=8)
         today_date = tw_now.strftime('%Y-%m-%d')
-        current_time_str = tw_now.strftime('%H:%M')
+        current_time = tw_now.strftime('%H:%M')
 
-        # 1. 取得 Token
+        # 2. 取得 Token
         token = self.get_auth_token()
         if not token:
-            self.wfile.write("<h1>❌ 錯誤：無法取得 Token</h1><p>請確認 Vercel 環境變數 TDX_ID 與 TDX_SECRET 是否正確。</p>".encode('utf-8'))
+            self.wfile.write("<h1>❌ Token 錯誤</h1>".encode('utf-8'))
             return
 
-        # 2. 自動尋找可用資料 (萬能鑰匙邏輯)
-        raw_data = self.fetch_data_auto(token, today_date)
+        # 3. 抓取資料 (直接用 OD 起迄站查詢，最準)
+        # 網址：OD/屏東/to/潮州
+        url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/OD/{STATION_ID}/to/{DEST_ID}/{today_date}"
         
-        # 3. 生成網頁
-        html = self.generate_html(raw_data, current_time_str)
-        self.wfile.write(html.encode('utf-8'))
-
-    def get_auth_token(self):
+        raw_data = []
         try:
-            auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
-            headers = {'content-type': 'application/x-www-form-urlencoded'}
-            data = {'grant_type': 'client_credentials', 'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET}
-            r = requests.post(auth_url, headers=headers, data=data)
+            r = requests.get(url, headers={'authorization': f'Bearer {token}'})
             if r.status_code == 200:
-                return r.json().get('access_token')
-            return None
+                data = r.json()
+                raw_data = data.get('TrainTimetables', [])
         except:
-            return None
+            pass
 
-    def fetch_data_auto(self, token, date_str):
-        headers = {'authorization': f'Bearer {token}'}
-        
-        # 準備四種網址，一個一個試
-        urls = [
-            # 路徑 1: V2 車站 (最常用)
-            f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/Station/{STATION_ID}/{date_str}",
-            # 路徑 2: V2 起迄 (OD)
-            f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/OD/{STATION_ID}/to/{DEST_ID}/{date_str}",
-            # 路徑 3: V3 車站
-            f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/Station/{STATION_ID}/{date_str}",
-            # 路徑 4: V3 起迄
-            f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/OD/Inclusive/{STATION_ID}/to/{DEST_ID}/{date_str}"
-        ]
-
-        for url in urls:
-            try:
-                r = requests.get(url, headers=headers)
-                if r.status_code == 200:
-                    data = r.json()
-                    # 只要抓到資料，轉成統一格式並回傳
-                    if isinstance(data, list): return data
-                    if 'StationTimetables' in data: return data['StationTimetables']
-                    if 'TrainTimetables' in data: return data['TrainTimetables']
-            except:
-                continue
-        return []
-
-    def generate_html(self, raw_data, current_time):
+        # 4. 解析資料 (寬鬆模式)
         schedule = []
-        
-        # 解析資料 (相容各種格式)
+        debug_log = f"原始資料: {len(raw_data)} 筆"
+
         for item in raw_data:
             try:
-                # 取得車次資訊
                 info = item.get('TrainInfo', {})
-                if not info: info = item # 有些格式直接就是 info
-                
-                # 過濾方向 (0=順行/南下, 1=逆行/北上)
-                # 如果是 OD API，通常不需要濾方向，若是 Station API 則需要
-                direction = info.get('Direction')
-                if direction is not None and int(direction) != 0:
-                    continue 
-
-                # 取得時間
-                departure_time = ""
                 stop_times = item.get('StopTimes', [])
                 
-                # 策略: 找屏東站(5000)的發車時間
-                if len(stop_times) == 1:
-                    departure_time = stop_times[0].get('DepartureTime')
-                else:
-                    for stop in stop_times:
-                        if stop.get('StationID') == STATION_ID:
-                            departure_time = stop.get('DepartureTime')
-                            break
+                # 找發車時間 (這裡做了修改：強制轉字串比較，避免格式錯誤)
+                departure_time = ""
+                for stop in stop_times:
+                    # 不管是 int 還是 str，通通轉成 str 再比對 '5000'
+                    if str(stop.get('StationID')) == STATION_ID:
+                        departure_time = stop.get('DepartureTime')
+                        break
                 
-                if not departure_time: continue
+                # 如果找不到發車時間，試試看有沒有可能是第一站
+                if not departure_time and len(stop_times) > 0:
+                     if str(stop_times[0].get('StationID')) == STATION_ID:
+                         departure_time = stop_times[0].get('DepartureTime')
 
-                # 取得名稱
-                train_no = info.get('TrainNo', '')
-                
-                # 處理名稱可能是字典或字串的情況
-                def get_name(obj, key):
-                    val = obj.get(key)
-                    if isinstance(val, dict): return val.get('Zh_tw', '')
-                    return str(val) if val else ''
+                if departure_time:
+                    # 取得名稱
+                    train_no = info.get('TrainNo', '')
+                    train_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
+                    dest = info.get('EndingStationName', {}).get('Zh_tw', '')
 
-                train_type = get_name(info, 'TrainTypeName')
-                dest = get_name(info, 'EndingStationName')
-
-                schedule.append({
-                    'time': departure_time,
-                    'no': train_no,
-                    'type': train_type,
-                    'dest': dest
-                })
+                    schedule.append({
+                        'time': departure_time,
+                        'no': train_no,
+                        'type': train_type,
+                        'dest': dest
+                    })
             except:
                 continue
 
         # 排序
         schedule.sort(key=lambda x: x['time'])
 
-        # 生成卡片 HTML
+        # 生成 HTML
         cards = ""
         count = 0
         for t in schedule:
@@ -153,9 +97,11 @@ class handler(BaseHTTPRequestHandler):
                 """
         
         if count == 0:
-            cards = "<div style='text-align:center; padding:20px; color:#666'>今天剩下的時間沒有車囉 (或資料讀取中)</div>"
+            msg = f"目前沒有車次<br><small style='color:#999'>({debug_log}，但皆已離站)</small>"
+            if len(raw_data) == 0: msg = "⚠️ 抓不到資料 (請確認日期或 API)"
+            cards = f"<div style='text-align:center; padding:20px; color:#666'>{msg}</div>"
 
-        return f"""
+        html = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -183,3 +129,13 @@ class handler(BaseHTTPRequestHandler):
         </body>
         </html>
         """
+        self.wfile.write(html.encode('utf-8'))
+
+    def get_auth_token(self):
+        try:
+            auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
+            data = {'grant_type': 'client_credentials', 'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET}
+            r = requests.post(auth_url, data=data)
+            return r.json().get('access_token')
+        except:
+            return None
