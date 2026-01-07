@@ -1,7 +1,7 @@
 import requests
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
@@ -28,8 +28,13 @@ class TrainApp:
 
     def fetch_data(self):
         headers = {'authorization': f'Bearer {self.token}'}
-        now = datetime.now()
+        
+        # --- 強制使用台灣時區 (UTC+8) ---
+        tz_taiwan = timezone(timedelta(hours=8))
+        now = datetime.now(tz_taiwan)
         today = now.strftime('%Y-%m-%d')
+        
+        print(f"DEBUG: 台灣現在時間: {now.strftime('%H:%M:%S')}")
         
         url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/{START_STATION_ID}/{today}"
         delay_url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveTrainDelay"
@@ -41,9 +46,7 @@ class TrainApp:
 
             processed = []
             for t in res:
-                # --- 安全檢查：確保 StopTimes 欄位存在且有資料 ---
-                if 'StopTimes' not in t or not t['StopTimes']:
-                    continue
+                if 'StopTimes' not in t or not t['StopTimes']: continue
                 
                 stop_times = t['StopTimes']
                 stations = [s['StationName']['Zh_tw'].strip() for s in stop_times]
@@ -57,11 +60,12 @@ class TrainApp:
                         dep_s = stop_times[idx_start]['DepartureTime']
                         delay = delays.get(no, 0)
                         
-                        dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
+                        # 解析車次時間並附加台灣時區
+                        dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
                         real_dep = dep_dt + timedelta(minutes=delay)
 
-                        # 恢復顯示 10 分鐘前到未來的車
-                        if real_dep > now - timedelta(minutes=10):
+                        # 顯示 10 分鐘前到未來 3 小時內的車
+                        if now - timedelta(minutes=10) <= real_dep <= now + timedelta(hours=3):
                             raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
                             arr_s = stop_times[idx_end]['ArrivalTime']
                             
@@ -71,14 +75,15 @@ class TrainApp:
                                 "delay": delay, 
                                 "color": self.get_color(raw_type),
                                 "act_dep": real_dep.strftime("%H:%M"),
-                                "act_arr": (datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M") + timedelta(minutes=delay)).strftime("%H:%M"),
+                                "act_arr": (datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan) + timedelta(minutes=delay)).strftime("%H:%M"),
                                 "sch_dep": dep_s, 
                                 "sch_arr": arr_s,
                                 "sort_key": real_dep
                             })
+            
+            print(f"DEBUG: 最終符合班次數量: {len(processed)}")
             return sorted(processed, key=lambda x: x['sort_key'])
         except Exception as e:
-            # 即使發生錯誤也印出具體原因，幫助後續除錯
             print(f"發生異常: {e}")
             return []
 
@@ -121,7 +126,7 @@ class TrainApp:
         </head>
         <body>
             <div class="container">
-                <div class="update-time">最後更新：""" + datetime.now().strftime("%H:%M:%S") + """</div>
+                <div class="update-time">最後更新：""" + datetime.now(timezone(timedelta(hours=8))).strftime("%H:%M:%S") + """</div>
                 <div class="header">
                     <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
                 </div>
