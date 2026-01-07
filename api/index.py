@@ -7,13 +7,12 @@ from datetime import datetime
 CLIENT_ID = '你的CLIENT_ID' 
 CLIENT_SECRET = '你的CLIENT_SECRET'
 
-# 車站代碼 (屏東=5000, 潮州=5050)
-ORIGIN_ID = '5000'      
-DEST_ID = '5050'        
+# 車站代碼
+STATION_ID = '5000'     # 屏東站
 TODAY = datetime.now().strftime('%Y-%m-%d') 
 
-# 【關鍵修正】：把 'Inclusive' 加回來了！這是正確的 V3 OD 查詢路徑
-URL = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/OD/Inclusive/{ORIGIN_ID}/to/{DEST_ID}/{TODAY}"
+# 【關鍵改變】：改回使用「車站時刻表」API (一定抓得到資料)
+URL = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/Station/{STATION_ID}/{TODAY}"
 
 # ================= 函式區 =================
 
@@ -36,13 +35,14 @@ def get_auth_token():
 def get_train_data(token):
     headers = {'authorization': f'Bearer {token}'}
     try:
-        print(f"正在連線 TDX (V3 OD Inclusive)...")
+        print(f"正在抓取屏東站 ({TODAY}) 所有車次...")
         response = requests.get(URL, headers=headers)
         
         if response.status_code == 200:
             data = response.json()
-            trains_list = data.get('TrainTimetables', [])
-            print(f"✅ API 連線成功！共抓到 {len(trains_list)} 筆原始車次資料。")
+            # 注意：車站 API 的 Key 叫做 'StationTimetables'
+            trains_list = data.get('StationTimetables', [])
+            print(f"✅ API 連線成功！共抓到 {len(trains_list)} 筆資料 (包含南北向)。")
             return trains_list
         else:
             print(f"❌ API 請求失敗: {response.status_code}")
@@ -53,25 +53,33 @@ def get_train_data(token):
 
 def parse_and_sort_trains(train_data):
     schedule = []
-    print("正在解析資料...")
+    print("正在過濾往潮州方向的車次...")
     
     for item in train_data:
         try:
             info = item['TrainInfo']
+            
+            # 1. 過濾方向：0 = 順行 (通常是往潮州/台東)，1 = 逆行 (往高雄/台北)
+            # 在屏東站，Direction 0 絕大多數是往南(潮州)
+            direction = info.get('Direction', -1)
+            if direction != 0: 
+                continue # 跳過往北的車
+
             train_no = info['TrainNo']
             
-            # 安全讀取中文名稱
-            train_type = info.get('TrainTypeName', {}).get('Zh_tw', '不明車種')
+            # 2. 安全讀取中文名稱
+            train_type = info.get('TrainTypeName', {}).get('Zh_tw', '一般車')
             dest_name = info.get('EndingStationName', {}).get('Zh_tw', '未知終點')
-            
-            # 關鍵：在所有停靠站中，找到「屏東(5000)」的「發車時間」
+
+            # 3. 取得發車時間
+            # Station API 的時間通常在 StopTimes 列表裡，且通常只有一筆(就是本站)
             departure_time = ""
-            for stop in item['StopTimes']:
-                if stop['StationID'] == ORIGIN_ID: # 找到屏東站
-                    departure_time = stop['DepartureTime']
-                    break
+            if 'StopTimes' in item:
+                for stop in item['StopTimes']:
+                    if stop['StationID'] == STATION_ID:
+                        departure_time = stop['DepartureTime']
+                        break
             
-            # 如果這班車資料怪怪的，沒寫屏東時間，就跳過
             if not departure_time:
                 continue
 
@@ -83,7 +91,8 @@ def parse_and_sort_trains(train_data):
             })
             
         except Exception as e:
-            print(f"解析單筆失敗: {e}")
+            # 稍微印出錯誤方便除錯，但不中斷
+            # print(f"略過一筆: {e}")
             continue
 
     # 依照時間排序
@@ -99,30 +108,29 @@ def generate_html(schedule):
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>屏東往潮州火車</title>
+        <title>屏東往南時刻表</title>
         <style>
-            body {{ font-family: sans-serif; padding: 20px; background: #f4f4f4; color: #333; }}
-            h2 {{ text-align: center; margin-bottom: 20px; }}
-            .card {{ background: white; padding: 15px; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #007bff; }}
-            .past-train {{ opacity: 0.6; border-left-color: #ccc; display: none; }} /* 隱藏已過期的車 */
-            .time {{ font-size: 1.6em; font-weight: bold; }}
+            body {{ font-family: sans-serif; padding: 20px; background: #fafafa; color: #333; }}
+            h2 {{ text-align: center; color: #444; }}
+            .card {{ background: white; padding: 15px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #28a745; }}
+            .time {{ font-size: 1.6em; font-weight: 700; color: #2c3e50; }}
             .info {{ text-align: right; }}
-            .dest {{ color: #007bff; font-weight: bold; }}
-            .type {{ font-size: 0.9em; color: #666; }}
-            .status {{ font-size: 0.8em; color: #28a745; margin-top: 5px; }}
+            .dest {{ color: #007bff; font-weight: bold; font-size: 1.1em; }}
+            .type {{ font-size: 0.85em; color: #777; }}
+            .past {{ opacity: 0.5; border-left-color: #ccc; filter: grayscale(100%); }}
         </style>
     </head>
     <body>
-        <h2>🚆 屏東 ➔ 潮州 ({current_time} 更新)</h2>
+        <h2>🚆 屏東 ➔ 潮州/台東 ({current_time} 更新)</h2>
     """
     
     valid_count = 0
     for train in schedule:
-        # 標記過期的車
+        # 標記已過期的車
         is_past = train['time'] < current_time
-        css_class = "card past-train" if is_past else "card"
+        css_class = "card past" if is_past else "card"
         
-        # 只生成「未來」的車次到 HTML (若想看全部，可把 if 拿掉)
+        # 這裡設定：只顯示未來的車 (若想測試可把 if 拿掉)
         if not is_past:
             valid_count += 1
             html_content += f"""
@@ -136,13 +144,13 @@ def generate_html(schedule):
             """
     
     if valid_count == 0:
-        html_content += "<p style='text-align:center'>今天剩下的時間沒有車囉！</p>"
+        html_content += "<p style='text-align:center; padding:20px;'>今天剩下的時間沒有往南的車囉！</p>"
 
     html_content += "</body></html>"
     
     with open("train_schedule.html", "w", encoding="utf-8") as f:
         f.write(html_content)
-    print(f"✅ 成功！已生成 train_schedule.html (包含 {valid_count} 班未發車次)")
+    print(f"✅ 成功生成網頁！(篩選後剩餘 {valid_count} 班車)")
 
 # ================= 主程式 =================
 if __name__ == "__main__":
