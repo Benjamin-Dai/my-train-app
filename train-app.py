@@ -1,13 +1,12 @@
 import requests
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 # ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 START_STATION_NAME = '屏東'
-START_STATION_ID = '5000' 
 END_STATION_NAME = '潮州'
 # =========================================
 
@@ -28,84 +27,84 @@ class TrainApp:
 
     def fetch_data(self):
         headers = {'authorization': f'Bearer {self.token}'}
-        
-        # --- 強制使用台灣時區 (UTC+8) ---
-        tz_taiwan = timezone(timedelta(hours=8))
-        now = datetime.now(tz_taiwan)
+        now = datetime.now()
         today = now.strftime('%Y-%m-%d')
-        
-        print(f"DEBUG: 台灣現在時間: {now.strftime('%H:%M:%S')}")
-        
-        url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/{START_STATION_ID}/{today}"
+        url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Today"
         delay_url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveTrainDelay"
 
         try:
-            res = requests.get(url, headers=headers).json()
+            res = requests.get(url, headers=headers)
+            all_trains = res.json()
             delay_res = requests.get(delay_url, headers=headers).json()
             delays = {t['TrainNo']: t.get('DelayTime', 0) for t in delay_res}
 
             processed = []
-            for t in res:
-                if 'StopTimes' not in t or not t['StopTimes']: continue
-                
+            for t in all_trains:
                 stop_times = t['StopTimes']
-                stations = [s['StationName']['Zh_tw'].strip() for s in stop_times]
+                stations = [s['StationName']['Zh_tw'] for s in stop_times]
 
-                if END_STATION_NAME in stations:
+                if START_STATION_NAME in stations and END_STATION_NAME in stations:
                     idx_start = stations.index(START_STATION_NAME)
                     idx_end = stations.index(END_STATION_NAME)
 
                     if idx_start < idx_end:
                         no = t['DailyTrainInfo']['TrainNo']
-                        dep_s = stop_times[idx_start]['DepartureTime']
-                        delay = delays.get(no, 0)
-                        
-                        # 解析車次時間並附加台灣時區
-                        dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
-                        real_dep = dep_dt + timedelta(minutes=delay)
+                        raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
 
-                        # 顯示 10 分鐘前到未來 3 小時內的車
-                        if now - timedelta(minutes=10) <= real_dep <= now + timedelta(hours=3):
-                            raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
-                            arr_s = stop_times[idx_end]['ArrivalTime']
-                            
+                        # --- 名稱簡化與顏色 ---
+                        display_type = raw_type
+                        type_color = "#ffffff" 
+
+                        if "區間快" in raw_type:
+                            display_type = "區間快"
+                            type_color = "#0076B2" 
+                        elif "區間" in raw_type:
+                            display_type = "區間車"
+                            type_color = "#0076B2" 
+                        elif "普悠瑪" in raw_type:
+                            display_type = "普悠瑪"
+                            type_color = "#9C1637" 
+                        elif "3000" in raw_type:
+                            display_type = "自強3000"
+                            type_color = "#85a38f" 
+                        elif "自強" in raw_type:
+                            display_type = "自強號"
+                            type_color = "#DF3F1F" 
+                        elif "太魯閣" in raw_type:
+                            display_type = "太魯閣"
+                            type_color = "#9C1637" 
+
+                        dep_s = stop_times[idx_start]['DepartureTime']
+                        arr_s = stop_times[idx_end]['ArrivalTime']
+                        delay = delays.get(no, 0)
+
+                        dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
+                        arr_dt = datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M")
+                        real_dep = dep_dt + timedelta(minutes=delay)
+                        real_arr = arr_dt + timedelta(minutes=delay)
+
+                        # 顯示 10 分鐘前到今天的車
+                        if real_dep > now - timedelta(minutes=10):
                             processed.append({
-                                "no": no, 
-                                "type": self.simplify_type(raw_type), 
-                                "delay": delay, 
-                                "color": self.get_color(raw_type),
+                                "no": no, "type": display_type, "delay": delay, "color": type_color,
                                 "act_dep": real_dep.strftime("%H:%M"),
-                                "act_arr": (datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan) + timedelta(minutes=delay)).strftime("%H:%M"),
-                                "sch_dep": dep_s, 
-                                "sch_arr": arr_s,
+                                "act_arr": real_arr.strftime("%H:%M"),
+                                "sch_dep": dep_s, "sch_arr": arr_s,
                                 "sort_key": real_dep
                             })
-            
-            print(f"DEBUG: 最終符合班次數量: {len(processed)}")
             return sorted(processed, key=lambda x: x['sort_key'])
         except Exception as e:
             print(f"發生異常: {e}")
             return []
-
-    def get_color(self, raw_type):
-        if "區間" in raw_type: return "#0076B2"
-        if "3000" in raw_type: return "#85a38f"
-        if "自強" in raw_type: return "#DF3F1F"
-        if "普悠瑪" in raw_type or "太魯閣" in raw_type: return "#9C1637"
-        return "#ffffff"
-
-    def simplify_type(self, raw_type):
-        if "區間快" in raw_type: return "區間快"
-        if "區間" in raw_type: return "區間車"
-        if "3000" in raw_type: return "自強3000"
-        if "自強" in raw_type: return "自強號"
-        return raw_type
 
     def generate_html(self, data):
         html_template = """
         <!DOCTYPE html>
         <html lang="zh-TW">
         <head>
+            <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+            <meta http-equiv="Pragma" content="no-cache">
+            <meta http-equiv="Expires" content="0">
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <meta http-equiv="refresh" content="10">
@@ -115,20 +114,22 @@ class TrainApp:
                 .container { max-width: 500px; margin: 0 auto; }
                 .update-time { color: #999999; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
                 .header { padding: 0 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; }
-                .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid #f2a900; color: #f2a900; padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
+                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
+                .card:active { background: #1c1c1e; transform: scale(0.97); }
+                .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
                 .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
                 .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 4px 0; }
                 .arrow { margin: 0 12px; color: #999999; font-size: 0.8rem; }
                 .sub-time { text-align: center; color: #999999; font-size: 0.7rem; }
-                a { text-decoration: none; color: inherit; }
+                a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
             </style>
         </head>
         <body>
             <div class="container">
-                <div class="update-time">最後更新：""" + datetime.now(timezone(timedelta(hours=8))).strftime("%H:%M:%S") + """</div>
+                <div class="update-time">上次更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
                 <div class="header">
                     <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
+                    <span style="color: #444; font-size: 0.7rem;">by Benjamin Dai</span>
                 </div>
                 {% CARDS %}
             </div>
@@ -138,7 +139,10 @@ class TrainApp:
         cards_html = ""
         for t in data:
             delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
+            
+            # 使用您提供的精確連結：/train/TRA-{車次}/live
             train_url = f"https://railway.chienwen.net/taiwan/train/TRA-{t['no']}/live"
+            
             cards_html += f"""
             <a href="{train_url}" target="_blank">
                 <div class="card" style="border-left-color: {t['color']};">
@@ -147,11 +151,10 @@ class TrainApp:
                     <div class="main-time"><span>{t['act_dep']}</span><span class="arrow">➔</span><span>{t['act_arr']}</span></div>
                     <div class="sub-time">原定 {t['sch_dep']} ➔ {t['sch_arr']}</div>
                 </div>
-            </a>"""
-        
+            </a>
+            """
         if not data:
             cards_html = '<div style="text-align:center; padding:50px; color:#444;">目前無符合班次</div>'
-            
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(html_template.replace("{% CARDS %}", cards_html))
 
