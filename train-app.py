@@ -1,13 +1,12 @@
 import requests
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
-START_STATION_NAME = '屏東'
-END_STATION_NAME = '潮州'
+START_STATION_ID = '5000'  # 屏東站
 # =========================================
 
 class TrainApp:
@@ -18,118 +17,110 @@ class TrainApp:
 
     def get_token(self):
         auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
-        res = requests.post(auth_url, data={
-            'grant_type': 'client_credentials',
-            'client_id': self.cid,
-            'client_secret': self.csecret
-        })
-        return res.json().get('access_token')
+        try:
+            res = requests.post(auth_url, data={
+                'grant_type': 'client_credentials',
+                'client_id': self.cid,
+                'client_secret': self.csecret
+            })
+            if res.status_code != 200:
+                print(f"Token Error: {res.text}")
+                return None
+            return res.json().get('access_token')
+        except Exception as e:
+            print(f"Token Exception: {e}")
+            return None
 
     def fetch_data(self):
+        if not self.token: return []
+        
         headers = {'authorization': f'Bearer {self.token}'}
-        now = datetime.now()
-        today = now.strftime('%Y-%m-%d')
-        url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Today"
-        delay_url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveTrainDelay"
+        
+        # ★★★ 使用 LiveBoard API (避開時刻表資料庫問題) ★★★
+        url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveBoard/Station/{START_STATION_ID}"
 
         try:
-            res = requests.get(url, headers=headers)
-            all_trains = res.json()
-            delay_res = requests.get(delay_url, headers=headers).json()
-            delays = {t['TrainNo']: t.get('DelayTime', 0) for t in delay_res}
-
+            print(f"正在查詢看板: {url}")
+            res = requests.get(url, headers=headers).json()
+            
             processed = []
-            for t in all_trains:
-                stop_times = t['StopTimes']
-                stations = [s['StationName']['Zh_tw'] for s in stop_times]
+            
+            # 手動設定台灣時區
+            tz_taiwan = timezone(timedelta(hours=8))
+            now_dt = datetime.now(tz_taiwan)
 
-                if START_STATION_NAME in stations and END_STATION_NAME in stations:
-                    idx_start = stations.index(START_STATION_NAME)
-                    idx_end = stations.index(END_STATION_NAME)
-
-                    if idx_start < idx_end:
-                        no = t['DailyTrainInfo']['TrainNo']
-                        raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
-
-                        # --- 名稱簡化與顏色 ---
-                        display_type = raw_type
-                        type_color = "#ffffff" 
-
-                        if "區間快" in raw_type:
-                            display_type = "區間快"
-                            type_color = "#0076B2" 
-                        elif "區間" in raw_type:
-                            display_type = "區間車"
-                            type_color = "#0076B2" 
-                        elif "普悠瑪" in raw_type:
-                            display_type = "普悠瑪"
-                            type_color = "#9C1637" 
-                        elif "3000" in raw_type:
-                            display_type = "自強3000"
-                            type_color = "#85a38f" 
-                        elif "自強" in raw_type:
-                            display_type = "自強號"
-                            type_color = "#DF3F1F" 
-                        elif "太魯閣" in raw_type:
-                            display_type = "太魯閣"
-                            type_color = "#9C1637" 
-
-                        dep_s = stop_times[idx_start]['DepartureTime']
-                        arr_s = stop_times[idx_end]['ArrivalTime']
-                        delay = delays.get(no, 0)
-
-                        dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
-                        arr_dt = datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M")
+            if isinstance(res, list):
+                for t in res:
+                    # Direction: 0 = 順行 (往潮州/台東)
+                    if t.get('Direction') == 0: 
+                        train_no = t['TrainNo']
+                        t_type = t['TrainTypeName']['Zh_tw'].replace("自強(3000)", "自強3000")
+                        sch_dep = t['ScheduledDepartureTime']
+                        delay = t.get('DelayTime', 0)
+                        dest = t.get('EndingStationName', {}).get('Zh_tw', '未知')
+                        
+                        # 補上日期
+                        dep_dt = datetime.strptime(f"{now_dt.strftime('%Y-%m-%d')} {sch_dep}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
+                        
+                        # 跨日修正
+                        if dep_dt < now_dt - timedelta(hours=12):
+                            dep_dt += timedelta(days=1)
+                            
                         real_dep = dep_dt + timedelta(minutes=delay)
-                        real_arr = arr_dt + timedelta(minutes=delay)
+                        
+                        color = "#ffffff"
+                        if "區間" in t_type: color = "#0076B2"
+                        elif "3000" in t_type: color = "#85a38f"
+                        elif "自強" in t_type: color = "#DF3F1F"
+                        elif "普悠瑪" in t_type: color = "#9C1637"
 
-                        # 顯示 10 分鐘前到今天的車
-                        if real_dep > now - timedelta(minutes=10):
-                            processed.append({
-                                "no": no, "type": display_type, "delay": delay, "color": type_color,
-                                "act_dep": real_dep.strftime("%H:%M"),
-                                "act_arr": real_arr.strftime("%H:%M"),
-                                "sch_dep": dep_s, "sch_arr": arr_s,
-                                "sort_key": real_dep
-                            })
+                        processed.append({
+                            "no": train_no,
+                            "type": t_type,
+                            "delay": delay,
+                            "color": color,
+                            "act_dep": real_dep.strftime("%H:%M"),
+                            "sch_dep": sch_dep,
+                            "dest": dest,
+                            "sort_key": real_dep
+                        })
+            
+            print(f"抓到 {len(processed)} 班車")
             return sorted(processed, key=lambda x: x['sort_key'])
         except Exception as e:
-            print(f"發生異常: {e}")
+            print(f"Fetch Error: {e}")
             return []
 
     def generate_html(self, data):
+        tz_taiwan = timezone(timedelta(hours=8))
+        update_time = datetime.now(tz_taiwan).strftime("%H:%M:%S")
+
         html_template = """
         <!DOCTYPE html>
         <html lang="zh-TW">
         <head>
-            <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-            <meta http-equiv="Pragma" content="no-cache">
-            <meta http-equiv="Expires" content="0">
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <meta http-equiv="refresh" content="10">
-            <title>列車時刻</title>
+            <meta http-equiv="refresh" content="60">
+            <title>屏東車站看板</title>
             <style>
                 body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
-                .update-time { color: #999999; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
+                .update-time { color: #999; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
                 .header { padding: 0 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
-                .card:active { background: #1c1c1e; transform: scale(0.97); }
-                .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
+                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; }
+                .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid #f2a900; color: #f2a900; padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
                 .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
                 .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 4px 0; }
-                .arrow { margin: 0 12px; color: #999999; font-size: 0.8rem; }
-                .sub-time { text-align: center; color: #999999; font-size: 0.7rem; }
-                a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
+                .sub-time { text-align: center; color: #999; font-size: 0.7rem; }
+                a { text-decoration: none; color: inherit; }
             </style>
         </head>
         <body>
             <div class="container">
-                <div class="update-time">上次更新時間：""" + datetime.now().strftime("%H:%M:%S") + """</div>
+                <div class="update-time">Github 快照時間：""" + update_time + """</div>
                 <div class="header">
-                    <h1 style="margin:0; font-size:1.3rem;">""" + START_STATION_NAME + """ ➔ """ + END_STATION_NAME + """</h1>
-                    <span style="color: #444; font-size: 0.7rem;">by Benjamin Dai</span>
+                    <h1 style="margin:0; font-size:1.3rem;">屏東 ➔ 往南 (潮州/台東)</h1>
                 </div>
                 {% CARDS %}
             </div>
@@ -139,22 +130,21 @@ class TrainApp:
         cards_html = ""
         for t in data:
             delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
-            
-            # 使用您提供的精確連結：/train/TRA-{車次}/live
             train_url = f"https://railway.chienwen.net/taiwan/train/TRA-{t['no']}/live"
-            
             cards_html += f"""
             <a href="{train_url}" target="_blank">
                 <div class="card" style="border-left-color: {t['color']};">
                     {delay_tag}
-                    <div class="train-info" style="color: {t['color']};">{t['type']} {t['no']} 次</div>
-                    <div class="main-time"><span>{t['act_dep']}</span><span class="arrow">➔</span><span>{t['act_arr']}</span></div>
-                    <div class="sub-time">原定 {t['sch_dep']} ➔ {t['sch_arr']}</div>
+                    <div class="train-info" style="color: {t['color']};">{t['type']} {t['no']} 次 (往{t['dest']})</div>
+                    <div class="main-time"><span>{t['act_dep']}</span></div>
+                    <div class="sub-time">原定 {t['sch_dep']} 開</div>
                 </div>
-            </a>
-            """
+            </a>"""
+        
         if not data:
-            cards_html = '<div style="text-align:center; padding:50px; color:#444;">目前無符合班次</div>'
+            cards_html = '<div style="text-align:center; padding:50px; color:#444;">看板目前無資料</div>'
+            
+        # 關鍵：這裡會產生 index.html
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(html_template.replace("{% CARDS %}", cards_html))
 
