@@ -22,7 +22,7 @@ class handler(BaseHTTPRequestHandler):
             res = requests.post("https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token", data={
                 'grant_type': 'client_credentials', 'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET
             })
-            if res.status_code != 200: return None, f"Token Error: {res.status_code}"
+            if res.status_code != 200: return None, f"Token Error"
             data = res.json()
             CACHED_TOKEN = data.get('access_token')
             TOKEN_EXPIRY = now + timedelta(seconds=data.get('expires_in', 3600))
@@ -30,14 +30,13 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e: return None, str(e)
 
     def do_GET(self):
-        # 初始化診斷日誌
         logs = []
         logs.append(f"時間: {datetime.now().strftime('%H:%M:%S')}")
         
         token, error_msg = self.get_token()
         if not token:
             self.send_response(500)
-            self.wfile.write(f"Auth Fail: {error_msg}".encode('utf-8'))
+            self.wfile.write(f"Auth Fail".encode('utf-8'))
             return
 
         headers = {'authorization': f'Bearer {token}'}
@@ -63,40 +62,41 @@ class handler(BaseHTTPRequestHandler):
                     delays[t.get('TrainNo')] = t.get('DelayTime', 0)
 
             processed = []
-            filter_stats = {"total": 0, "pass_path": 0, "pass_time": 0}
             
+            # ★★★ 南下終點站白名單 (包含所有可能的寫法) ★★★
+            SOUTH_DESTS = ['潮州', '枋寮', '臺東', '台東', '花蓮', '知本', '玉里', '南州', '林邊', '大武', '枋野', '太麻里']
+            
+            # 統計用
+            stats = {"total": 0, "pass_dest": 0, "pass_time": 0, "skipped_samples": []}
+
             if isinstance(res, list):
-                filter_stats["total"] = len(res)
+                stats["total"] = len(res)
                 
                 for t in res:
-                    stop_times = t.get('StopTimes', [])
                     info = t.get('DailyTrainInfo', {})
                     train_no = info.get('TrainNo')
+                    dest = info.get('EndingStationName', {}).get('Zh_tw', '未知')
                     
-                    # 1. 路徑檢查：屏東(5000) 必須在 潮州(5030) 之前
-                    idx_pingtung = -1
-                    idx_chaozhou = -1
+                    # 1. 終點站過濾 (Destination Filter)
+                    # 只要終點站不在白名單裡，就當作是北上車 (往高雄/新左營/台北...)
+                    if dest not in SOUTH_DESTS:
+                        if len(stats["skipped_samples"]) < 3: # 記錄前3個被踢掉的，方便除錯
+                            stats["skipped_samples"].append(f"{train_no}往{dest}")
+                        continue
+                    
+                    stats["pass_dest"] += 1
+
+                    # 2. 找出屏東發車時間
+                    stop_times = t.get('StopTimes', [])
                     dep_time = ""
-                    
-                    for i, s in enumerate(stop_times):
+                    for s in stop_times:
                         if s['StationID'] == START_STATION_ID:
-                            idx_pingtung = i
                             dep_time = s['DepartureTime']
-                        elif s['StationID'] == '5030': # 潮州
-                            idx_chaozhou = i
+                            break
                     
-                    # 診斷：記錄第一筆失敗的原因 (抽樣檢查)
-                    if idx_pingtung != -1 and idx_chaozhou != -1 and idx_chaozhou < idx_pingtung:
-                        if "SampleFail" not in filter_stats:
-                            filter_stats["SampleFail"] = f"車次 {train_no} 被過濾 (因潮州在屏東之前，判定為北上)"
+                    if not dep_time: continue
 
-                    # 條件：必須經過屏東，且後面有經過潮州
-                    if idx_pingtung == -1 or idx_chaozhou == -1 or idx_chaozhou < idx_pingtung:
-                        continue 
-                    
-                    filter_stats["pass_path"] += 1
-
-                    # 2. 時間處理
+                    # 3. 時間過濾
                     sch_dep = dep_time[:5]
                     delay = delays.get(train_no, 0)
                     
@@ -104,16 +104,15 @@ class handler(BaseHTTPRequestHandler):
                         dep_dt = datetime.strptime(f"{today_str} {sch_dep}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
                         real_dep = dep_dt + timedelta(minutes=delay)
                         
-                        # 3. 只顯示現在之後的車 (緩衝 10 分鐘)
+                        # 只顯示「現在 - 10分鐘」以後的車
                         if real_dep < now_dt - timedelta(minutes=10):
                             continue
                             
-                        filter_stats["pass_time"] += 1
+                        stats["pass_time"] += 1
                         
                     except: continue
 
                     t_type = info.get('TrainTypeName', {}).get('Zh_tw', '').replace("自強(3000)", "自強3000")
-                    dest = info.get('EndingStationName', {}).get('Zh_tw', '未知')
                     
                     color = "#ffffff"
                     if "區間" in t_type: color = "#0076B2"
@@ -128,7 +127,8 @@ class handler(BaseHTTPRequestHandler):
                     })
 
             data = sorted(processed, key=lambda x: x['sort_key'])
-            logs.append(f"過濾統計: {json.dumps(filter_stats, ensure_ascii=False)}")
+            logs.append(f"過濾統計: Total={stats['total']}, 終點站符合={stats['pass_dest']}, 時間符合={stats['pass_time']}")
+            logs.append(f"被過濾的範例(北上): {', '.join(stats['skipped_samples'])}")
             logs.append(f"最終顯示: {len(data)} 筆")
 
             cards_html = ""
@@ -148,7 +148,6 @@ class handler(BaseHTTPRequestHandler):
             if not data:
                 cards_html = f'<div style="text-align:center; padding:50px; color:#444;">無符合班次</div>'
             
-            # 產生診斷區塊 HTML
             debug_html = "<br>".join(logs)
 
             html = f"""
@@ -177,14 +176,14 @@ class handler(BaseHTTPRequestHandler):
             </head>
             <body>
                 <div class="container">
-                    <div class="update-time">全日時刻+路徑過濾版</div>
+                    <div class="update-time">全日時刻+終點過濾版</div>
                     <div class="header">
                         <h1 style="margin:0; font-size:1.3rem;">屏東 ➔ 往南 (潮州/台東)</h1>
                     </div>
                     {cards_html}
                     
                     <details>
-                        <summary>🛠️ 開發者診斷資訊 (Debug Info)</summary>
+                        <summary>🛠️ 開發者診斷資訊</summary>
                         <pre>{debug_html}</pre>
                     </details>
                 </div>
