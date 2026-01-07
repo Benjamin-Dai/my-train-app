@@ -5,16 +5,17 @@ from datetime import datetime, timedelta
 import os
 
 # ================= 設定區 =================
-# 修正時區：Vercel 是 UTC，我們要加 8 小時變成台灣時間
+# 1. 取得台灣時間 (UTC+8)
 def get_taiwan_time():
     return datetime.utcnow() + timedelta(hours=8)
 
-# 嘗試讀取環境變數
-ENV_ID = os.environ.get('TDX_ID')
-ENV_SECRET = os.environ.get('TDX_SECRET')
+# 2. 讀取環境變數 (TDX_ID, TDX_SECRET)
+CLIENT_ID = os.environ.get('TDX_ID')
+CLIENT_SECRET = os.environ.get('TDX_SECRET')
 
-# 你的車站代碼
-STATION_ID = '5000' # 屏東
+# 3. 車站設定 (屏東 -> 潮州)
+STATION_ID = '5000' 
+DEST_ID = '5050'
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -22,112 +23,163 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
 
-        # 取得台灣時間
+        # 取得當下台灣日期與時間
         tw_now = get_taiwan_time()
-        current_time_str = tw_now.strftime('%H:%M')
         today_date = tw_now.strftime('%Y-%m-%d')
+        current_time_str = tw_now.strftime('%H:%M')
 
-        # === 自我檢查報告 ===
-        report = []
+        # 1. 取得 Token
+        token = self.get_auth_token()
+        if not token:
+            self.wfile.write("<h1>❌ 錯誤：無法取得 Token</h1><p>請確認 Vercel 環境變數 TDX_ID 與 TDX_SECRET 是否正確。</p>".encode('utf-8'))
+            return
+
+        # 2. 自動尋找可用資料 (萬能鑰匙邏輯)
+        raw_data = self.fetch_data_auto(token, today_date)
         
-        # 1. 檢查變數名稱 (這是最常見的錯誤點)
-        # 我們檢查變數是否存在，不顯示內容以保安全
-        if ENV_ID:
-            report.append(f"✅ TDX_ID: 讀取成功 (長度 {len(ENV_ID)} 字元)")
-        else:
-            report.append("❌ TDX_ID: 讀取失敗 (是 None)")
-            
-        if ENV_SECRET:
-            report.append(f"✅ TDX_SECRET: 讀取成功 (長度 {len(ENV_SECRET)} 字元)")
-        else:
-            report.append("❌ TDX_SECRET: 讀取失敗 (是 None)")
+        # 3. 生成網頁
+        html = self.generate_html(raw_data, current_time_str)
+        self.wfile.write(html.encode('utf-8'))
 
-        # 2. 嘗試取得 Token
-        token = None
-        if ENV_ID and ENV_SECRET:
-            try:
-                auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
-                headers = {'content-type': 'application/x-www-form-urlencoded'}
-                data = {'grant_type': 'client_credentials', 'client_id': ENV_ID, 'client_secret': ENV_SECRET}
-                r = requests.post(auth_url, headers=headers, data=data)
-                if r.status_code == 200:
-                    token = r.json().get('access_token')
-                    report.append("✅ Token: 取得成功！帳號密碼正確")
-                else:
-                    report.append(f"❌ Token: 取得失敗 (錯誤碼 {r.status_code})。請檢查帳號密碼是否正確")
-            except Exception as e:
-                report.append(f"❌ Token: 連線錯誤 ({str(e)})")
-        else:
-            report.append("⚠️ Token: 跳過 (因為沒有帳號密碼)")
+    def get_auth_token(self):
+        try:
+            auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
+            headers = {'content-type': 'application/x-www-form-urlencoded'}
+            data = {'grant_type': 'client_credentials', 'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET}
+            r = requests.post(auth_url, headers=headers, data=data)
+            if r.status_code == 200:
+                return r.json().get('access_token')
+            return None
+        except:
+            return None
 
-        # 3. 抓取火車資料
-        trains = []
-        if token:
-            url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/Station/{STATION_ID}/{today_date}"
+    def fetch_data_auto(self, token, date_str):
+        headers = {'authorization': f'Bearer {token}'}
+        
+        # 準備四種網址，一個一個試
+        urls = [
+            # 路徑 1: V2 車站 (最常用)
+            f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/Station/{STATION_ID}/{date_str}",
+            # 路徑 2: V2 起迄 (OD)
+            f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/OD/{STATION_ID}/to/{DEST_ID}/{date_str}",
+            # 路徑 3: V3 車站
+            f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/Station/{STATION_ID}/{date_str}",
+            # 路徑 4: V3 起迄
+            f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/OD/Inclusive/{STATION_ID}/to/{DEST_ID}/{date_str}"
+        ]
+
+        for url in urls:
             try:
-                r = requests.get(url, headers={'authorization': f'Bearer {token}'})
+                r = requests.get(url, headers=headers)
                 if r.status_code == 200:
                     data = r.json()
-                    raw_list = data.get('StationTimetables', [])
-                    report.append(f"✅ 資料 API: 成功連線，抓到 {len(raw_list)} 筆原始資料")
-                    
-                    # 整理資料
-                    for item in raw_list:
-                        info = item.get('TrainInfo', {})
-                        # 只顯示順行 (往潮州/南下)
-                        if info.get('Direction') == 0:
-                            stop_time = item.get('StopTimes', [{}])[0].get('DepartureTime', '')
-                            if stop_time and stop_time >= current_time_str:
-                                trains.append({
-                                    'time': stop_time,
-                                    'type': info.get('TrainTypeName', {}).get('Zh_tw', ''),
-                                    'no': info.get('TrainNo', ''),
-                                    'dest': info.get('EndingStationName', {}).get('Zh_tw', '')
-                                })
-                    trains.sort(key=lambda x: x['time'])
-                else:
-                    report.append(f"❌ 資料 API: 失敗 (錯誤碼 {r.status_code})")
+                    # 只要抓到資料，轉成統一格式並回傳
+                    if isinstance(data, list): return data
+                    if 'StationTimetables' in data: return data['StationTimetables']
+                    if 'TrainTimetables' in data: return data['TrainTimetables']
             except:
-                report.append("❌ 資料 API: 連線發生例外錯誤")
+                continue
+        return []
 
-        # 生成 HTML
-        report_html = "<br>".join(report)
+    def generate_html(self, raw_data, current_time):
+        schedule = []
         
-        list_html = ""
-        if trains:
-            for t in trains:
-                list_html += f"""
+        # 解析資料 (相容各種格式)
+        for item in raw_data:
+            try:
+                # 取得車次資訊
+                info = item.get('TrainInfo', {})
+                if not info: info = item # 有些格式直接就是 info
+                
+                # 過濾方向 (0=順行/南下, 1=逆行/北上)
+                # 如果是 OD API，通常不需要濾方向，若是 Station API 則需要
+                direction = info.get('Direction')
+                if direction is not None and int(direction) != 0:
+                    continue 
+
+                # 取得時間
+                departure_time = ""
+                stop_times = item.get('StopTimes', [])
+                
+                # 策略: 找屏東站(5000)的發車時間
+                if len(stop_times) == 1:
+                    departure_time = stop_times[0].get('DepartureTime')
+                else:
+                    for stop in stop_times:
+                        if stop.get('StationID') == STATION_ID:
+                            departure_time = stop.get('DepartureTime')
+                            break
+                
+                if not departure_time: continue
+
+                # 取得名稱
+                train_no = info.get('TrainNo', '')
+                
+                # 處理名稱可能是字典或字串的情況
+                def get_name(obj, key):
+                    val = obj.get(key)
+                    if isinstance(val, dict): return val.get('Zh_tw', '')
+                    return str(val) if val else ''
+
+                train_type = get_name(info, 'TrainTypeName')
+                dest = get_name(info, 'EndingStationName')
+
+                schedule.append({
+                    'time': departure_time,
+                    'no': train_no,
+                    'type': train_type,
+                    'dest': dest
+                })
+            except:
+                continue
+
+        # 排序
+        schedule.sort(key=lambda x: x['time'])
+
+        # 生成卡片 HTML
+        cards = ""
+        count = 0
+        for t in schedule:
+            if t['time'] >= current_time:
+                count += 1
+                cards += f"""
                 <div class="card">
                     <div class="time">{t['time']}</div>
-                    <div class="info">{t['type']} ({t['no']}次) 往 {t['dest']}</div>
-                </div>"""
-        else:
-            list_html = "<div style='text-align:center; padding:20px'>目前沒有後續車次</div>"
+                    <div class="info">
+                        <div class="dest">往 {t['dest']}</div>
+                        <div class="type">{t['type']} ({t['no']}次)</div>
+                    </div>
+                </div>
+                """
+        
+        if count == 0:
+            cards = "<div style='text-align:center; padding:20px; color:#666'>今天剩下的時間沒有車囉 (或資料讀取中)</div>"
 
-        html = f"""
+        return f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>除錯模式</title>
+            <title>屏東火車時刻</title>
             <style>
-                body {{ font-family: sans-serif; padding: 20px; background: #eee; }}
-                .debug {{ background: #333; color: #fff; padding: 15px; margin-bottom: 20px; border-radius: 5px; font-family: monospace; line-height: 1.5; }}
-                .card {{ background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #009688; }}
-                .time {{ font-size: 1.5em; font-weight: bold; }}
+                body {{ font-family: "Microsoft JhengHei", sans-serif; padding: 20px; background: #eee; }}
+                .container {{ max-width: 600px; margin: 0 auto; }}
+                h2 {{ text-align: center; color: #333; }}
+                .card {{ background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; 
+                         box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; 
+                         border-left: 5px solid #009688; }}
+                .time {{ font-size: 1.5em; font-weight: bold; color: #333; }}
+                .info {{ text-align: right; }}
+                .dest {{ color: #007bff; font-weight: bold; font-size: 1.1em; }}
+                .type {{ font-size: 0.9em; color: #666; }}
             </style>
         </head>
         <body>
-            <h2 style="text-align:center">台灣時間: {current_time_str}</h2>
-            
-            <div class="debug">
-                <strong>系統檢查日誌：</strong><br>
-                {report_html}
+            <div class="container">
+                <h2>屏東 ➔ 潮州 ({current_time})</h2>
+                {cards}
             </div>
-
-            {list_html}
         </body>
         </html>
         """
-        self.wfile.write(html.encode('utf-8'))
