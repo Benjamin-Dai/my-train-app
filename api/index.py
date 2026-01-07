@@ -2,11 +2,15 @@ from http.server import BaseHTTPRequestHandler
 import json
 import requests
 from datetime import datetime
-import os
+import os  # <--- 這裡一定要匯入 os 模組
 
 # ================= 設定區 =================
-CLIENT_ID = TDX_ID
-CLIENT_SECRET = TDX_SECRET
+# 這裡改成從「環境變數」讀取，而不是寫死在程式碼裡
+# 如果你在 Vercel 設定的名字不一樣，請修改括號裡的字
+CLIENT_ID = os.environ.get('TDX_ID')      
+CLIENT_SECRET = os.environ.get('TDX_SECRET')
+
+# 車站代碼
 STATION_ID = '5000' # 屏東
 DEST_ID = '5050'    # 潮州
 
@@ -16,19 +20,24 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
 
+        # 檢查是否有抓到環境變數
+        if not CLIENT_ID or not CLIENT_SECRET:
+            error_msg = "<h1>Error: 找不到環境變數 (Environment Variables)</h1>"
+            error_msg += "<p>請確認 Vercel 設定裡的變數名稱是否為 <b>TDX_ID</b> 和 <b>TDX_SECRET</b></p>"
+            self.wfile.write(error_msg.encode('utf-8'))
+            return
+
         # 1. 取得 Token
         token = self.get_auth_token()
         if not token:
-            self.wfile.write("<h1>Error: 無法取得 Token</h1>".encode('utf-8'))
+            self.wfile.write("<h1>Error: 無法取得 Token (帳號密碼可能錯誤)</h1>".encode('utf-8'))
             return
 
-        # 2. 抓取資料 (嘗試多種路徑)
+        # 2. 抓取資料
         data = self.fetch_data_auto(token)
         
-        # 3. 解析並生成 HTML
+        # 3. 生成並回傳 HTML
         html = self.generate_html(data)
-        
-        # 4. 直接回傳網頁 (關鍵！)
         self.wfile.write(html.encode('utf-8'))
         return
 
@@ -45,7 +54,7 @@ class handler(BaseHTTPRequestHandler):
     def fetch_data_auto(self, token):
         today = datetime.now().strftime('%Y-%m-%d')
         headers = {'authorization': f'Bearer {token}'}
-        # 嘗試 V2 Station API (最穩)
+        # 嘗試 V2 Station API
         url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/Station/{STATION_ID}/{today}"
         try:
             r = requests.get(url, headers=headers)
@@ -57,8 +66,6 @@ class handler(BaseHTTPRequestHandler):
 
     def generate_html(self, raw_data):
         current_time = datetime.now().strftime('%H:%M')
-        
-        # 解析資料
         schedule = []
         if isinstance(raw_data, dict):
             raw_data = raw_data.get('StationTimetables', [])
@@ -66,17 +73,14 @@ class handler(BaseHTTPRequestHandler):
         for item in raw_data:
             try:
                 info = item.get('TrainInfo', {})
-                # 過濾方向 (0=順行往南)
-                if info.get('Direction') != 0: continue
+                if info.get('Direction') != 0: continue # 只留順行
                 
-                # 取得時間
                 departure_time = ""
                 for stop in item.get('StopTimes', []):
                     if stop.get('DepartureTime'):
                         departure_time = stop.get('DepartureTime')
                         break
                 
-                # 取得其他資訊
                 train_no = info.get('TrainNo', '')
                 train_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
                 dest = info.get('EndingStationName', {}).get('Zh_tw', '')
@@ -88,7 +92,6 @@ class handler(BaseHTTPRequestHandler):
                 
         schedule.sort(key=lambda x: x['time'])
 
-        # 組合 HTML
         list_html = ""
         count = 0
         for train in schedule:
