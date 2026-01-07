@@ -1,10 +1,10 @@
 from http.server import BaseHTTPRequestHandler
 import requests
 import os
+import json
 from datetime import datetime, timedelta, timezone
 
 # ================= 設定區 =================
-# Vercel 會自動從環境變數讀取這些值
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 START_STATION_NAME = '屏東'
@@ -21,34 +21,58 @@ class handler(BaseHTTPRequestHandler):
                 'client_id': CLIENT_ID,
                 'client_secret': CLIENT_SECRET
             })
-            return res.json().get('access_token')
-        except:
-            return None
+            if res.status_code != 200:
+                return None, f"Token Error: {res.text}"
+            return res.json().get('access_token'), None
+        except Exception as e:
+            return None, str(e)
 
     def do_GET(self):
-        token = self.get_token()
+        token, error_msg = self.get_token()
         if not token:
-            self.send_error(500, "TDX Token Error")
+            self.send_response(500)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(f"<h1>Token 取得失敗</h1><p>{error_msg}</p>".encode('utf-8'))
             return
 
         headers = {'authorization': f'Bearer {token}'}
-        # 強制設定台灣時區 UTC+8
         tz_taiwan = timezone(timedelta(hours=8))
         now = datetime.now(tz_taiwan)
         today = now.strftime('%Y-%m-%d')
         
-        # 使用屏東站專屬 API
+        # API 網址
         url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/{START_STATION_ID}/{today}"
         delay_url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveTrainDelay"
 
         try:
-            res = requests.get(url, headers=headers).json()
-            delay_res = requests.get(delay_url, headers=headers).json()
-            delays = {t['TrainNo']: t.get('DelayTime', 0) for t in delay_res}
+            # 抓取資料
+            raw_res = requests.get(url, headers=headers)
+            raw_delay = requests.get(delay_url, headers=headers)
+
+            # --- 關鍵診斷區：檢查 TDX 是否回傳錯誤 ---
+            try:
+                res = raw_res.json()
+                delay_res = raw_delay.json()
+            except:
+                raise Exception("TDX 回傳了非 JSON 格式的資料")
+
+            # 檢查是否為清單 (List)，如果不是，代表是錯誤訊息
+            if not isinstance(res, list):
+                error_content = str(res)
+                raise Exception(f"時刻表 API 回傳錯誤: {error_content}")
+            
+            if not isinstance(delay_res, list):
+                # 誤點資料抓不到沒關係，給個空清單就好，不要讓整個網頁掛掉
+                delay_res = [] 
+
+            # 建立誤點字典
+            delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in delay_res}
 
             processed = []
             for t in res:
-                # 防呆：如果沒有停靠站資料就跳過
+                # 再次防呆
+                if not isinstance(t, dict): continue
                 if 'StopTimes' not in t or not t['StopTimes']: continue
                 
                 stop_times = t['StopTimes']
@@ -63,29 +87,22 @@ class handler(BaseHTTPRequestHandler):
                         dep_s = stop_times[idx_start]['DepartureTime']
                         delay = delays.get(no, 0)
                         
-                        # 加上時區資訊
                         dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
                         real_dep = dep_dt + timedelta(minutes=delay)
 
-                        # 顯示：10分鐘前 ~ 未來3小時
+                        # 顯示範圍：10分前 ~ 3小時後
                         if now - timedelta(minutes=10) <= real_dep <= now + timedelta(hours=3):
                             raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
                             arr_s = stop_times[idx_end]['ArrivalTime']
                             
-                            # 顏色邏輯
                             color = "#ffffff"
                             if "區間" in raw_type: color = "#0076B2"
                             elif "3000" in raw_type: color = "#85a38f"
                             elif "自強" in raw_type: color = "#DF3F1F"
                             elif "普悠瑪" in raw_type or "太魯閣" in raw_type: color = "#9C1637"
 
-                            # 名稱簡化
-                            d_type = raw_type
-                            if "區間快" in raw_type: d_type = "區間快"
-                            elif "區間" in raw_type: d_type = "區間車"
-                            elif "3000" in raw_type: d_type = "自強3000"
-                            elif "自強" in raw_type: d_type = "自強號"
-
+                            d_type = raw_type.replace("自強(3000)", "自強3000")
+                            
                             act_arr = (datetime.strptime(f"{today} {arr_s}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan) + timedelta(minutes=delay)).strftime("%H:%M")
 
                             processed.append({
@@ -98,7 +115,7 @@ class handler(BaseHTTPRequestHandler):
             
             data = sorted(processed, key=lambda x: x['sort_key'])
             
-            # 生成 HTML (Vercel 直接輸出字串)
+            # 生成 HTML
             cards_html = ""
             for t in data:
                 delay_tag = f'<div class="delay-badge">誤點 {t["delay"]} 分</div>' if t['delay'] > 0 else ""
@@ -122,7 +139,7 @@ class handler(BaseHTTPRequestHandler):
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-                <title>列車時刻 (Vercel)</title>
+                <title>列車時刻</title>
                 <style>
                     body {{ background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }}
                     .container {{ max-width: 500px; margin: 0 auto; }}
@@ -151,13 +168,20 @@ class handler(BaseHTTPRequestHandler):
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
-            # 設定 10 秒快取，避免瘋狂按 F5 導致 TDX 鎖 IP
             self.send_header('Cache-Control', 's-maxage=10, stale-while-revalidate')
             self.end_headers()
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
-            self.send_response(500)
-            self.send_header('Content-type', 'text/plain; charset=utf-8')
+            # 這裡是最重要的修改！我們直接把錯誤原因印到網頁上
+            self.send_response(200) # 用 200 回傳才能看到網頁內容
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
-            self.wfile.write(f"系統錯誤: {str(e)}".encode('utf-8'))
+            error_html = f"""
+            <div style="background:#330000; color:#ffcccc; padding:20px; font-family:monospace;">
+                <h2>系統發生錯誤</h2>
+                <p>{str(e)}</p>
+                <p>請截圖此畫面給開發者。</p>
+            </div>
+            """
+            self.wfile.write(error_html.encode('utf-8'))
