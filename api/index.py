@@ -5,8 +5,8 @@ from datetime import datetime
 import os
 
 # ================= 設定區 =================
-CLIENT_ID = '你的CLIENT_ID' 
-CLIENT_SECRET = '你的CLIENT_SECRET'
+CLIENT_ID = TDX_ID
+CLIENT_SECRET = TDX_SECRET
 STATION_ID = '5000' # 屏東
 DEST_ID = '5050'    # 潮州
 
