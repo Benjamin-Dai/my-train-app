@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 START_STATION_NAME = '屏東'
-START_STATION_ID = '3300'  # 屏東站代碼
+START_STATION_ID = '5000'  # <--- 修正：屏東站代碼是 5000 (原本誤植為 3300 台中)
 END_STATION_NAME = '潮州'
 # =========================================
 
@@ -31,7 +31,7 @@ class TrainApp:
         now = datetime.now()
         today = now.strftime('%Y-%m-%d')
         
-        # 優化：只抓屏東站
+        # 使用正確的屏東站代碼 (5000)
         url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/{START_STATION_ID}/{today}"
         delay_url = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/LiveTrainDelay"
 
@@ -43,20 +43,23 @@ class TrainApp:
             processed = []
             for t in res:
                 stop_times = t['StopTimes']
+                # 去除站名空格，避免比對失敗
                 stations = [s['StationName']['Zh_tw'].strip() for s in stop_times]
 
                 if END_STATION_NAME in stations:
                     idx_start = stations.index(START_STATION_NAME)
                     idx_end = stations.index(END_STATION_NAME)
 
+                    # 確保方向正確 (屏東 -> 潮州)
                     if idx_start < idx_end:
                         no = t['DailyTrainInfo']['TrainNo']
                         dep_s = stop_times[idx_start]['DepartureTime']
                         delay = delays.get(no, 0)
+                        
                         dep_dt = datetime.strptime(f"{today} {dep_s}", "%Y-%m-%d %H:%M")
                         real_dep = dep_dt + timedelta(minutes=delay)
 
-                        # 顯示 10 分鐘前到之後的車
+                        # 過濾掉已經開走超過 10 分鐘的車
                         if real_dep > now - timedelta(minutes=10):
                             raw_type = t['DailyTrainInfo']['TrainTypeName']['Zh_tw']
                             arr_s = stop_times[idx_end]['ArrivalTime']
