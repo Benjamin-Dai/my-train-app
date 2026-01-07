@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>列車時刻 Live</title>
+    <style>
+        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
+        .container { max-width: 500px; margin: 0 auto; padding-bottom: 60px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .station-title { font-size: 1.3rem; font-weight: bold; margin: 0; }
+        .sub-title { color: #666; font-size: 0.75rem; }
+
+        .controls { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; gap: 10px; }
+        .status-text { font-size: 0.75rem; color: #888; }
+        .refresh-btn {
+            background: #007AFF; color: white; border: none; padding: 6px 16px; 
+            border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .refresh-btn:disabled { background: #333; color: #888; cursor: not-allowed; }
+        .refresh-btn:active { transform: scale(0.95); }
+
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; }
+        .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+        .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 6px 0; }
+        .arrow { margin: 0 12px; color: #666; font-size: 0.8rem; }
+        .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
+        a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
+
+        .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
+        .loading { color: #007AFF; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1 class="station-title">屏東 ➔ 潮州</h1>
+                <div class="sub-title">V3 Live System</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <span id="statusText" class="status-text">準備就緒</span>
+            <button id="refreshBtn" class="refresh-btn" onclick="manualRefresh()">更新</button>
+        </div>
+
+        <div id="cardList"></div>
+    </div>
+
+    <script>
+        const API_URL = "/api/index?start=屏東&end=潮州"; 
+        const CACHE_KEY = "train_data_v1";
+        const COOLDOWN_KEY = "next_refresh_time";
+        
+        const btn = document.getElementById('refreshBtn');
+        const statusText = document.getElementById('statusText');
+        const list = document.getElementById('cardList');
+        let timerInterval = null;
+
+        function init() {
+            checkCooldown();
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                const data = JSON.parse(cached);
+                const now = Date.now();
+                // 檢查是否為 60 秒內的快取 (防 F5)
+                if (now - data.timestamp < 60 * 1000) {
+                    console.log("使用 LocalStorage 快取");
+                    renderCards(data.payload);
+                    statusText.innerText = `快取於 ${data.payload.update_time}`;
+                    return;
+                }
+            }
+            fetchData();
+        }
+
+        async function fetchData() {
+            btn.disabled = true;
+            statusText.innerText = "更新中...";
+            if (!list.hasChildNodes()) {
+                 list.innerHTML = '<div class="message loading">正在連線 TDX...</div>';
+            }
+
+            try {
+                const res = await fetch(API_URL);
+                const json = await res.json();
+                
+                if (json.error) throw new Error(json.error);
+
+                const cacheObj = { timestamp: Date.now(), payload: json };
+                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheObj));
+
+                renderCards(json);
+                statusText.innerText = `更新於 ${json.update_time}`;
+                setCooldown(60); // 設定 60 秒冷卻
+
+            } catch (err) {
+                console.error(err);
+                statusText.innerText = "更新失敗";
+                list.innerHTML = `<div class="message">發生錯誤：${err.message}<br>請稍後再試</div>`;
+                btn.disabled = false;
+            }
+        }
+
+        function manualRefresh() { fetchData(); }
+
+        function setCooldown(seconds) {
+            const nextTime = Date.now() + (seconds * 1000);
+            localStorage.setItem(COOLDOWN_KEY, nextTime);
+            checkCooldown();
+        }
+
+        function checkCooldown() {
+            const nextTime = localStorage.getItem(COOLDOWN_KEY);
+            if (!nextTime) return;
+
+            const now = Date.now();
+            const remain = Math.ceil((parseInt(nextTime) - now) / 1000);
+
+            if (remain > 0) {
+                startTimer(remain);
+            } else {
+                localStorage.removeItem(COOLDOWN_KEY);
+                btn.disabled = false;
+                btn.innerText = "更新";
+            }
+        }
+
+        function startTimer(initialSeconds) {
+            if (timerInterval) clearInterval(timerInterval);
+            let sec = initialSeconds;
+            btn.disabled = true;
+            btn.innerText = `${sec}s`;
+
+            timerInterval = setInterval(() => {
+                sec--;
+                btn.innerText = `${sec}s`;
+                if (sec <= 0) {
+                    clearInterval(timerInterval);
+                    btn.disabled = false;
+                    btn.innerText = "更新";
+                    localStorage.removeItem(COOLDOWN_KEY);
+                }
+            }, 1000);
+        }
+
+        function renderCards(data) {
+            if (!data.trains || data.trains.length === 0) {
+                list.innerHTML = '<div class="message">目前無符合班次</div>';
+                return;
+            }
+
+            let html = "";
+            data.trains.forEach(t => {
+                const delayTag = t.delay > 0 ? `<div class="delay-badge">誤點 ${t.delay} 分</div>` : "";
+                const trainUrl = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
+                
+                html += `
+                <a href="${trainUrl}" target="_blank">
+                    <div class="card" style="border-left-color: ${t.color};">
+                        ${delayTag}
+                        <div class="train-info" style="color: ${t.color};">${t.type} ${t.no} 次</div>
+                        <div class="main-time"><span>${t.act_dep}</span><span class="arrow">➔</span><span>${t.act_arr}</span></div>
+                        <div class="sub-time">原定 ${t.sch_dep} ➔ ${t.sch_arr}</div>
+                    </div>
+                </a>
+                `;
+            });
+            list.innerHTML = html;
+        }
+
+        // 自動更新 (10分鐘)
+        setInterval(() => {
+            if (!btn.disabled) {
+                console.log("觸發自動更新");
+                fetchData();
+            }
+        }, 600 * 1000);
+
+        init();
+    </script>
+</body>
+</html>
