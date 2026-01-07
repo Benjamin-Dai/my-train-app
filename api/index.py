@@ -10,7 +10,6 @@ CLIENT_SECRET = os.environ.get('TDX_SECRET')
 START_STATION_ID = '5000'  # 屏東站
 # =========================================
 
-# 全域變數：用來暫存 Token，避免重複申請被鎖
 CACHED_TOKEN = None
 TOKEN_EXPIRY = datetime.min.replace(tzinfo=timezone.utc)
 
@@ -18,26 +17,24 @@ class handler(BaseHTTPRequestHandler):
     def get_token(self):
         global CACHED_TOKEN, TOKEN_EXPIRY
         now = datetime.now(timezone.utc)
-        # 如果 Token 還沒過期 (還有 10 分鐘壽命)，直接用舊的
         if CACHED_TOKEN and now < TOKEN_EXPIRY - timedelta(seconds=600):
             return CACHED_TOKEN, None
-
         try:
             res = requests.post("https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token", data={
                 'grant_type': 'client_credentials', 'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET
             })
-            if res.status_code != 200: return None, f"Token Error: {res.text}"
+            if res.status_code != 200: return None, f"Token Error"
             data = res.json()
             CACHED_TOKEN = data.get('access_token')
             TOKEN_EXPIRY = now + timedelta(seconds=data.get('expires_in', 3600))
             return CACHED_TOKEN, None
-        except Exception as e: return None, str(e)
+        except: return None, "Auth Exception"
 
     def do_GET(self):
         token, error_msg = self.get_token()
         if not token:
             self.send_response(500)
-            self.wfile.write(f"Token Error: {error_msg}".encode('utf-8'))
+            self.wfile.write(f"Auth Fail".encode('utf-8'))
             return
 
         headers = {'authorization': f'Bearer {token}'}
@@ -47,29 +44,30 @@ class handler(BaseHTTPRequestHandler):
             res = requests.get(url, headers=headers).json()
             processed = []
             
-            # 檢查是否為流量限制錯誤
-            if isinstance(res, dict) and 'message' in res and 'rate limit' in res['message'].lower():
-                raise Exception("系統冷卻中 (Rate Limit Exceeded)，請稍後再試。")
+            tz_taiwan = timezone(timedelta(hours=8))
+            now_dt = datetime.now(tz_taiwan)
 
             if isinstance(res, list):
                 for t in res:
-                    # Direction: 0 = 順行 (往潮州/枋寮)
                     if t.get('Direction') == 0: 
                         train_no = t['TrainNo']
                         t_type = t['TrainTypeName']['Zh_tw'].replace("自強(3000)", "自強3000")
-                        sch_dep = t['ScheduledDepartureTime']
+                        
+                        # --- 修正時間解析邏輯 ---
+                        raw_time = t['ScheduledDepartureTime']
+                        # 如果時間字串長度 > 5 (代表有秒數，如 13:00:00)，只取前 5 碼
+                        sch_dep = raw_time[:5] 
+                        
                         delay = t.get('DelayTime', 0)
                         dest = t.get('EndingStationName', {}).get('Zh_tw', '未知')
                         
-                        tz_taiwan = timezone(timedelta(hours=8))
-                        now_dt = datetime.now(tz_taiwan)
-                        dep_dt = datetime.strptime(f"{now_dt.strftime('%Y-%m-%d')} {sch_dep}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
-                        
-                        if dep_dt < now_dt - timedelta(hours=12):
-                            dep_dt += timedelta(days=1)
-                            
-                        real_dep = dep_dt + timedelta(minutes=delay)
-                        
+                        try:
+                            dep_dt = datetime.strptime(f"{now_dt.strftime('%Y-%m-%d')} {sch_dep}", "%Y-%m-%d %H:%M").replace(tzinfo=tz_taiwan)
+                            if dep_dt < now_dt - timedelta(hours=12): dep_dt += timedelta(days=1)
+                            real_dep = dep_dt + timedelta(minutes=delay)
+                        except:
+                            continue # 如果時間格式真的太奇怪就跳過這班
+
                         color = "#ffffff"
                         if "區間" in t_type: color = "#0076B2"
                         elif "3000" in t_type: color = "#85a38f"
@@ -99,7 +97,7 @@ class handler(BaseHTTPRequestHandler):
                 </a>"""
 
             if not data:
-                cards_html = f'<div style="text-align:center; padding:50px; color:#444;">看板顯示目前無南下班次</div>'
+                cards_html = f'<div style="text-align:center; padding:50px; color:#444;">目前無南下班次</div>'
 
             html = f"""
             <!DOCTYPE html>
@@ -124,7 +122,7 @@ class handler(BaseHTTPRequestHandler):
             </head>
             <body>
                 <div class="container">
-                    <div class="update-time">Vercel 即時看板模式</div>
+                    <div class="update-time">最後更新：{now_dt.strftime("%H:%M:%S")}</div>
                     <div class="header">
                         <h1 style="margin:0; font-size:1.3rem;">屏東 ➔ 往南 (潮州/台東)</h1>
                     </div>
@@ -136,7 +134,6 @@ class handler(BaseHTTPRequestHandler):
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
-            # ★★★ 關鍵防禦：告訴 Vercel 60秒內直接給舊資料，不要重新執行 ★★★
             self.send_header('Cache-Control', 's-maxage=60, stale-while-revalidate')
             self.end_headers()
             self.wfile.write(html.encode('utf-8'))
@@ -145,7 +142,4 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
-            # 如果還是被鎖，顯示友善訊息
-            msg = str(e)
-            if "rate limit" in msg.lower(): msg = "API 流量超標，請休息 1 小時後再試。"
-            self.wfile.write(f"<h3 style='color:red'>系統訊息</h3><p>{msg}</p>".encode('utf-8'))
+            self.wfile.write(f"系統錯誤: {str(e)}".encode('utf-8'))
