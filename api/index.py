@@ -1,12 +1,12 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 # ================= 設定區 =================
-CLIENT_ID = TDX_ID
-CLIENT_SECRET = TDX_SECRET
+CLIENT_ID = os.environ.get('TDX_ID')
+CLIENT_SECRET = os.environ.get('TDX_SECRET')
 STATION_ID = '5000' # 屏東
 DEST_ID = '5050'    # 潮州
 
@@ -16,97 +16,92 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
 
-        # 1. 取得 Token
+        # 1. 取得台灣時間
+        tw_now = datetime.utcnow() + timedelta(hours=8)
+        today_date = tw_now.strftime('%Y-%m-%d')
+        current_time = tw_now.strftime('%H:%M')
+
+        # 2. 取得 Token
         token = self.get_auth_token()
         if not token:
-            self.wfile.write("<h1>Error: 無法取得 Token</h1>".encode('utf-8'))
+            self.wfile.write("<h1>❌ Token 錯誤</h1>".encode('utf-8'))
             return
 
-        # 2. 抓取資料 (嘗試多種路徑)
-        data = self.fetch_data_auto(token)
+        # 3. 抓取資料 (直接用 OD 起迄站查詢，最準)
+        # 網址：OD/屏東/to/潮州
+        url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/OD/{STATION_ID}/to/{DEST_ID}/{today_date}"
         
-        # 3. 解析並生成 HTML
-        html = self.generate_html(data)
-        
-        # 4. 直接回傳網頁 (關鍵！)
-        self.wfile.write(html.encode('utf-8'))
-        return
-
-    def get_auth_token(self):
+        raw_data = []
         try:
-            auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
-            headers = {'content-type': 'application/x-www-form-urlencoded'}
-            data = {'grant_type': 'client_credentials', 'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET}
-            resp = requests.post(auth_url, headers=headers, data=data)
-            return resp.json().get('access_token')
-        except:
-            return None
-
-    def fetch_data_auto(self, token):
-        today = datetime.now().strftime('%Y-%m-%d')
-        headers = {'authorization': f'Bearer {token}'}
-        # 嘗試 V2 Station API (最穩)
-        url = f"https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTrainTimetable/Station/{STATION_ID}/{today}"
-        try:
-            r = requests.get(url, headers=headers)
+            r = requests.get(url, headers={'authorization': f'Bearer {token}'})
             if r.status_code == 200:
-                return r.json()
+                data = r.json()
+                raw_data = data.get('TrainTimetables', [])
         except:
             pass
-        return []
 
-    def generate_html(self, raw_data):
-        current_time = datetime.now().strftime('%H:%M')
-        
-        # 解析資料
+        # 4. 解析資料 (寬鬆模式)
         schedule = []
-        if isinstance(raw_data, dict):
-            raw_data = raw_data.get('StationTimetables', [])
-            
+        debug_log = f"原始資料: {len(raw_data)} 筆"
+
         for item in raw_data:
             try:
                 info = item.get('TrainInfo', {})
-                # 過濾方向 (0=順行往南)
-                if info.get('Direction') != 0: continue
+                stop_times = item.get('StopTimes', [])
                 
-                # 取得時間
+                # 找發車時間 (這裡做了修改：強制轉字串比較，避免格式錯誤)
                 departure_time = ""
-                for stop in item.get('StopTimes', []):
-                    if stop.get('DepartureTime'):
+                for stop in stop_times:
+                    # 不管是 int 還是 str，通通轉成 str 再比對 '5000'
+                    if str(stop.get('StationID')) == STATION_ID:
                         departure_time = stop.get('DepartureTime')
                         break
                 
-                # 取得其他資訊
-                train_no = info.get('TrainNo', '')
-                train_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
-                dest = info.get('EndingStationName', {}).get('Zh_tw', '')
-                
+                # 如果找不到發車時間，試試看有沒有可能是第一站
+                if not departure_time and len(stop_times) > 0:
+                     if str(stop_times[0].get('StationID')) == STATION_ID:
+                         departure_time = stop_times[0].get('DepartureTime')
+
                 if departure_time:
-                    schedule.append({'time': departure_time, 'no': train_no, 'type': train_type, 'dest': dest})
+                    # 取得名稱
+                    train_no = info.get('TrainNo', '')
+                    train_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
+                    dest = info.get('EndingStationName', {}).get('Zh_tw', '')
+
+                    schedule.append({
+                        'time': departure_time,
+                        'no': train_no,
+                        'type': train_type,
+                        'dest': dest
+                    })
             except:
                 continue
-                
+
+        # 排序
         schedule.sort(key=lambda x: x['time'])
 
-        # 組合 HTML
-        list_html = ""
+        # 生成 HTML
+        cards = ""
         count = 0
-        for train in schedule:
-            if train['time'] >= current_time:
+        for t in schedule:
+            if t['time'] >= current_time:
                 count += 1
-                list_html += f"""
+                cards += f"""
                 <div class="card">
-                    <div class="time">{train['time']}</div>
+                    <div class="time">{t['time']}</div>
                     <div class="info">
-                        <div class="dest">往 {train['dest']}</div>
-                        <div class="type">{train['type']} ({train['no']}次)</div>
+                        <div class="dest">往 {t['dest']}</div>
+                        <div class="type">{t['type']} ({t['no']}次)</div>
                     </div>
-                </div>"""
+                </div>
+                """
         
         if count == 0:
-            list_html = "<p style='text-align:center'>目前沒有車次</p>"
+            msg = f"目前沒有車次<br><small style='color:#999'>({debug_log}，但皆已離站)</small>"
+            if len(raw_data) == 0: msg = "⚠️ 抓不到資料 (請確認日期或 API)"
+            cards = f"<div style='text-align:center; padding:20px; color:#666'>{msg}</div>"
 
-        return f"""
+        html = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -114,17 +109,33 @@ class handler(BaseHTTPRequestHandler):
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>屏東火車時刻</title>
             <style>
-                body {{ font-family: sans-serif; padding: 20px; background: #eee; }}
-                .card {{ background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #009688; }}
-                .time {{ font-size: 1.5em; font-weight: bold; }}
+                body {{ font-family: "Microsoft JhengHei", sans-serif; padding: 20px; background: #eee; }}
+                .container {{ max-width: 600px; margin: 0 auto; }}
+                h2 {{ text-align: center; color: #333; }}
+                .card {{ background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; 
+                         box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; 
+                         border-left: 5px solid #009688; }}
+                .time {{ font-size: 1.5em; font-weight: bold; color: #333; }}
                 .info {{ text-align: right; }}
-                .dest {{ color: #007bff; font-weight: bold; }}
-                .type {{ color: #666; font-size: 0.9em; }}
+                .dest {{ color: #007bff; font-weight: bold; font-size: 1.1em; }}
+                .type {{ font-size: 0.9em; color: #666; }}
             </style>
         </head>
         <body>
-            <h2 style="text-align:center">屏東 ➔ 潮州 ({current_time})</h2>
-            {list_html}
+            <div class="container">
+                <h2>屏東 ➔ 潮州 ({current_time})</h2>
+                {cards}
+            </div>
         </body>
         </html>
         """
+        self.wfile.write(html.encode('utf-8'))
+
+    def get_auth_token(self):
+        try:
+            auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
+            data = {'grant_type': 'client_credentials', 'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET}
+            r = requests.post(auth_url, data=data)
+            return r.json().get('access_token')
+        except:
+            return None
