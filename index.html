@@ -2,30 +2,261 @@
         <!DOCTYPE html>
         <html lang="zh-TW">
         <head>
+            <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+            <meta http-equiv="Pragma" content="no-cache">
+            <meta http-equiv="Expires" content="0">
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <meta http-equiv="refresh" content="60">
-            <title>屏東車站看板</title>
+            <meta http-equiv="refresh" content="10">
+            <title>列車時刻</title>
             <style>
                 body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
                 .container { max-width: 500px; margin: 0 auto; }
-                .update-time { color: #999; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
+                .update-time { color: #999999; font-size: 0.65rem; text-align: right; margin-bottom: 8px; }
                 .header { padding: 0 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; }
-                .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid #f2a900; color: #f2a900; padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
+                .card { background: #151517; border-radius: 12px; padding: 10px 16px; margin-bottom: 8px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
+                .card:active { background: #1c1c1e; transform: scale(0.97); }
+                .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 5px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
                 .train-info { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
                 .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 4px 0; }
-                .sub-time { text-align: center; color: #999; font-size: 0.7rem; }
-                a { text-decoration: none; color: inherit; }
+                .arrow { margin: 0 12px; color: #999999; font-size: 0.8rem; }
+                .sub-time { text-align: center; color: #999999; font-size: 0.7rem; }
+                a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
             </style>
         </head>
         <body>
             <div class="container">
-                <div class="update-time">Github 快照時間：19:16:12</div>
+                <div class="update-time">上次更新時間：19:33:15</div>
                 <div class="header">
-                    <h1 style="margin:0; font-size:1.3rem;">屏東 ➔ 往南 (潮州/台東)</h1>
+                    <h1 style="margin:0; font-size:1.3rem;">屏東 ➔ 潮州</h1>
+                    <span style="color: #444; font-size: 0.7rem;">by Benjamin Dai</span>
                 </div>
-                <div style="text-align:center; padding:50px; color:#444;">看板目前無資料</div>
+                
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3029/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間快 3029 次</div>
+                    <div class="main-time"><span>19:31</span><span class="arrow">➔</span><span>19:44</span></div>
+                    <div class="sub-time">原定 19:31 ➔ 19:44</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3335/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間車 3335 次</div>
+                    <div class="main-time"><span>19:36</span><span class="arrow">➔</span><span>20:00</span></div>
+                    <div class="sub-time">原定 19:36 ➔ 20:00</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-137/live" target="_blank">
+                <div class="card" style="border-left-color: #9C1637;">
+                    
+                    <div class="train-info" style="color: #9C1637;">普悠瑪 137 次</div>
+                    <div class="main-time"><span>19:45</span><span class="arrow">➔</span><span>19:56</span></div>
+                    <div class="sub-time">原定 19:45 ➔ 19:56</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3237/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間車 3237 次</div>
+                    <div class="main-time"><span>19:52</span><span class="arrow">➔</span><span>20:11</span></div>
+                    <div class="sub-time">原定 19:52 ➔ 20:11</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-133/live" target="_blank">
+                <div class="card" style="border-left-color: #85a38f;">
+                    
+                    <div class="train-info" style="color: #85a38f;">自強3000 133 次</div>
+                    <div class="main-time"><span>20:04</span><span class="arrow">➔</span><span>20:15</span></div>
+                    <div class="sub-time">原定 20:04 ➔ 20:15</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3031/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    <div class="delay-badge">誤點 1 分</div>
+                    <div class="train-info" style="color: #0076B2;">區間快 3031 次</div>
+                    <div class="main-time"><span>20:16</span><span class="arrow">➔</span><span>20:31</span></div>
+                    <div class="sub-time">原定 20:15 ➔ 20:30</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3241/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間車 3241 次</div>
+                    <div class="main-time"><span>20:18</span><span class="arrow">➔</span><span>20:38</span></div>
+                    <div class="sub-time">原定 20:18 ➔ 20:38</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-385/live" target="_blank">
+                <div class="card" style="border-left-color: #85a38f;">
+                    <div class="delay-badge">誤點 1 分</div>
+                    <div class="train-info" style="color: #85a38f;">自強3000 385 次</div>
+                    <div class="main-time"><span>20:32</span><span class="arrow">➔</span><span>20:42</span></div>
+                    <div class="sub-time">原定 20:31 ➔ 20:41</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3035/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    <div class="delay-badge">誤點 1 分</div>
+                    <div class="train-info" style="color: #0076B2;">區間快 3035 次</div>
+                    <div class="main-time"><span>20:51</span><span class="arrow">➔</span><span>21:06</span></div>
+                    <div class="sub-time">原定 20:50 ➔ 21:05</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3247/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間車 3247 次</div>
+                    <div class="main-time"><span>20:53</span><span class="arrow">➔</span><span>21:13</span></div>
+                    <div class="sub-time">原定 20:53 ➔ 21:13</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3081/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間快 3081 次</div>
+                    <div class="main-time"><span>21:08</span><span class="arrow">➔</span><span>21:22</span></div>
+                    <div class="sub-time">原定 21:08 ➔ 21:22</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3251/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    <div class="delay-badge">誤點 2 分</div>
+                    <div class="train-info" style="color: #0076B2;">區間車 3251 次</div>
+                    <div class="main-time"><span>21:22</span><span class="arrow">➔</span><span>21:47</span></div>
+                    <div class="sub-time">原定 21:20 ➔ 21:45</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-175/live" target="_blank">
+                <div class="card" style="border-left-color: #DF3F1F;">
+                    <div class="delay-badge">誤點 4 分</div>
+                    <div class="train-info" style="color: #DF3F1F;">自強號 175 次</div>
+                    <div class="main-time"><span>21:31</span><span class="arrow">➔</span><span>21:44</span></div>
+                    <div class="sub-time">原定 21:27 ➔ 21:40</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3257/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間車 3257 次</div>
+                    <div class="main-time"><span>21:46</span><span class="arrow">➔</span><span>22:05</span></div>
+                    <div class="sub-time">原定 21:46 ➔ 22:05</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-327/live" target="_blank">
+                <div class="card" style="border-left-color: #85a38f;">
+                    
+                    <div class="train-info" style="color: #85a38f;">自強3000 327 次</div>
+                    <div class="main-time"><span>22:01</span><span class="arrow">➔</span><span>22:11</span></div>
+                    <div class="sub-time">原定 22:01 ➔ 22:11</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3261/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    <div class="delay-badge">誤點 1 分</div>
+                    <div class="train-info" style="color: #0076B2;">區間車 3261 次</div>
+                    <div class="main-time"><span>22:07</span><span class="arrow">➔</span><span>22:26</span></div>
+                    <div class="sub-time">原定 22:06 ➔ 22:25</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-139/live" target="_blank">
+                <div class="card" style="border-left-color: #DF3F1F;">
+                    <div class="delay-badge">誤點 2 分</div>
+                    <div class="train-info" style="color: #DF3F1F;">自強號 139 次</div>
+                    <div class="main-time"><span>22:18</span><span class="arrow">➔</span><span>22:31</span></div>
+                    <div class="sub-time">原定 22:16 ➔ 22:29</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-143/live" target="_blank">
+                <div class="card" style="border-left-color: #85a38f;">
+                    <div class="delay-badge">誤點 2 分</div>
+                    <div class="train-info" style="color: #85a38f;">自強3000 143 次</div>
+                    <div class="main-time"><span>22:24</span><span class="arrow">➔</span><span>22:35</span></div>
+                    <div class="sub-time">原定 22:22 ➔ 22:33</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3267/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    <div class="delay-badge">誤點 4 分</div>
+                    <div class="train-info" style="color: #0076B2;">區間車 3267 次</div>
+                    <div class="main-time"><span>22:44</span><span class="arrow">➔</span><span>23:03</span></div>
+                    <div class="sub-time">原定 22:40 ➔ 22:59</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3087/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間快 3087 次</div>
+                    <div class="main-time"><span>22:49</span><span class="arrow">➔</span><span>23:03</span></div>
+                    <div class="sub-time">原定 22:49 ➔ 23:03</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-141/live" target="_blank">
+                <div class="card" style="border-left-color: #DF3F1F;">
+                    
+                    <div class="train-info" style="color: #DF3F1F;">自強號 141 次</div>
+                    <div class="main-time"><span>22:56</span><span class="arrow">➔</span><span>23:09</span></div>
+                    <div class="sub-time">原定 22:56 ➔ 23:09</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-521/live" target="_blank">
+                <div class="card" style="border-left-color: #ffffff;">
+                    <div class="delay-badge">誤點 4 分</div>
+                    <div class="train-info" style="color: #ffffff;">莒光(無身障座位) 521 次</div>
+                    <div class="main-time"><span>23:16</span><span class="arrow">➔</span><span>23:29</span></div>
+                    <div class="sub-time">原定 23:12 ➔ 23:25</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3277/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    <div class="delay-badge">誤點 3 分</div>
+                    <div class="train-info" style="color: #0076B2;">區間車 3277 次</div>
+                    <div class="main-time"><span>23:20</span><span class="arrow">➔</span><span>23:39</span></div>
+                    <div class="sub-time">原定 23:17 ➔ 23:36</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-145/live" target="_blank">
+                <div class="card" style="border-left-color: #85a38f;">
+                    
+                    <div class="train-info" style="color: #85a38f;">自強3000 145 次</div>
+                    <div class="main-time"><span>23:29</span><span class="arrow">➔</span><span>23:40</span></div>
+                    <div class="sub-time">原定 23:29 ➔ 23:40</div>
+                </div>
+            </a>
+            
+            <a href="https://railway.chienwen.net/taiwan/train/TRA-3281/live" target="_blank">
+                <div class="card" style="border-left-color: #0076B2;">
+                    
+                    <div class="train-info" style="color: #0076B2;">區間車 3281 次</div>
+                    <div class="main-time"><span>23:49</span><span class="arrow">➔</span><span>00:08</span></div>
+                    <div class="sub-time">原定 23:49 ➔ 00:08</div>
+                </div>
+            </a>
+            
             </div>
         </body>
         </html>
