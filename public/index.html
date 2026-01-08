@@ -14,7 +14,6 @@
         
         .header-actions { display: flex; gap: 8px; align-items: center; }
 
-        /* 小按鈕樣式 */
         .tool-btn {
             background: none; border: 1px solid #444; color: #666; 
             padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; 
@@ -60,7 +59,7 @@
         .status-msg.alert { color: #ff4d4d; font-weight: bold; } 
         .status-msg.warning { color: #e6b800; } 
         .status-msg.unsync { color: #4d7f5e; } 
-        .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em;}
+        .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
 
         .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; }
         .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
@@ -76,7 +75,6 @@
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
         .loading { color: #4d7f5e; }
 
-        /* Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 85vh; overflow-y: auto;}
         .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; }
@@ -203,12 +201,19 @@
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
-        const LS_IS_24H="tl_pref_is_24h"; const LS_SHOW_ALL="tl_pref_show_all";
+        const LS_IS_24H="tl_pref_is_24h"; 
+        
+        // 移除 LS_SHOW_ALL，讓它不從 Storage 讀取
+        // const LS_SHOW_ALL="tl_pref_show_all"; 
 
         const MAX_SEARCH_PER_MIN=4;
         let lastFetchedPair={start:"",end:""};
+        
+        // 時間格式：有記憶 (從 storage 讀，預設 true)
         let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
-        let isShowAll = localStorage.getItem(LS_SHOW_ALL) === 'true';
+        
+        // 顯示全部：不記憶 (強制設為 false)
+        let isShowAll = false;
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
@@ -227,14 +232,14 @@
 
         function toggleTimeFormat() {
             is24Hour = !is24Hour;
-            localStorage.setItem(LS_IS_24H, is24Hour);
+            localStorage.setItem(LS_IS_24H, is24Hour); // 記憶設定
             updateToggleBtns();
             reRenderLocal(); 
         }
 
         function toggleShowAll() {
             isShowAll = !isShowAll;
-            localStorage.setItem(LS_SHOW_ALL, isShowAll);
+            // 這裡不存 localStorage
             updateToggleBtns();
             reRenderLocal(); 
         }
@@ -260,8 +265,6 @@
             const eR=localStorage.getItem(PREF_END_R_KEY)||"屏東縣"; const eS=localStorage.getItem(PREF_END_S_KEY)||"潮州";
             setMenu('start',sR,sS); setMenu('end',eR,eS);
             
-            // 移除 init 內的 updateTimeDiv 設定，只在 attemptLoadCache 成功時顯示
-
             checkLocksOnLoad();
             loadDataOrFetch();
         }
@@ -314,15 +317,12 @@
 
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
 
-        // 新增：單純重新渲染，不檢查時間
         function reRenderLocal() {
             const c=localStorage.getItem(getCacheKey());
             if(c) {
                 const d=JSON.parse(c);
                 renderCards(d.payload);
-                // 不動時間文字，保持原樣
             } else {
-                // 如果真的完全沒資料，才去走標準載入
                 attemptLoadCache(false);
             }
         }
@@ -343,12 +343,12 @@
             if(!hit) {
                 if(isInit) {
                     statusMsg.innerText="請按「查詢」開始使用"; statusMsg.className="status-msg";
-                    updateTimeDiv.innerText=""; // 確保清空時間
+                    updateTimeDiv.innerText="";
                     list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
                 } else {
                     list.style.opacity="0.4";
                     statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg unsync";
-                    updateTimeDiv.innerText=""; // 清空時間
+                    updateTimeDiv.innerText="";
                 }
             }
             updateButtonMode();
