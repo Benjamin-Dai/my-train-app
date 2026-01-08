@@ -12,28 +12,22 @@
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
         
-        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .header-actions { display: flex; gap: 8px; align-items: center; }
 
         .tool-btn {
             background: none; border: 1px solid #444; color: #666; 
-            padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; 
+            padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; 
             cursor: pointer; font-weight: bold; transition: all 0.2s;
         }
         .tool-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); }
         .tool-btn:active { transform: scale(0.95); }
 
-        /* === 修改：讓選單按鈕變顯眼 === */
         .menu-btn-trigger { 
-            background: #333; /* 實心背景 */
-            border: 1px solid #555; 
-            color: #fff; 
-            width: 32px; height: 32px; /* 加大尺寸 */
-            border-radius: 8px; /* 方圓角，看起來更像按鈕 */
-            font-size: 1.1rem; 
-            cursor: pointer; display: flex; 
+            background: #333; border: 1px solid #555; color: #fff; 
+            width: 32px; height: 32px; border-radius: 8px; 
+            font-size: 1.1rem; cursor: pointer; display: flex; 
             align-items: center; justify-content: center; font-weight: bold;
-            transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
         .menu-btn-trigger:active { transform: scale(0.95); background: #444; }
 
@@ -56,12 +50,9 @@
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
         .btn-search { flex: 2; background: #fff; color: #000; }
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; font-size: 0.9rem; }
-        
-        /* 拆分按鈕樣式 */
         .btn-half { flex: 1; font-size: 0.9rem; }
         .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
         .btn-primary { background: #007AFF; color: white; }
-        
         .btn.error { background: #d32f2f !important; color: white !important; }
 
         .status-container { text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
@@ -108,8 +99,6 @@
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
         .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
         .stat-card.danger .stat-val { color: #ff4d4d; }
-        
-        /* 移除 contact-info，隱藏 email 顯示 */
     </style>
 </head>
 <body>
@@ -179,7 +168,6 @@
             </div>
             <div id="pageReport" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
-                
                 <div class="stats-dashboard">
                     <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分鐘內請求</div></div>
                     <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
@@ -188,7 +176,6 @@
                 <div class="report-hint">若遇到問題，請先「複製報告」，再點擊寄信並貼上內容。</div>
                 <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
                 <textarea id="reportContent" class="report-box" readonly></textarea>
-                
                 <div class="action-area" style="margin-top:5px;">
                     <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
                     <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
@@ -221,7 +208,7 @@
         const MAX_SEARCH_PER_MIN=4;
         let lastFetchedPair={start:"",end:""};
         let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
-        let isShowAll = false; // 不記憶，每次重整都為 false
+        let isShowAll = false; // 強制預設為 false (不記憶)
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
@@ -247,6 +234,7 @@
 
         function toggleShowAll() {
             isShowAll = !isShowAll;
+            // 不存 localStorage，下次重新整理會變回 false
             updateToggleBtns();
             reRenderLocal(); 
         }
@@ -266,14 +254,30 @@
             updateToggleBtns();
             const regions=Object.keys(STATION_DATA);
             const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
-            startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
-
-            const sR=localStorage.getItem(PREF_START_R_KEY)||"屏東縣"; const sS=localStorage.getItem(PREF_START_S_KEY)||"屏東";
-            const eR=localStorage.getItem(PREF_END_R_KEY)||"屏東縣"; const eS=localStorage.getItem(PREF_END_S_KEY)||"潮州";
-            setMenu('start',sR,sS); setMenu('end',eR,eS);
             
-            checkLocksOnLoad();
-            loadDataOrFetch();
+            const savedSR = localStorage.getItem(PREF_START_R_KEY);
+
+            if (savedSR) {
+                // 有紀錄：還原選單
+                startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
+                const sS=localStorage.getItem(PREF_START_S_KEY)||"屏東";
+                const eR=localStorage.getItem(PREF_END_R_KEY)||"屏東縣"; const eS=localStorage.getItem(PREF_END_S_KEY)||"潮州";
+                setMenu('start',savedSR,sS); setMenu('end',eR,eS);
+                
+                checkLocksOnLoad();
+                loadDataOrFetch();
+            } else {
+                // 無紀錄 (第一次)：顯示請選擇
+                const ph = `<option value="" disabled selected>選擇縣市</option>`;
+                startRegion.innerHTML=ph+rOpts; endRegion.innerHTML=ph+rOpts;
+                startStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
+                endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
+                
+                list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
+                statusMsg.innerText = "等待輸入...";
+                
+                checkLocksOnLoad();
+            }
         }
 
         function checkLocksOnLoad() {
@@ -284,18 +288,34 @@
 
         function setMenu(type,rV,sV) {
             const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            if(!STATION_DATA[rV]) rV="屏東縣"; rSel.value=rV;
+            if(!STATION_DATA[rV]) { 
+                // 防止舊資料錯誤
+                rSel.value = ""; 
+                return;
+            }
+            rSel.value=rV;
             sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join('');
             if(STATION_DATA[rV].includes(sV)) sSel.value=sV; else sSel.selectedIndex=0;
         }
 
         function updateStationList(type) {
             const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            sSel.innerHTML=STATION_DATA[rSel.value].map(s=>`<option value="${s}">${s}</option>`).join('');
-            sSel.selectedIndex=0; markAsChanged();
+            const rVal = rSel.value;
+            if (!rVal) return; // 沒選縣市不動作
+
+            sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join('');
+            sSel.selectedIndex=0; 
+            
+            // 只有當起點終點都有值時，才自動儲存並查詢 (避免第一次只選一半就存)
+            if (startStation.value && endStation.value) {
+                markAsChanged();
+            }
         }
 
         function swapStations() {
+            // 如果還沒選好，不給交換
+            if (!startStation.value || !endStation.value) return;
+
             logSystem("UI","Swap");
             const sR=startRegion.value; const sS=startStation.value;
             setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
@@ -308,13 +328,19 @@
             let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
             if(found) {
                 logSystem("UI",`Search: ${found}`);
+                // 如果原本是空的，這裡會填入，所以要處理 placeholder 被移除的情況
+                // 但 setMenu 會重建 innerHTML，所以沒問題
                 setMenu(tgt,STATION_INDEX[found],found);
                 searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
-                markAsChanged();
+                
+                if (startStation.value && endStation.value) {
+                    markAsChanged();
+                }
             }
         }
 
         function markAsChanged() {
+            if (!startStation.value || !endStation.value) return;
             localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
             localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
             attemptLoadCache(false);
@@ -330,11 +356,14 @@
                 const d=JSON.parse(c);
                 renderCards(d.payload);
             } else {
-                attemptLoadCache(false);
+                if (startStation.value && endStation.value) attemptLoadCache(false);
             }
         }
 
         function attemptLoadCache(isInit) {
+            // 如果還沒選好車站，不載入
+            if (!startStation.value || !endStation.value) return;
+
             const c=localStorage.getItem(getCacheKey());
             let hit=false;
             if(c) {
@@ -370,6 +399,15 @@
 
         function doSearch() {
             const sS=startStation.value; const eS=endStation.value;
+            
+            // 防呆：如果沒選好，跳提示
+            if (!sS || !eS) {
+                statusMsg.innerText = "請先選擇起點與終點";
+                statusMsg.className = "status-msg alert";
+                setTimeout(()=>statusMsg.innerText="", 2000);
+                return;
+            }
+
             savePrefs();
             if(sS===lastFetchedPair.start && eS===lastFetchedPair.end) {
                 statusMsg.innerText="車站未變更，執行更新"; setTimeout(()=>{if(!statusMsg.classList.contains("alert"))statusMsg.innerText="";},2000);
@@ -525,7 +563,6 @@
             }
         }
         
-        // 分拆後的按鈕功能
         function copyReportOnly() {
             const b=document.getElementById('reportContent'); b.select(); document.execCommand('copy');
             const btn=document.getElementById('btnCopyReport'); 
