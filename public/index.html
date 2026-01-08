@@ -70,7 +70,6 @@
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
         a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         
-        /* 已駛離的卡片樣式 */
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
 
@@ -209,9 +208,8 @@
         const MAX_SEARCH_PER_MIN=4;
         let lastFetchedPair={start:"",end:""};
         let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
-        let isShowAll = localStorage.getItem(LS_SHOW_ALL) === 'true'; // 預設 false (只顯示未過期)
+        let isShowAll = localStorage.getItem(LS_SHOW_ALL) === 'true';
 
-        // LocalStorage Helpers
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
         function getSearchResetTime(){return parseInt(localStorage.getItem(LS_SEARCH_RESET)||"0");}
@@ -221,7 +219,6 @@
         function getRefreshLockedUntil(){return parseInt(localStorage.getItem(LS_REFRESH_LOCK)||"0");}
         function setRefreshLockedUntil(v){localStorage.setItem(LS_REFRESH_LOCK,v);}
 
-        // UI Toggles
         function updateToggleBtns() {
             btnTimeFormat.innerText = is24Hour ? "24H" : "12H";
             if (isShowAll) btnShowAll.classList.add('active');
@@ -232,14 +229,14 @@
             is24Hour = !is24Hour;
             localStorage.setItem(LS_IS_24H, is24Hour);
             updateToggleBtns();
-            attemptLoadCache(false);
+            reRenderLocal(); // 改用這個，不檢查快取時間
         }
 
         function toggleShowAll() {
             isShowAll = !isShowAll;
             localStorage.setItem(LS_SHOW_ALL, isShowAll);
             updateToggleBtns();
-            attemptLoadCache(false);
+            reRenderLocal(); // 改用這個，不檢查快取時間
         }
 
         function formatTime(t) {
@@ -317,6 +314,18 @@
         function savePrefs() { markAsChanged(); } 
 
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
+
+        // 顯示切換專用，不檢查過期
+        function reRenderLocal() {
+            const c=localStorage.getItem(getCacheKey());
+            if(c) {
+                const d=JSON.parse(c);
+                renderCards(d.payload);
+                // 不清除狀態，保留原本的更新時間顯示
+            } else {
+                attemptLoadCache(false);
+            }
+        }
 
         function attemptLoadCache(isInit) {
             const c=localStorage.getItem(getCacheKey());
@@ -456,17 +465,12 @@
                 let html="";
                 let hasVisibleTrains = false;
                 data.trains.forEach(t=>{
-                    // 過濾邏輯：如果不是 Show All 且車子已駛離，則跳過
                     if (!isShowAll && t.is_past) return;
-
                     hasVisibleTrains = true;
                     let delayTag="";
                     if(!data.delay_failed && t.delay>0) delayTag=`<div class="delay-badge">誤點 ${t.delay} 分</div>`;
                     const url=`https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                    
-                    // 加入 past class 來變灰
                     const pastClass = t.is_past ? 'past' : '';
-                    
                     html+=`<a href="${url}" target="_blank">
                         <div class="card ${pastClass}" style="border-left-color:${t.color};">
                             ${delayTag}
