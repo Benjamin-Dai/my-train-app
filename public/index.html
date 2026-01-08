@@ -229,7 +229,6 @@
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
         const LS_IS_24H="tl_pref_is_24h"; 
         
-        // 修改限制：每分鐘 2 次
         const MAX_SEARCH_PER_MIN=2;
         let lastFetchedPair={start:"",end:""};
         let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
@@ -364,7 +363,7 @@
             if (!sS || !eS) { statusMsg.innerText = "請先選擇起點與終點"; statusMsg.className = "status-msg alert"; setTimeout(()=>statusMsg.innerText="", 2000); return; }
             savePrefs();
             if(sS===lastFetchedPair.start && eS===lastFetchedPair.end) {
-                statusMsg.innerText="車站未變更，執行更新"; setTimeout(()=>{if(!statusMsg.classList.contains("alert"))statusMsg.innerText="";},2000);
+                statusMsg.innerText="車站未變更"; setTimeout(()=>{if(!statusMsg.classList.contains("alert"))statusMsg.innerText="";},2000);
                 doRefresh(); return;
             }
             const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime();
@@ -391,7 +390,6 @@
             try {
                 const res=await fetch(`/api/index?start=${s}&end=${e}`);
                 
-                // === 新增：檢查是否為 429 錯誤 ===
                 if (res.status === 429) {
                     throw new Error("429");
                 }
@@ -416,7 +414,6 @@
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
                 
-                // === 新增：針對 429 顯示系統忙碌並倒數 ===
                 if (err.message.includes("429")) {
                     statusMsg.innerText="系統忙碌中 (15s 後自動重試)"; statusMsg.className="status-msg warning";
                     let c = 15;
