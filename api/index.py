@@ -5,18 +5,16 @@ import os
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
-# 導入剛剛建立的車站資料
+# 導入車站資料
 try:
     from .stations import STATION_MAP
 except ImportError:
-    # 本地測試時的 fallback
     from stations import STATION_MAP
 
 # ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 
-# 預設值 (如果沒有傳參數)
 DEFAULT_START = '屏東'
 DEFAULT_END = '潮州'
 
@@ -41,7 +39,6 @@ class handler(BaseHTTPRequestHandler):
             return None
 
     def do_GET(self):
-        # 解析參數
         parsed_path = urlparse(self.path)
         params = parse_qs(parsed_path.query)
 
@@ -52,7 +49,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response("Missing Environment Variables")
             return
 
-        # 1. 直接查表取得 Station ID (不呼叫 API，省錢!)
+        # 1. 查表取得 ID (省流量)
         start_id = STATION_MAP.get(start_station)
         end_id = STATION_MAP.get(end_station)
 
@@ -60,25 +57,31 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response(f"找不到車站 ID: {start_station} 或 {end_station}")
             return
 
-        # 取得 Token
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token:
             self.send_error_response("Auth Failed")
             return
 
-        # Vercel 時區修正 (+8)
         now = datetime.now() + timedelta(hours=8)
         today_str = now.strftime('%Y-%m-%d')
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            # 2. V3 時刻表 (OD) - 這是必要的 API 呼叫
+            # 2. V3 時刻表 (OD)
             timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{today_str}"
             res = requests.get(timetable_url, headers=headers)
+            
+            # 檢查 TDX 是否回傳錯誤
+            if res.status_code != 200:
+                raise Exception(f"TDX API Error: {res.status_code}")
+
             timetable_data = res.json()
             raw_list = timetable_data.get('TrainTimetables', []) if isinstance(timetable_data, dict) else []
+            
+            # === 紀錄原始數量 (用於前端診斷) ===
+            original_count = len(raw_list)
 
-            # 3. V2 誤點資訊 - 這是第二個必要的 API 呼叫
+            # 3. V2 誤點資訊
             delay_url = f"{API_BASE_V2}/LiveTrainDelay"
             delay_res = requests.get(delay_url, headers=headers)
             delays = {}
@@ -121,7 +124,7 @@ class handler(BaseHTTPRequestHandler):
                 dep_dt = datetime.strptime(f"{today_str} {dep_time}", "%Y-%m-%d %H:%M")
                 arr_dt = datetime.strptime(f"{today_str} {arr_time}", "%Y-%m-%d %H:%M")
                 
-                # 跨日處理 (如果抵達時間比出發時間早，代表跨日)
+                # 跨日處理
                 if arr_dt < dep_dt:
                     arr_dt += timedelta(days=1)
 
@@ -148,13 +151,17 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
-            # 快取 60 秒
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
             self.wfile.write(json.dumps({
                 "update_time": now.strftime("%H:%M:%S"),
                 "start": start_station,
                 "end": end_station,
+                # 新增統計數據，供前端判斷
+                "stats": {
+                    "original_count": original_count,
+                    "filtered_count": len(result)
+                },
                 "trains": result
             }).encode())
 
