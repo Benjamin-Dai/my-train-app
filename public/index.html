@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>列車時刻 Live</title>
-    
+
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#151517">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23151517'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='300' fill='%234d7f5e'%3E%F0%9F%9A%86%3C/text%3E%3C/svg%3E">
@@ -16,7 +16,7 @@
         .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
-        
+
         .header-actions { display: flex; gap: 8px; align-items: center; }
 
         .tool-btn {
@@ -104,7 +104,7 @@
         .main-time span { white-space: nowrap; }
         .arrow { margin: 0 6px; color: #666; font-size: 0.8rem; }
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
-        
+
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
 
@@ -125,22 +125,39 @@
         .modal-page { display: none; }
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .report-box { width: 100%; height: 150px; background: #111; border: 1px solid #444; color: #0f0; font-family: monospace; font-size: 0.75rem; padding: 10px; border-radius: 8px; margin-bottom: 10px; resize: none; box-sizing: border-box;}
-        .copy-btn { width: 100%; background: #007AFF; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .copy-btn.copied { background: #4d7f5e; }
+
         .report-hint { font-size: 0.8rem; color: #888; margin-bottom: 15px; }
         .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
         .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
         .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
         .stat-card.danger .stat-val { color: #ff4d4d; }
-        
-        .api-status-box { background:#111; border:1px solid #333; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.8rem;}
-        .api-row { display:flex; justify-content:space-between; margin-bottom:4px; }
-        .api-val { font-family:monospace; font-weight:bold; }
-        .api-val.cache { color: #4d7f5e; }
-        .api-val.api { color: #e6b800; }
+
+        /* === 優化後的診斷頁面樣式 === */
+        .diag-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+        .diag-section:last-child { border-bottom: none; }
+        .diag-title { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .info-item { background: #222; padding: 10px; border-radius: 8px; border: 1px solid #333; }
+        .info-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
+        .info-value { font-size: 0.9rem; color: #fff; font-family: monospace; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* 狀態標籤 */
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .badge.green { background: rgba(77, 127, 94, 0.2); color: #4d7f5e; border: 1px solid #4d7f5e; }
+        .badge.yellow { background: rgba(230, 184, 0, 0.2); color: #e6b800; border: 1px solid #e6b800; }
+        .badge.red { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
+
+        /* 終端機風格 Log */
+        .terminal-box {
+            background: #0d0d0d; border: 1px solid #333; border-radius: 8px;
+            color: #0f0; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.7rem;
+            padding: 10px; height: 120px; overflow-y: auto; white-space: pre-wrap;
+            box-shadow: inset 0 0 10px #000;
+        }
+        .terminal-box::-webkit-scrollbar { width: 6px; }
+        .terminal-box::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
         /* === iOS 教學視窗樣式 === */
         .ios-instruction { text-align: center; margin-top: 20px; }
@@ -155,7 +172,7 @@
                 <div class="app-title">TRAIN LIVE</div>
                 <div class="header-actions">
                     <button id="btnInstall" onclick="handleInstall()">📲 安裝 App</button>
-                    
+
                     <button id="btnShowAll" class="tool-btn" onclick="toggleShowAll()">全部</button>
                     <button id="btnTimeFormat" class="tool-btn" onclick="toggleTimeFormat()">24H</button>
                     <button class="menu-btn-trigger" onclick="openModal()">☰</button>
@@ -166,7 +183,7 @@
                 <select id="searchTarget" class="search-target" onchange="handleSearch()" autocomplete="off"><option value="start">設為起點</option><option value="end">設為終點</option></select>
                 <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站" oninput="handleSearch()" autocomplete="off">
             </div>
-            
+
             <div class="selector-row">
                 <div class="selector-label">起點</div>
                 <div class="select-group">
@@ -187,7 +204,7 @@
                 <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
                 <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
             </div>
-            
+
             <div class="status-container">
                 <div id="statusMsg" class="status-msg"></div>
                 <div id="updateTime" class="update-time"></div>
@@ -215,26 +232,75 @@
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
                 <div class="modal-text"><strong>雙按鈕機制：</strong><br><br>1. <strong>🔍 查詢路線 (左)：</strong><br>切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>2. <strong>🔄 更新 (右)：</strong><br>刷新當前狀態。每次點擊後需等待 60 秒冷卻。<br><br><strong>燈號：</strong><br><span style="color:#e6b800">黃字</span>：誤點資料失敗 (自動重試)。<br><span style="color:#ff4d4d">紅字</span>：操作過於頻繁。</div>
             </div>
+            
             <div id="pageReport" class="modal-page">
-                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
-                <div class="api-status-box">
-                    <div class="api-row"><span>時刻表來源 (V3)</span><span id="diagRoute" class="api-val">--</span></div>
-                    <div class="api-row"><span>誤點資訊來源 (V2)</span><span id="diagDelay" class="api-val">--</span></div>
+                <div class="modal-header-row">
+                    <button class="back-btn" onclick="goToPage('Menu')">‹</button>
+                    <div class="modal-title">系統診斷</div>
                 </div>
-                <div class="stats-dashboard">
-                    <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分鐘內請求</div></div>
-                    <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
-                    <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(秒)</div></div>
+
+                <div class="diag-section">
+                    <div class="diag-title">API 連線狀態</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">時刻表 (V3)</div>
+                            <div id="diagRoute" class="badge">--</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">誤點資訊 (V2)</div>
+                            <div id="diagDelay" class="badge">--</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="report-hint">若遇到問題，請先「複製報告」，再點擊寄信並貼上內容。</div>
-                <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
-                <textarea id="reportContent" class="report-box" readonly></textarea>
-                <div class="action-area" style="margin-top:5px;">
-                    <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
-                    <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
+
+                <div class="diag-section">
+                    <div class="diag-title">流量監控</div>
+                    <div class="stats-dashboard">
+                        <div class="stat-card" id="cardRpm">
+                            <div class="stat-val" id="statRpm">0</div>
+                            <div class="stat-label">1分內請求</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-val" id="statTotal">0</div>
+                            <div class="stat-label">本次總數</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-val" id="statLast">--</div>
+                            <div class="stat-label">距上次(秒)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diag-section">
+                    <div class="diag-title">裝置資訊</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">PWA 模式</div>
+                            <div class="info-value" id="diagPwa">--</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">視窗尺寸</div>
+                            <div class="info-value" id="diagRes">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diag-section" style="border:none;">
+                    <div class="diag-title">系統紀錄 (Log)</div>
+                    <div class="report-hint">若遇到問題，請先「複製報告」，再點擊寄信。</div>
+                    
+                    <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
+                    
+                    <textarea id="reportContent" style="display:none;"></textarea>
+                    <div id="terminalView" class="terminal-box"></div>
+
+                    <div class="action-area" style="margin-top:10px;">
+                        <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
+                        <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
+                    </div>
                 </div>
             </div>
-            
+
             <div id="pageIOS" class="modal-page">
                 <div class="modal-header-row"><div class="modal-title">安裝到 iPhone</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
                 <div class="ios-instruction">
@@ -253,7 +319,7 @@
         const CACHE_PREFIX="train_data_v2_";
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
-        
+
         const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
         const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
         const searchInput=document.getElementById('searchInput');const searchTarget=document.getElementById('searchTarget');
@@ -267,12 +333,12 @@
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
         const LS_IS_24H="tl_pref_is_24h"; 
-        
+
         const MAX_SEARCH_PER_MIN=3;
         let lastFetchedPair={start:"",end:""};
         let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
         let isShowAll = false;
-        
+
         let lastDiagnostics = { route_status: "--", delay_status: "--" };
 
         // === PWA 安裝邏輯 (iOS + Android) ===
@@ -280,12 +346,10 @@
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
         const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
 
-        // 如果是 iOS 且還沒安裝，顯示按鈕
         if (isIos && !isInStandaloneMode) {
             btnInstall.style.display = 'block';
         }
 
-        // 如果是 Android/Desktop，監聽事件
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
@@ -294,11 +358,9 @@
 
         function handleInstall() {
             if (isIos) {
-                // iOS: 打開教學 Modal
                 document.getElementById('aboutModal').style.display = 'flex';
                 goToPage('IOS');
             } else if (deferredPrompt) {
-                // Android: 呼叫原生安裝
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
@@ -353,7 +415,7 @@
             updateToggleBtns();
             const regions=Object.keys(STATION_DATA);
             const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
-            
+
             const savedSR = localStorage.getItem(PREF_START_R_KEY);
 
             if (savedSR) {
@@ -491,7 +553,7 @@
             let cnt=getSearchCount(); let rst=getSearchResetTime();
             if(now-rst>60000) { cnt=0; setSearchCount(0); rst=now; setSearchResetTime(now); }
             if(cnt===0) { rst=now; setSearchResetTime(now); }
-            
+
             if(cnt>=MAX_SEARCH_PER_MIN) {
                 const w=Math.ceil((60000-(now-rst))/1000);
                 const safeW=w>0?w:60;
@@ -521,13 +583,13 @@
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
                 lastFetchedPair={start:s,end:e};
-                
+
                 if(json.diagnostics) lastDiagnostics = json.diagnostics;
 
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
                 logSystem("API",`DelayFailed:${json.delay_failed}`);
-                
+
                 if(json.delay_failed) {
                     statusMsg.innerText="誤點資訊無法取得 (60s 後自動重試)"; statusMsg.className="status-msg warning";
                     scheduleRetry(); setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
@@ -603,7 +665,7 @@
                             <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
                         </div></a>`;
                 });
-                
+
                 if (!hasVisibleTrains && !isShowAll) {
                     list.innerHTML = `<div class="message">後續已無班次 👋<br><span style="font-size:0.8rem;color:#666">點擊上方「全部」查看整日班表</span></div>`;
                 } else {
@@ -622,40 +684,88 @@
         function recordRequest(){requestHistory.push(Date.now());}
         function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
         function closeModal(){document.getElementById('aboutModal').style.display='none';}
+        
         function goToPage(id){
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
+            
             if(id==='Report'){
-                const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
+                const now=Date.now();
+                // 1. 計算流量
+                const rpm=requestHistory.filter(t=>now-t<60000).length;
                 document.getElementById('statRpm').innerText=rpm;
-                if(rpm>=5)document.getElementById('cardRpm').classList.add('danger');
+                if(rpm>=5) document.getElementById('cardRpm').classList.add('danger');
                 else document.getElementById('cardRpm').classList.remove('danger');
+                
                 document.getElementById('statTotal').innerText=requestHistory.length;
                 const last=requestHistory[requestHistory.length-1];
                 document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
-                
-                const diagRoute = document.getElementById('diagRoute');
-                const diagDelay = document.getElementById('diagDelay');
-                diagRoute.innerText = lastDiagnostics.route_status;
-                diagDelay.innerText = lastDiagnostics.delay_status;
-                diagRoute.className = "api-val " + (lastDiagnostics.route_status.includes("Cache") ? "cache" : "api");
-                diagDelay.className = "api-val " + (lastDiagnostics.delay_status.includes("Cache") ? "cache" : "api");
 
-                let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n裝置: ${navigator.userAgent}\n路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
-                r += `API 狀態: Route=[${lastDiagnostics.route_status}], Delay=[${lastDiagnostics.delay_status}]\n`;
+                // 2. 設定 API 狀態標籤 (Route)
+                const dRoute = document.getElementById('diagRoute');
+                dRoute.innerText = lastDiagnostics.route_status;
+                if(lastDiagnostics.route_status.includes("Cache")) dRoute.className = "badge green";
+                else if(lastDiagnostics.route_status.includes("API")) dRoute.className = "badge yellow";
+                else dRoute.className = "badge red";
+
+                // 3. 設定 API 狀態標籤 (Delay)
+                const dDelay = document.getElementById('diagDelay');
+                dDelay.innerText = lastDiagnostics.delay_status;
+                if(lastDiagnostics.delay_status.includes("Cache") || lastDiagnostics.delay_status.includes("0點")) dDelay.className = "badge green";
+                else if(lastDiagnostics.delay_status.includes("Fallback")) dDelay.className = "badge yellow"; 
+                else if(lastDiagnostics.delay_status.includes("Failed")) dDelay.className = "badge red";
+                else dDelay.className = "badge yellow";
+
+                // 4. 裝置資訊
+                const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
+                document.getElementById('diagPwa').innerText = isStandalone ? "已安裝 (App)" : "瀏覽器 (Web)";
+                document.getElementById('diagRes').innerText = `${window.innerWidth} x ${window.innerHeight}`;
+
+                // 5. 生成報告文字
+                let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
+                r += `裝置: ${navigator.userAgent}\n`;
+                r += `畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
+                r += `路線: ${startStation.value} -> ${endStation.value}\n`;
+                r += `流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
+                r += `狀態: Route=[${lastDiagnostics.route_status}], Delay=[${lastDiagnostics.delay_status}]\n`;
                 r += `--- Log ---\n${systemLogs.join("\n")}`;
+
+                // 填入隱藏的 textarea (給複製用)
+                document.getElementById('reportContent').value = r;
                 
-                const u=document.getElementById('userDesc').value; if(u) r+=`\n\nUser: ${u}`;
-                document.getElementById('reportContent').value=r;
+                // 填入漂亮的 terminal view (給觀賞用)
+                document.getElementById('terminalView').innerText = systemLogs.join("\n");
             }
         }
-        
+
         function copyReportOnly() {
-            const b=document.getElementById('reportContent'); b.select(); document.execCommand('copy');
-            const btn=document.getElementById('btnCopyReport'); 
-            const originalText = btn.innerText;
-            btn.innerText = "已複製！"; 
-            setTimeout(()=>{ btn.innerText = originalText; }, 2000);
+            // 取得基礎報告
+            let finalReport = document.getElementById('reportContent').value;
+            // 加入使用者的描述
+            const uDesc = document.getElementById('userDesc').value; 
+            if(uDesc) finalReport += `\n\nUser: ${uDesc}`;
+            
+            // 使用 Clipboard API
+            navigator.clipboard.writeText(finalReport).then(() => {
+                const btn=document.getElementById('btnCopyReport'); 
+                const originalText = btn.innerText;
+                btn.innerText = "✅ 已複製"; 
+                btn.style.background = "#4d7f5e";
+                setTimeout(()=>{ 
+                    btn.innerText = originalText; 
+                    btn.style.background = ""; // 恢復原色
+                }, 2000);
+            }).catch(err => {
+                console.error('複製失敗', err);
+                // Fallback for old browsers
+                const b=document.getElementById('reportContent'); 
+                b.style.display = 'block';
+                b.value = finalReport;
+                b.select(); 
+                document.execCommand('copy');
+                b.style.display = 'none';
+                alert('已複製到剪貼簿');
+            });
         }
 
         function openMailClient() {
