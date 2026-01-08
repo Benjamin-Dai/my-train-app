@@ -16,10 +16,12 @@
         .controls-row { display: flex; align-items: center; gap: 10px; }
         
         .status-text { font-size: 0.75rem; color: #888; text-align: right;}
-        .countdown-text { font-size: 0.75rem; color: #007AFF; font-weight: 600; }
+        /* 修改顏色為 #4d7f5e */
+        .countdown-text { font-size: 0.75rem; color: #4d7f5e; font-weight: 600; }
         
         .refresh-btn {
-            background: #007AFF; color: white; border: none; padding: 6px 16px; 
+            /* 修改背景色為 #4d7f5e */
+            background: #4d7f5e; color: white; border: none; padding: 6px 16px; 
             border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
             transition: opacity 0.2s;
         }
@@ -35,7 +37,7 @@
         a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
 
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
-        .loading { color: #007AFF; }
+        .loading { color: #4d7f5e; } /* Loading 也順便改成主色調 */
     </style>
 </head>
 <body>
@@ -94,7 +96,8 @@
                 if (now - data.timestamp < 60 * 1000) {
                     console.log("使用 LocalStorage 快取");
                     renderCards(data.payload);
-                    statusText.innerText = `快取於 ${data.payload.update_time}`;
+                    // 修改：快取文字格式
+                    statusText.innerText = `更新於(快取): ${data.payload.update_time}`;
                     hasCache = true;
                 }
             }
@@ -107,10 +110,6 @@
         }
 
         async function fetchData() {
-            // 只要觸發更新(不論手動自動)，都視為一次活躍，重置閒置計時
-            // 如果你想讓「自動更新」不算活躍(人不在)，請註解掉下面這行，只在 manualRefresh 保留
-            // 但通常更新後畫面變動，視為一個活躍點較合理，這裡我先不重置，只在手動按時重置。
-            
             btn.disabled = true;
             statusText.innerText = "更新中...";
             countdownText.innerText = ""; // 更新中隱藏倒數
@@ -138,7 +137,6 @@
                 list.innerHTML = `<div class="message">發生錯誤：${err.message}<br>請稍後再試</div>`;
                 btn.disabled = false;
             } finally {
-                // 無論成功失敗，都重新排程下一次自動更新
                 scheduleNextAutoRefresh();
             }
         }
@@ -169,8 +167,8 @@
             }
 
             if (interval === -1) {
-                countdownText.innerText = "已閒置過久，停止自動更新";
-                console.log("停止自動更新");
+                countdownText.innerText = ""; // 停止時不顯示倒數文字，或可顯示「自動更新已停止」
+                statusText.innerText = "自動更新已暫停 (閒置過久)";
                 return;
             }
 
@@ -183,32 +181,28 @@
         }
 
         function tickAutoUpdate() {
-            // 如果網頁在背景，不執行倒數更新與 Fetch，但在回來時會補
+            // 如果網頁在背景，不執行倒數更新與 Fetch
             if (document.hidden) return;
 
             const now = Date.now();
             const remain = Math.ceil((nextFetchTime - now) / 1000);
 
             if (remain <= 0) {
-                // 時間到：執行更新
                 clearInterval(autoUpdateTimer);
                 
-                // 檢查是否還在按鈕冷卻中 (避免雙重觸發)
                 if (btn.disabled && btn.innerText.includes("s")) {
-                    console.log("遇到按鈕冷卻，延後 10 秒嘗試");
                     nextFetchTime = now + 10000;
                     autoUpdateTimer = setInterval(tickAutoUpdate, 1000);
                     return;
                 }
-
-                console.log("自動更新時間到，執行 Fetch");
                 fetchData();
             } else {
                 // 格式化倒數顯示 MM:SS
                 const m = Math.floor(remain / 60);
                 const s = remain % 60;
                 const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                countdownText.innerText = `下一次更新：${timeStr}`;
+                // 修改：倒數文字格式
+                countdownText.innerText = `自動更新: ${timeStr}`;
             }
         }
 
@@ -216,18 +210,14 @@
             if (document.hidden) {
                 console.log("背景模式：暫停 UI 倒數");
             } else {
-                console.log("回到前景：檢查是否過期");
-                // 如果回來的瞬間，時間已經超過 nextFetchTime，立即更新
+                // 回到前景：如果時間已過，立即更新
                 if (nextFetchTime > 0 && Date.now() > nextFetchTime) {
-                    console.log("背景期間已過期，立即更新");
                     fetchData();
-                } else {
-                    // 如果沒過期，UI 會在下一秒 tickAutoUpdate 自動校正
                 }
             }
         }
 
-        // --- 按鈕冷卻邏輯 (不變) ---
+        // --- 按鈕冷卻邏輯 ---
         function setButtonCooldown(seconds) {
             const nextTime = Date.now() + (seconds * 1000);
             localStorage.setItem(COOLDOWN_KEY, nextTime);
