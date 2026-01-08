@@ -10,13 +10,29 @@
 
         /* 頂部區域 */
         .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
-        .app-title { font-size: 0.8rem; color: #888; margin-bottom: 10px; text-align: center; letter-spacing: 1px; font-weight: bold;}
         
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
+        .about-btn { 
+            background: none; border: 1px solid #444; color: #888; width: 24px; height: 24px; 
+            border-radius: 50%; font-size: 0.8rem; cursor: pointer; display: flex; 
+            align-items: center; justify-content: center; font-weight: bold;
+        }
+
+        /* 搜尋列容器 */
+        .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+        
+        /* 搜尋目標選擇 (起點/終點) */
+        .search-target {
+            flex: 1; background: #222; border: 1px solid #444; color: #ccc;
+            border-radius: 8px; font-size: 0.85rem; padding-left: 5px;
+        }
+
         /* 搜尋框 */
         .search-box { 
-            width: 100%; box-sizing: border-box; background: #222; border: 1px solid #444; 
-            color: #fff; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px;
-            font-size: 0.9rem; text-align: center;
+            flex: 3; box-sizing: border-box; background: #222; border: 1px solid #444; 
+            color: #fff; padding: 8px 12px; border-radius: 8px;
+            font-size: 0.9rem; text-align: left;
         }
         .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
 
@@ -25,13 +41,11 @@
         .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
         
         .select-group { flex: 1; display: flex; gap: 5px; }
-        /* 縣市選單 (較窄) */
         .region-select { 
             flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; 
             padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold;
             appearance: none; -webkit-appearance: none; text-align: center;
         }
-        /* 車站選單 (較寬) */
         .station-select { 
             flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; 
             padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold;
@@ -64,14 +78,41 @@
 
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
         .loading { color: #4d7f5e; }
+
+        /* 關於視窗 (Modal) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); z-index: 999; display: none;
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px;
+            padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: left;
+        }
+        .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #4d7f5e; }
+        .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
+        .modal-close {
+            background: #333; color: #fff; border: none; padding: 10px 0; width: 100%;
+            border-radius: 8px; font-weight: bold; cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="app-title">TRAIN LIVE V3</div>
+            <div class="header-top">
+                <div class="app-title">TRAIN LIVE V3</div>
+                <button class="about-btn" onclick="openModal()">?</button>
+            </div>
             
-            <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站 (如: 臺北, Zuoying)" oninput="handleSearch()">
+            <div class="search-row">
+                <select id="searchTarget" class="search-target" onchange="handleSearch()">
+                    <option value="start">設為起點</option>
+                    <option value="end">設為終點</option>
+                </select>
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站 (如: 臺北)" oninput="handleSearch()">
+            </div>
 
             <div class="selector-row">
                 <div class="selector-label">起點</div>
@@ -102,6 +143,22 @@
         </div>
 
         <div id="cardList"></div>
+    </div>
+
+    <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-title">為什麼做這個？</div>
+            <div class="modal-text">
+                現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>
+                當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br>
+                <strong>TRAIN LIVE V3 的設計初衷：</strong><br>
+                1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>
+                2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>
+                3. 一眼看出現在該搭哪一班車。<br><br>
+                希望這個工具能解決你的通勤焦慮。
+            </div>
+            <button class="modal-close" onclick="closeModal()">關閉</button>
+        </div>
     </div>
 
     <script>
@@ -146,11 +203,14 @@
         const startStation = document.getElementById('startStation');
         const endRegion = document.getElementById('endRegion');
         const endStation = document.getElementById('endStation');
+        
         const searchInput = document.getElementById('searchInput');
+        const searchTarget = document.getElementById('searchTarget'); 
 
         const btn = document.getElementById('refreshBtn');
         const statusText = document.getElementById('statusText');
         const list = document.getElementById('cardList');
+        const modal = document.getElementById('aboutModal');
         
         let cooldownTimer = null;
         let autoUpdateTimer = null;
@@ -221,6 +281,8 @@
 
         function handleSearch() {
             const input = searchInput.value.trim();
+            const target = searchTarget.value; // 'start' or 'end'
+
             if (!input) return;
             
             let found = null;
@@ -233,7 +295,7 @@
 
             if (found) {
                 const region = STATION_INDEX[found];
-                setMenu('start', region, found);
+                setMenu(target, region, found); 
                 handleStationChange();
                 searchInput.style.borderColor = "#4d7f5e";
                 setTimeout(() => searchInput.style.borderColor = "#444", 500);
@@ -319,7 +381,7 @@
             fetchData(); 
         }
 
-        // --- 核心更新邏輯 (不顯示倒數文字) ---
+        // --- 核心更新邏輯 ---
         function scheduleNextAutoRefresh() {
             if (autoUpdateTimer) clearInterval(autoUpdateTimer);
 
@@ -339,7 +401,6 @@
 
             nextFetchTime = now + interval;
             autoUpdateTimer = setInterval(tickAutoUpdate, 1000);
-            // 不再執行 tickAutoUpdate 更新 UI，只在後台跑
         }
 
         function tickAutoUpdate() {
@@ -400,26 +461,53 @@
         }
 
         function renderCards(data) {
-            if (!data.trains || data.trains.length === 0) {
-                list.innerHTML = '<div class="message">目前無符合班次</div>';
+            // 狀況 1: 有車，正常顯示
+            if (data.trains && data.trains.length > 0) {
+                let html = "";
+                data.trains.forEach(t => {
+                    const delayTag = t.delay > 0 ? `<div class="delay-badge">誤點 ${t.delay} 分</div>` : "";
+                    const trainUrl = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
+                    html += `
+                    <a href="${trainUrl}" target="_blank">
+                        <div class="card" style="border-left-color: ${t.color};">
+                            ${delayTag}
+                            <div class="train-info" style="color: ${t.color};">${t.type} ${t.no} 次</div>
+                            <div class="main-time"><span>${t.act_dep}</span><span class="arrow">➔</span><span>${t.act_arr}</span></div>
+                            <div class="sub-time">原定 ${t.sch_dep} ➔ ${t.sch_arr}</div>
+                        </div>
+                    </a>`;
+                });
+                list.innerHTML = html;
                 return;
             }
-            let html = "";
-            data.trains.forEach(t => {
-                const delayTag = t.delay > 0 ? `<div class="delay-badge">誤點 ${t.delay} 分</div>` : "";
-                const trainUrl = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                html += `
-                <a href="${trainUrl}" target="_blank">
-                    <div class="card" style="border-left-color: ${t.color};">
-                        ${delayTag}
-                        <div class="train-info" style="color: ${t.color};">${t.type} ${t.no} 次</div>
-                        <div class="main-time"><span>${t.act_dep}</span><span class="arrow">➔</span><span>${t.act_arr}</span></div>
-                        <div class="sub-time">原定 ${t.sch_dep} ➔ ${t.sch_arr}</div>
-                    </div>
-                </a>`;
-            });
-            list.innerHTML = html;
+
+            // 狀況 2 & 3: 沒車，判斷原因
+            const original = data.stats ? data.stats.original_count : 0;
+            
+            if (original > 0) {
+                // TDX 有給資料，但被我們過濾掉了
+                list.innerHTML = `
+                    <div class="message">
+                        今日班次已全數駛離 👋<br>
+                        <span style="font-size:0.8rem; color:#666">
+                            TDX 正常連線 (原有 ${original} 班)
+                        </span>
+                    </div>`;
+            } else {
+                // TDX 給了空陣列 (代表該路線今天沒排班，或路線錯誤)
+                list.innerHTML = `
+                    <div class="message">
+                        查無此區間直達列車 ⚠️<br>
+                        <span style="font-size:0.8rem; color:#666">
+                            TDX 回傳無資料
+                        </span>
+                    </div>`;
+            }
         }
+
+        // Modal Functions
+        function openModal() { modal.style.display = 'flex'; }
+        function closeModal() { modal.style.display = 'none'; }
 
         init();
     </script>
