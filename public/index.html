@@ -68,24 +68,42 @@
         .status-msg.unsync { color: #4d7f5e; } 
         .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
 
-        /* === 提示文字樣式 === */
-        .click-hint { 
-            text-align: center; 
-            color: #666; 
-            font-size: 0.75rem; 
-            margin-bottom: 8px; 
-            margin-top: -5px;
-            animation: fadeIn 0.5s;
+        .click-hint { text-align: center; color: #666; font-size: 0.75rem; margin-bottom: 8px; margin-top: -5px; animation: fadeIn 0.5s; }
+
+        /* === 修正重點：卡片樣式與按壓回饋 === */
+        .card { 
+            background: #151517; 
+            border-radius: 12px; 
+            padding: 12px 16px; 
+            margin-bottom: 10px; 
+            border-left: 5px solid #333; 
+            position: relative; 
+            
+            /* 加入過渡效果 */
+            transition: transform 0.1s ease, background-color 0.1s ease;
         }
 
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; }
+        /* 讓 <a> 連結變成區塊，填滿點擊區域 */
+        a { 
+            display: block; /* 讓整張卡片都可以點 */
+            text-decoration: none; 
+            color: inherit; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        /* 當點擊卡片時的效果 */
+        .card:active {
+            transform: scale(0.98); /* 稍微縮小 */
+            background-color: #222; /* 背景稍微變亮 */
+        }
+        /* ================================== */
+
         .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
         .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; padding: 6px 0; }
         .main-time span { white-space: nowrap; }
         .arrow { margin: 0 6px; color: #666; font-size: 0.8rem; }
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
-        a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
