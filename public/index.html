@@ -7,7 +7,7 @@
     <style>
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 60px; }
-        
+
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .station-title { font-size: 1.3rem; font-weight: bold; margin: 0; }
         .sub-title { color: #666; font-size: 0.75rem; }
@@ -52,33 +52,53 @@
     </div>
 
     <script>
+        // ================= 設定區 =================
         const API_URL = "/api/index?start=屏東&end=潮州"; 
         const CACHE_KEY = "train_data_v1";
         const COOLDOWN_KEY = "next_refresh_time";
         
+        // 修改 1: 自動更新改為 30 分鐘 (1800秒)
+        const AUTO_REFRESH_INTERVAL = 1800 * 1000; 
+        
+        // 修改 2: 設定最大閒置時間 (這裡設定 2 小時)，超過此時間未操作將停止自動更新
+        const MAX_IDLE_TIME = 2 * 60 * 60 * 1000; 
+        // =========================================
+
         const btn = document.getElementById('refreshBtn');
         const statusText = document.getElementById('statusText');
         const list = document.getElementById('cardList');
-        let timerInterval = null;
+        
+        let timerInterval = null;      // 倒數計時器用
+        let autoRefreshTimer = null;   // 自動更新排程用
+        let lastActiveTime = Date.now(); // 記錄最後一次使用者活躍的時間
 
         function init() {
             checkCooldown();
+            
+            // 綁定頁面可見性偵測 (當使用者切換分頁時觸發)
+            document.addEventListener("visibilitychange", handleVisibilityChange);
+
             const cached = localStorage.getItem(CACHE_KEY);
             if (cached) {
                 const data = JSON.parse(cached);
                 const now = Date.now();
-                // 檢查是否為 60 秒內的快取 (防 F5)
+                // 檢查是否為 60 秒內的快取
                 if (now - data.timestamp < 60 * 1000) {
                     console.log("使用 LocalStorage 快取");
                     renderCards(data.payload);
                     statusText.innerText = `快取於 ${data.payload.update_time}`;
+                    startAutoRefresh(); // 啟動自動更新計時
                     return;
                 }
             }
             fetchData();
+            startAutoRefresh(); // 啟動自動更新計時
         }
 
         async function fetchData() {
+            // 更新最後活躍時間
+            lastActiveTime = Date.now();
+
             btn.disabled = true;
             statusText.innerText = "更新中...";
             if (!list.hasChildNodes()) {
@@ -88,7 +108,7 @@
             try {
                 const res = await fetch(API_URL);
                 const json = await res.json();
-                
+
                 if (json.error) throw new Error(json.error);
 
                 const cacheObj = { timestamp: Date.now(), payload: json };
@@ -96,7 +116,7 @@
 
                 renderCards(json);
                 statusText.innerText = `更新於 ${json.update_time}`;
-                setCooldown(60); // 設定 60 秒冷卻
+                setCooldown(60); 
 
             } catch (err) {
                 console.error(err);
@@ -106,7 +126,13 @@
             }
         }
 
-        function manualRefresh() { fetchData(); }
+        function manualRefresh() { 
+            // 手動更新時，重置閒置計時
+            lastActiveTime = Date.now();
+            fetchData(); 
+            // 如果自動更新之前因為閒置被停掉了，這裡可以重新啟動
+            if (!autoRefreshTimer) startAutoRefresh();
+        }
 
         function setCooldown(seconds) {
             const nextTime = Date.now() + (seconds * 1000);
@@ -158,7 +184,7 @@
             data.trains.forEach(t => {
                 const delayTag = t.delay > 0 ? `<div class="delay-badge">誤點 ${t.delay} 分</div>` : "";
                 const trainUrl = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                
+
                 html += `
                 <a href="${trainUrl}" target="_blank">
                     <div class="card" style="border-left-color: ${t.color};">
@@ -173,13 +199,50 @@
             list.innerHTML = html;
         }
 
-        // 自動更新 (10分鐘)
-        setInterval(() => {
-            if (!btn.disabled) {
+        // 處理頁面可見性變化 (當使用者離開或回來時)
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                console.log("頁面進入背景，暫停關注");
+            } else {
+                console.log("頁面回到前景");
+            }
+        }
+
+        // 啟動自動更新邏輯
+        function startAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            
+            console.log(`啟動自動更新排程，每 ${AUTO_REFRESH_INTERVAL/1000} 秒一次`);
+
+            autoRefreshTimer = setInterval(() => {
+                const now = Date.now();
+
+                // 檢查 1: 網頁是否在背景 (分頁沒被打開，或手機關閉螢幕)
+                if (document.hidden) {
+                    console.log("略過自動更新 (背景模式)");
+                    return;
+                }
+
+                // 檢查 2: 按鈕是否還在冷卻
+                if (btn.disabled && btn.innerText.includes("s")) {
+                     console.log("略過自動更新 (按鈕冷卻中)");
+                     return;
+                }
+
+                // 檢查 3: 閒置保護 (超過 2 小時沒人動)
+                if (now - lastActiveTime > MAX_IDLE_TIME) {
+                    console.log("已停止自動更新 (閒置逾時)");
+                    clearInterval(autoRefreshTimer);
+                    autoRefreshTimer = null;
+                    statusText.innerText = "已暫停更新 (閒置過久)";
+                    return;
+                }
+
                 console.log("觸發自動更新");
                 fetchData();
-            }
-        }, 600 * 1000);
+
+            }, AUTO_REFRESH_INTERVAL);
+        }
 
         init();
     </script>
