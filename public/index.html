@@ -8,16 +8,19 @@
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
+        /* 頂部區域 */
         .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
         .about-btn { background: none; border: 1px solid #444; color: #888; width: 24px; height: 24px; border-radius: 50%; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; }
 
+        /* 搜尋列 */
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
         .search-target { flex: 1; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
         .search-box { flex: 3; box-sizing: border-box; background: #222; border: 1px solid #444; color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; text-align: left; }
         .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
 
+        /* 選單區域 */
         .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
         .select-group { flex: 1; display: flex; gap: 5px; }
@@ -26,7 +29,8 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        .action-area { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+        /* 按鈕與狀態區域 */
+        .action-area { margin-top: 15px; display: flex; flex-direction: column; gap: 5px; }
         .search-btn {
             width: 100%; background: #4d7f5e; color: white; border: none; padding: 12px;
             border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer;
@@ -36,10 +40,18 @@
         .search-btn:disabled { background: #333; color: #888; cursor: not-allowed; }
         .search-btn.error { background: #d32f2f !important; }
 
-        .status-text { font-size: 0.75rem; color: #888; text-align: center; margin-top: 5px; min-height: 1.2em;}
-        .status-text.unsync { color: #e6b800; }
-        .status-text.alert { color: #ff4d4d; font-weight: bold; } /* 紅色警告 */
+        /* 狀態文字區 (分開兩行) */
+        .status-container { text-align: center; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+        
+        /* 1. 警告/提示訊息 (例如：準備就緒、請勿頻繁操作) */
+        .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
+        .status-msg.alert { color: #ff4d4d; font-weight: bold; }
+        .status-msg.unsync { color: #e6b800; }
+        
+        /* 2. 更新時間 (永久顯示) */
+        .update-time { font-size: 0.75rem; color: #666; font-family: monospace; }
 
+        /* 卡片 */
         .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; }
         .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
@@ -69,7 +81,7 @@
 
             <div class="search-row">
                 <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站 (不耗流量)" oninput="handleSearch()">
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站" oninput="handleSearch()">
             </div>
             
             <div class="selector-row">
@@ -83,8 +95,11 @@
             </div>
 
             <div class="action-area">
-                <button id="searchBtn" class="search-btn" onclick="manualFetch()">🔍 查詢 / 更新班次</button>
-                <div id="statusText" class="status-text">準備就緒</div>
+                <button id="searchBtn" class="search-btn" onclick="handleClick()">🔍 查詢班次</button>
+                <div class="status-container">
+                    <div id="statusMsg" class="status-msg">準備就緒</div>
+                    <div id="updateTime" class="update-time"></div>
+                </div>
             </div>
         </div>
 
@@ -93,19 +108,22 @@
 
     <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-title">系統狀態說明</div>
+            <div class="modal-title">操作說明</div>
             <div class="modal-text">
-                <strong>為什麼顯示「請勿頻繁操作」？</strong><br>
-                TDX 資料來源限制每分鐘只能查詢 5 次。為確保服務穩定，按鈕在點擊後會鎖定 60 秒。<br><br>
-                <strong>為什麼顯示「無法取得誤點資訊」？</strong><br>
-                這表示時刻表已下載，但台鐵的即時誤點資料暫時無法連線。系統會自動在 1 分鐘後幫您重試一次。<br><br>
+                <strong>查詢限制機制：</strong><br><br>
+                1. <strong>更換車站 (搜尋)：</strong><br>
+                每分鐘限 3 次。頻繁切換將觸發「請勿頻繁操作」鎖定。<br><br>
+                2. <strong>原地更新 (刷新)：</strong><br>
+                為了節省流量，每 90 秒可更新一次。<br><br>
+                <strong>誤點資訊：</strong><br>
+                若系統無法取得台鐵即時誤點，會顯示警示並在 60 秒後自動重試。
             </div>
             <button class="modal-close" onclick="closeModal()">關閉</button>
         </div>
     </div>
 
     <script>
-        // ================= 資料結構區 (同上，省略部分以節省版面) =================
+        // ================= 資料結構區 =================
         const STATION_DATA = {
             "基隆/新北": ["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],
             "臺北市": ["南港","松山","臺北","萬華"],
@@ -129,7 +147,7 @@
         const CACHE_PREFIX = "train_data_v2_"; 
         const PREF_START_R_KEY = "pref_start_region"; const PREF_START_S_KEY = "pref_start_station";
         const PREF_END_R_KEY = "pref_end_region"; const PREF_END_S_KEY = "pref_end_station";
-        const COOLDOWN_KEY = "next_refresh_time";
+        const COOLDOWN_KEY = "next_action_time"; // 通用冷卻 Key
 
         const startRegion = document.getElementById('startRegion');
         const startStation = document.getElementById('startStation');
@@ -138,12 +156,20 @@
         const searchInput = document.getElementById('searchInput');
         const searchTarget = document.getElementById('searchTarget'); 
         const btn = document.getElementById('searchBtn');
-        const statusText = document.getElementById('statusText');
+        const statusMsg = document.getElementById('statusMsg');
+        const updateTimeDiv = document.getElementById('updateTime');
         const list = document.getElementById('cardList');
         const modal = document.getElementById('aboutModal');
         
+        // 邏輯變數
         let cooldownTimer = null;
-        let retryTimer = null; // 專門給誤點失敗用的重試計時器
+        let retryTimer = null; 
+        let lastFetchedPair = { start: "", end: "" }; // 紀錄上次查詢的組合
+        
+        // 搜尋頻率限制變數
+        let searchCount = 0; // 當前分鐘內的搜尋次數
+        let searchResetTime = Date.now(); // 下次重置次數的時間
+        let lastFetchTime = 0; // 上次成功更新的時間
 
         function init() {
             const regions = Object.keys(STATION_DATA);
@@ -157,10 +183,16 @@
 
             setMenu('start', savedStartR, savedStartS); setMenu('end', savedEndR, savedEndS);
             
+            // 載入上次的更新時間顯示
+            const savedUpdateText = localStorage.getItem("last_update_text");
+            if(savedUpdateText) updateTimeDiv.innerText = savedUpdateText;
+
+            // 檢查是否還在冷卻中
             checkButtonCooldown();
-            document.addEventListener("visibilitychange", handleVisibilityChange);
             
+            // 第一次載入
             loadDataOrFetch();
+            updateButtonState(); // 初始化按鈕文字
         }
 
         function setMenu(type, regionVal, stationVal) {
@@ -208,11 +240,63 @@
         function markAsChanged() {
             localStorage.setItem(PREF_START_R_KEY, startRegion.value); localStorage.setItem(PREF_START_S_KEY, startStation.value);
             localStorage.setItem(PREF_END_R_KEY, endRegion.value); localStorage.setItem(PREF_END_S_KEY, endStation.value);
-            statusText.innerText = "⚠️ 設定已變更，請按查詢更新";
-            statusText.classList.remove('alert'); // 移除紅色警告
-            statusText.classList.add('unsync');
+            
+            statusMsg.innerText = "設定已變更 (尚未查詢)";
+            statusMsg.className = "status-msg unsync";
             list.style.opacity = "0.4";
-            if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } // 設定變更時，取消自動重試
+            if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+            
+            updateButtonState();
+        }
+
+        // 判斷按鈕顯示「搜尋」還是「更新」
+        function updateButtonState() {
+            const currentStart = startStation.value;
+            const currentEnd = endStation.value;
+            const isChanged = (currentStart !== lastFetchedPair.start || currentEnd !== lastFetchedPair.end);
+            
+            if (isChanged) {
+                btn.innerText = "🔍 搜尋班次";
+            } else {
+                btn.innerText = "🔄 更新班次";
+            }
+        }
+
+        // 核心點擊邏輯
+        function handleClick() {
+            const currentStart = startStation.value;
+            const currentEnd = endStation.value;
+            const isChanged = (currentStart !== lastFetchedPair.start || currentEnd !== lastFetchedPair.end);
+            const now = Date.now();
+
+            // 1. 搜尋模式 (車站有變)
+            if (isChanged) {
+                // 重置計數器 (如果過了一分鐘)
+                if (now - searchResetTime > 60000) {
+                    searchCount = 0;
+                    searchResetTime = now;
+                }
+
+                if (searchCount >= 3) {
+                    const waitTime = Math.ceil((60000 - (now - searchResetTime)) / 1000);
+                    lockButton(waitTime, "請勿頻繁操作 (搜尋達上限)");
+                    return;
+                }
+
+                // 允許搜尋
+                searchCount++;
+                manualFetch(true); // true 代表是新搜尋
+
+            // 2. 更新模式 (車站沒變)
+            } else {
+                const elapsed = now - lastFetchTime;
+                if (elapsed < 90000) { // 90秒
+                    const wait = Math.ceil((90000 - elapsed) / 1000);
+                    lockButton(wait, "更新冷卻中");
+                    return;
+                }
+                manualFetch(false); // false 代表是原地更新
+            }
         }
 
         function getCacheKey() { return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`; }
@@ -225,23 +309,27 @@
                 const now = Date.now();
                 if (now - data.timestamp < 60 * 1000) {
                     console.log("使用 LocalStorage 快取");
+                    lastFetchedPair = { start: data.payload.start, end: data.payload.end }; // 同步狀態
+                    updateButtonState();
                     renderCards(data.payload);
-                    statusText.innerText = `更新於(快取): ${data.payload.update_time}`;
-                    statusText.classList.remove('unsync', 'alert');
+                    setUpdateText(`更新於(快取): ${data.payload.update_time}`);
+                    statusMsg.innerText = "準備就緒";
+                    statusMsg.className = "status-msg";
                     return;
                 }
             }
-            manualFetch();
+            // 第一次不自動 fetch，只顯示狀態，等待使用者按
+            updateButtonState();
         }
 
-        async function manualFetch() {
+        async function manualFetch(isNewSearch) {
             btn.disabled = true;
             btn.classList.remove('error'); 
-            statusText.innerText = "連線中...";
-            statusText.classList.remove('unsync', 'alert');
+            statusMsg.innerText = "連線中...";
+            statusMsg.className = "status-msg";
             list.style.opacity = "1";
             
-            if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } // 手動查詢時，清除任何重試排程
+            if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
 
             if (!list.hasChildNodes() || list.style.opacity === "1") list.innerHTML = '<div class="message loading">正在連線 TDX...</div>';
 
@@ -255,124 +343,124 @@
 
                 if (json.error) throw new Error(json.error);
 
+                // 更新成功後的狀態設定
+                lastFetchTime = Date.now();
+                lastFetchedPair = { start: s, end: e };
+                
                 const cacheObj = { timestamp: Date.now(), payload: json };
                 localStorage.setItem(getCacheKey(), JSON.stringify(cacheObj));
 
                 renderCards(json);
+                updateButtonState(); // 變成「更新班次」
                 
-                // 檢查是否有「誤點資料失敗」的旗標
+                // 檢查是否有「誤點資料失敗」
                 if (json.delay_failed) {
-                    statusText.innerText = `目前無法取得誤點資訊，將在 60s 後自動查詢`;
-                    statusText.classList.add('alert'); // 紅字
-                    scheduleRetry(); // 啟動一次性重試
+                    statusMsg.innerText = `無法取得誤點資訊，60s 後重試`;
+                    statusMsg.className = "status-msg alert";
+                    scheduleRetry();
+                    setUpdateText(`更新於: ${json.update_time} (誤點資訊過期)`);
                 } else {
-                    statusText.innerText = `更新於: ${json.update_time}`;
+                    statusMsg.innerText = "更新完成";
+                    setUpdateText(`更新於: ${json.update_time}`);
                 }
                 
-                setButtonCooldown(60); 
+                // 成功後，如果是新搜尋，稍微鎖一下避免連點 (例如 5 秒)
+                // 如果是更新，則下次檢查會被 90秒規則擋住
+                lockButton(5, "準備就緒"); 
 
             } catch (err) {
                 console.error(err);
-                statusText.innerText = "查詢失敗";
+                statusMsg.innerText = "查詢失敗";
                 list.innerHTML = `<div class="message">發生錯誤：${err.message}<br>請稍後再試</div>`;
                 btn.classList.add('error'); 
-                setButtonCooldown(60);      
+                lockButton(60, "錯誤冷卻中");
             }
         }
 
-        // 這是「僅限誤點失敗時」的自動重試，不是一般自動更新
+        function setUpdateText(text) {
+            updateTimeDiv.innerText = text;
+            localStorage.setItem("last_update_text", text);
+        }
+
         function scheduleRetry() {
             let count = 60;
             retryTimer = setInterval(() => {
                 count--;
-                statusText.innerText = `無法取得誤點資訊，${count}s 後自動查詢...`;
+                statusMsg.innerText = `無法取得誤點資訊，${count}s 後自動查詢...`;
+                statusMsg.className = "status-msg alert";
                 if (count <= 0) {
                     clearInterval(retryTimer);
                     retryTimer = null;
-                    // 檢查按鈕是否可按，如果還在冷卻就等一下，如果可以就直接按
-                    if (btn.disabled) {
-                        // 稍微延遲一下避免撞車
-                        setTimeout(manualFetch, 2000);
-                    } else {
-                        manualFetch();
-                    }
+                    if (btn.disabled) setTimeout(manualFetch, 2000, false);
+                    else manualFetch(false);
                 }
             }, 1000);
         }
 
-        function handleVisibilityChange() {
-            // 這個版本不自動更新，所以這裡可以留空，或只做狀態檢查
+        // 鎖定按鈕與倒數
+        function lockButton(seconds, reasonMsg) {
+            const unlockTime = Date.now() + (seconds * 1000);
+            localStorage.setItem(COOLDOWN_KEY, unlockTime); // 雖然邏輯在記憶體，但防 F5 還是存一下
+            
+            // 立即執行倒數 UI
+            runCooldownTimer(seconds, reasonMsg);
         }
 
-        function setButtonCooldown(seconds) {
-            const nextTime = Date.now() + (seconds * 1000);
-            localStorage.setItem(COOLDOWN_KEY, nextTime);
-            checkButtonCooldown();
-        }
-
+        // 檢查頁面重整後的冷卻狀態
         function checkButtonCooldown() {
             const nextTime = localStorage.getItem(COOLDOWN_KEY);
             if (!nextTime) return;
             const remain = Math.ceil((parseInt(nextTime) - Date.now()) / 1000);
-            if (remain > 0) startButtonTimer(remain);
-            else {
+            if (remain > 0) {
+                // 恢復倒數，但訊息比較難還原，用通用訊息
+                runCooldownTimer(remain, "操作冷卻中");
+            } else {
                 localStorage.removeItem(COOLDOWN_KEY);
-                btn.disabled = false;
-                btn.classList.remove('error'); 
-                btn.innerText = "🔍 查詢 / 更新班次";
             }
         }
 
-        function startButtonTimer(sec) {
+        function runCooldownTimer(seconds, msg) {
             if (cooldownTimer) clearInterval(cooldownTimer);
+            
             btn.disabled = true;
-            // 按鈕顯示倒數
-            btn.innerText = `${sec}s`;
+            let originalText = btn.innerText; // 記住原本是「搜尋」還是「更新」
             
-            // 如果目前沒有更重要的錯誤訊息，狀態列顯示警告
-            if (!statusText.classList.contains('alert')) {
-                 statusText.innerText = `請勿頻繁操作 (倒數 ${sec}s)`;
-                 statusText.classList.add('alert');
-            }
-            
-            cooldownTimer = setInterval(() => {
-                sec--;
-                btn.innerText = `${sec}s`;
-                
-                // 持續更新狀態列警告
-                if (statusText.innerText.includes("請勿頻繁操作")) {
-                    statusText.innerText = `請勿頻繁操作 (倒數 ${sec}s)`;
+            const tick = () => {
+                btn.innerText = `${originalText} (${seconds}s)`;
+                if (msg.includes("請勿頻繁")) {
+                    statusMsg.innerText = `${msg} ${seconds}s`;
+                    statusMsg.className = "status-msg alert";
+                } else if (msg !== "準備就緒") {
+                     statusMsg.innerText = msg; // 顯示冷卻原因
                 }
 
-                if (sec <= 0) {
+                if (seconds <= 0) {
                     clearInterval(cooldownTimer);
                     btn.disabled = false;
                     btn.classList.remove('error'); 
-                    btn.innerText = "🔍 查詢 / 更新班次";
+                    btn.innerText = originalText;
                     localStorage.removeItem(COOLDOWN_KEY);
                     
-                    // 解除狀態列警告 (如果沒有其他訊息)
-                    if (statusText.innerText.includes("請勿頻繁操作")) {
-                        statusText.innerText = "準備就緒";
-                        statusText.classList.remove('alert');
+                    if (msg.includes("請勿頻繁")) {
+                        statusMsg.innerText = "準備就緒";
+                        statusMsg.className = "status-msg";
                     }
                 }
-            }, 1000);
+                seconds--;
+            };
+
+            tick(); // 立即執行一次
+            cooldownTimer = setInterval(tick, 1000);
         }
 
         function renderCards(data) {
             if (data.trains && data.trains.length > 0) {
                 let html = "";
                 data.trains.forEach(t => {
-                    // 如果後端回傳 delay_failed，雖然 delay 是 0，但我們不要顯示 "誤點 0 分"
-                    // 只有在 data.delay_failed 為 false 時，且 delay > 0 才顯示
                     let delayTag = "";
                     if (!data.delay_failed && t.delay > 0) {
                         delayTag = `<div class="delay-badge">誤點 ${t.delay} 分</div>`;
-                    } else if (data.delay_failed) {
-                         // 可以選擇顯示一個灰色的 "?" 或不顯示
                     }
-
                     const trainUrl = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
                     html += `
                     <a href="${trainUrl}" target="_blank">
@@ -387,12 +475,12 @@
                 list.innerHTML = html;
                 return;
             }
-
             const original = data.stats ? data.stats.original_count : 0;
             if (original > 0) list.innerHTML = `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem; color:#666">TDX 正常連線 (原有 ${original} 班)</span></div>`;
             else list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️<br><span style="font-size:0.8rem; color:#666">TDX 回傳無資料</span></div>`;
         }
 
+        function handleVisibilityChange() { /* 移除自動更新，此處留空 */ }
         function openModal() { modal.style.display = 'flex'; }
         function closeModal() { modal.style.display = 'none'; }
 
