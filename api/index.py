@@ -34,11 +34,18 @@ class handler(BaseHTTPRequestHandler):
             return None
         except: return None
 
-    # === 修改：簡化後的 Header 偵測，只回傳剩餘次數 ===
+    # === 修改：更暴力的 Header 搜尋 ===
     def get_header_info(self, res):
-        remaining = res.headers.get('x-ratelimit-remaining')
-        if remaining:
-            return f"API {res.status_code} (剩: {remaining})"
+        # 搜尋所有 Header，只要 Key 裡面包含 'remaining' (忽略大小寫) 就抓出來
+        val = None
+        for k, v in res.headers.items():
+            if 'remaining' in k.lower():
+                val = v
+                break
+        
+        if val:
+            return f"API {res.status_code} (剩: {val})"
+        
         return f"API {res.status_code}"
 
     def get_cached_delays(self, headers):
