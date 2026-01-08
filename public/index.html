@@ -12,26 +12,30 @@
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
         
-        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
 
         .tool-btn {
             background: none; border: 1px solid #444; color: #666; 
-            padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; 
+            padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; 
             cursor: pointer; font-weight: bold; transition: all 0.2s;
         }
         .tool-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); }
         .tool-btn:active { transform: scale(0.95); }
 
-        @keyframes pulse-gold {
-            0%, 100% { color: #888; border-color: #444; box-shadow: 0 0 0 rgba(255, 166, 0, 0); }
-            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); box-shadow: 0 0 8px rgba(255, 166, 0, 0.3); }
-        }
-        .about-btn { 
-            background: none; border: 1px solid #444; color: #888; width: 24px; height: 24px; 
-            border-radius: 50%; font-size: 0.8rem; cursor: pointer; display: flex; 
+        /* === 修改：讓選單按鈕變顯眼 === */
+        .menu-btn-trigger { 
+            background: #333; /* 實心背景 */
+            border: 1px solid #555; 
+            color: #fff; 
+            width: 32px; height: 32px; /* 加大尺寸 */
+            border-radius: 8px; /* 方圓角，看起來更像按鈕 */
+            font-size: 1.1rem; 
+            cursor: pointer; display: flex; 
             align-items: center; justify-content: center; font-weight: bold;
-            animation: pulse-gold 3s infinite ease-in-out;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
+        .menu-btn-trigger:active { transform: scale(0.95); background: #444; }
 
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
         .search-target { flex: 1; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
@@ -52,6 +56,12 @@
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
         .btn-search { flex: 2; background: #fff; color: #000; }
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; font-size: 0.9rem; }
+        
+        /* 拆分按鈕樣式 */
+        .btn-half { flex: 1; font-size: 0.9rem; }
+        .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
+        .btn-primary { background: #007AFF; color: white; }
+        
         .btn.error { background: #d32f2f !important; color: white !important; }
 
         .status-container { text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
@@ -75,6 +85,7 @@
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
         .loading { color: #4d7f5e; }
 
+        /* Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 85vh; overflow-y: auto;}
         .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; }
@@ -90,15 +101,15 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         .report-box { width: 100%; height: 150px; background: #111; border: 1px solid #444; color: #0f0; font-family: monospace; font-size: 0.75rem; padding: 10px; border-radius: 8px; margin-bottom: 10px; resize: none; box-sizing: border-box;}
-        .copy-btn { width: 100%; background: #007AFF; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .copy-btn.copied { background: #4d7f5e; }
+        
         .report-hint { font-size: 0.8rem; color: #888; margin-bottom: 15px; }
         .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
         .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
         .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
         .stat-card.danger .stat-val { color: #ff4d4d; }
-        .contact-info { background: #222; padding: 10px; border-radius: 8px; font-size: 0.85rem; color: #ccc; margin-bottom: 15px; text-align: center; border: 1px solid #333;}
+        
+        /* 移除 contact-info，隱藏 email 顯示 */
     </style>
 </head>
 <body>
@@ -109,7 +120,7 @@
                 <div class="header-actions">
                     <button id="btnShowAll" class="tool-btn" onclick="toggleShowAll()">全部</button>
                     <button id="btnTimeFormat" class="tool-btn" onclick="toggleTimeFormat()">24H</button>
-                    <button class="about-btn" onclick="openModal()">?</button>
+                    <button class="menu-btn-trigger" onclick="openModal()">☰</button>
                 </div>
             </div>
 
@@ -168,16 +179,20 @@
             </div>
             <div id="pageReport" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
-                <div class="contact-info">開發者聯絡資訊<br><strong>d96benjamin@gmail.com</strong></div>
+                
                 <div class="stats-dashboard">
                     <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分鐘內請求</div></div>
                     <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
                     <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(秒)</div></div>
                 </div>
-                <div class="report-hint">若遇到問題，請描述狀況並點擊「複製報告」，傳送至上方信箱。</div>
+                <div class="report-hint">若遇到問題，請先「複製報告」，再點擊寄信並貼上內容。</div>
                 <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
                 <textarea id="reportContent" class="report-box" readonly></textarea>
-                <button id="btnCopy" class="copy-btn" onclick="sendReport()">複製報告並寄信</button>
+                
+                <div class="action-area" style="margin-top:5px;">
+                    <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
+                    <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
+                </div>
             </div>
         </div>
     </div>
@@ -203,17 +218,10 @@
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
         const LS_IS_24H="tl_pref_is_24h"; 
         
-        // 移除 LS_SHOW_ALL，讓它不從 Storage 讀取
-        // const LS_SHOW_ALL="tl_pref_show_all"; 
-
         const MAX_SEARCH_PER_MIN=4;
         let lastFetchedPair={start:"",end:""};
-        
-        // 時間格式：有記憶 (從 storage 讀，預設 true)
         let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
-        
-        // 顯示全部：不記憶 (強制設為 false)
-        let isShowAll = false;
+        let isShowAll = false; // 不記憶，每次重整都為 false
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
@@ -232,14 +240,13 @@
 
         function toggleTimeFormat() {
             is24Hour = !is24Hour;
-            localStorage.setItem(LS_IS_24H, is24Hour); // 記憶設定
+            localStorage.setItem(LS_IS_24H, is24Hour);
             updateToggleBtns();
             reRenderLocal(); 
         }
 
         function toggleShowAll() {
             isShowAll = !isShowAll;
-            // 這裡不存 localStorage
             updateToggleBtns();
             reRenderLocal(); 
         }
@@ -517,13 +524,20 @@
                 document.getElementById('reportContent').value=r;
             }
         }
-        function sendReport(){
+        
+        // 分拆後的按鈕功能
+        function copyReportOnly() {
             const b=document.getElementById('reportContent'); b.select(); document.execCommand('copy');
-            const btn=document.getElementById('btnCopy'); btn.innerText="已複製！正在開啟郵件..."; btn.classList.add('copied');
-            setTimeout(()=>{
-                window.location.href=`mailto:d96benjamin@gmail.com?subject=${encodeURIComponent("TRAIN LIVE 回報")}&body=${encodeURIComponent("(請貼上報告)")}`;
-                setTimeout(()=>{btn.innerText="複製報告並寄信";btn.classList.remove('copied');},2000);
-            },1000);
+            const btn=document.getElementById('btnCopyReport'); 
+            const originalText = btn.innerText;
+            btn.innerText = "已複製！"; 
+            setTimeout(()=>{ btn.innerText = originalText; }, 2000);
+        }
+
+        function openMailClient() {
+            const subject = encodeURIComponent("TRAIN LIVE 系統診斷回報");
+            const body = encodeURIComponent("（請長按貼上剛剛複製的診斷報告）\n\n我的問題描述：\n");
+            window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
         }
 
         init();
