@@ -22,12 +22,24 @@
         .tool-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); }
         .tool-btn:active { transform: scale(0.95); }
 
+        /* 修改動畫：在白色與夕陽金之間切換 */
+        @keyframes pulse-gold {
+            0%, 100% { color: #fff; border-color: #555; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); box-shadow: 0 0 8px rgba(255, 166, 0, 0.4); }
+        }
+
         .menu-btn-trigger { 
-            background: #333; border: 1px solid #555; color: #fff; 
-            width: 32px; height: 32px; border-radius: 8px; 
-            font-size: 1.1rem; cursor: pointer; display: flex; 
+            background: #333; 
+            border: 1px solid #555; 
+            color: #fff; 
+            width: 32px; height: 32px; 
+            border-radius: 8px; 
+            font-size: 1.1rem; 
+            cursor: pointer; display: flex; 
             align-items: center; justify-content: center; font-weight: bold;
-            transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+            /* 套用呼吸燈動畫 */
+            animation: pulse-gold 3s infinite ease-in-out;
         }
         .menu-btn-trigger:active { transform: scale(0.95); background: #444; }
 
@@ -152,15 +164,13 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="pageMenu" class="modal-page active">
                 <div class="modal-header-row"><div class="modal-title">選單</div></div>
-                <button class="menu-btn" onclick="goToPage('Why')">為什麼要做這個？</button>
-                <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
+                <button class="menu-btn" onclick="goToPage('Why')">設計理念</button> <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
                 <div style="height:10px"></div>
                 <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
             <div id="pageWhy" class="modal-page">
-                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計初衷</div></div>
-                <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div> <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
             </div>
             <div id="pageHow" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
