@@ -8,19 +8,27 @@
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 60px; }
 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .station-title { font-size: 1.3rem; font-weight: bold; margin: 0; }
-        .sub-title { color: #666; font-size: 0.75rem; }
-
-        .controls { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 10px; gap: 5px; }
-        .controls-row { display: flex; align-items: center; gap: 10px; }
+        /* 標題與選單區域 */
+        .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
+        .app-title { font-size: 0.8rem; color: #888; margin-bottom: 10px; text-align: center; letter-spacing: 1px;}
         
+        .station-selector { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .station-group { flex: 1; display: flex; flex-direction: column; }
+        .station-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
+        .station-select { 
+            width: 100%; background: #2c2c2e; color: #fff; border: 1px solid #444; 
+            padding: 8px; border-radius: 8px; font-size: 1.1rem; font-weight: bold;
+            appearance: none; -webkit-appearance: none; text-align: center;
+        }
+        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 5px; cursor: pointer; }
+
+        /* 控制列 */
+        .controls { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 10px; gap: 5px; margin-top: 10px;}
+        .controls-row { display: flex; align-items: center; gap: 10px; }
         .status-text { font-size: 0.75rem; color: #888; text-align: right;}
-        /* 修改顏色為 #4d7f5e */
         .countdown-text { font-size: 0.75rem; color: #4d7f5e; font-weight: 600; }
         
         .refresh-btn {
-            /* 修改背景色為 #4d7f5e */
             background: #4d7f5e; color: white; border: none; padding: 6px 16px; 
             border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
             transition: opacity 0.2s;
@@ -37,15 +45,23 @@
         a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
 
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
-        .loading { color: #4d7f5e; } /* Loading 也順便改成主色調 */
+        .loading { color: #4d7f5e; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div>
-                <h1 class="station-title">屏東 ➔ 潮州</h1>
-                <div class="sub-title">V3 Live System</div>
+            <div class="app-title">TRAIN LIVE V3</div>
+            <div class="station-selector">
+                <div class="station-group">
+                    <label class="station-label">起點</label>
+                    <select id="startStation" class="station-select" onchange="handleStationChange()"></select>
+                </div>
+                <button class="swap-btn" onclick="swapStations()">⇄</button>
+                <div class="station-group">
+                    <label class="station-label">終點</label>
+                    <select id="endStation" class="station-select" onchange="handleStationChange()"></select>
+                </div>
             </div>
         </div>
 
@@ -62,41 +78,95 @@
 
     <script>
         // ================= 設定區 =================
-        const API_URL = "/api/index?start=屏東&end=潮州"; 
-        const CACHE_KEY = "train_data_v1";
-        const COOLDOWN_KEY = "next_refresh_time";
+        // 車站清單 (與後端 stations.py 對應，供前端選單使用)
+        const STATIONS = [
+            "基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","南港","松山","臺北","萬華","板橋","浮洲","樹林","南樹林","山佳","鶯歌","桃園","內壢","中壢","埔心","楊梅","富岡","新富","北湖","湖口","新豐","竹北","北新竹","新竹","三姓橋","香山","崎頂","竹南",
+            "造橋","豐富","苗栗","南勢","銅鑼","三義","泰安","后里","豐原","栗林","潭子","頭家厝","松竹","太原","精武","臺中","五權","大慶","烏日","新烏日","成功",
+            "談文","大山","後龍","龍港","白沙屯","新埔","通霄","苑裡","日南","大甲","臺中港","清水","沙鹿","龍井","大肚","追分",
+            "彰化","花壇","大村","員林","永靖","社頭","田中","二水","林內","石榴","斗六","斗南","石龜","大林","民雄","嘉北","嘉義","水上","南靖","後壁","新營","柳營","林鳳營","隆田","拔林","善化","南科","新市","永康","大橋","臺南","保安","仁德","中洲","大湖","路竹","岡山","橋頭","楠梓","新左營","左營","內惟","美術館","鼓山","三塊厝","高雄","民族","科工館","正義","鳳山","後庄","九曲堂","六塊厝","屏東","歸來","麟洛","西勢","竹田","潮州","崁頂","南州","鎮安","林邊","佳冬","東海","枋寮",
+            "加祿","內獅","枋山","大武","瀧溪","金崙","太麻里","知本","康樂","臺東",
+            "山里","鹿野","瑞源","瑞和","關山","海端","池上","富里","東竹","東里","玉里","三民","瑞穗","富源","大富","光復","萬榮","鳳林","南平","林榮新光","豐田","壽豐","平和","志學","吉安","花蓮",
+            "北埔","景美","新城","崇德","和仁","和平","漢本","武塔","南澳","東澳","永樂","蘇澳","蘇澳新","冬山","羅東","中里","二結","宜蘭","四城","礁溪","頂埔","頭城","外澳","龜山","大溪","大里","石城","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"
+        ];
 
-        // 時間單位 (毫秒)
+        const CACHE_PREFIX = "train_data_"; // 快取前綴
+        const PREF_START_KEY = "pref_start";
+        const PREF_END_KEY = "pref_end";
+        
+        // 時間單位
         const MINUTE = 60 * 1000;
         const HOUR = 60 * MINUTE;
         // =========================================
 
+        const startSelect = document.getElementById('startStation');
+        const endSelect = document.getElementById('endStation');
         const btn = document.getElementById('refreshBtn');
         const statusText = document.getElementById('statusText');
         const countdownText = document.getElementById('countdownText');
         const list = document.getElementById('cardList');
         
-        let cooldownTimer = null;    // 按鈕冷卻倒數
-        let autoUpdateTimer = null;  // 自動更新倒數(每秒檢查)
-        
-        let lastActiveTime = Date.now(); // 最後使用者互動時間
-        let nextFetchTime = 0;           // 下一次預計更新的時間點
+        let cooldownTimer = null;
+        let autoUpdateTimer = null;
+        let lastActiveTime = Date.now();
+        let nextFetchTime = 0;
 
         function init() {
+            initStationSelector();
             checkButtonCooldown();
-            
-            // 綁定頁面可見性偵測
             document.addEventListener("visibilitychange", handleVisibilityChange);
 
-            const cached = localStorage.getItem(CACHE_KEY);
+            // 載入上次選擇的車站
+            const savedStart = localStorage.getItem(PREF_START_KEY) || "屏東";
+            const savedEnd = localStorage.getItem(PREF_END_KEY) || "潮州";
+            
+            startSelect.value = savedStart;
+            endSelect.value = savedEnd;
+
+            loadDataOrFetch();
+        }
+
+        function initStationSelector() {
+            // 填充選單
+            const options = STATIONS.map(s => `<option value="${s}">${s}</option>`).join('');
+            startSelect.innerHTML = options;
+            endSelect.innerHTML = options;
+        }
+
+        function swapStations() {
+            const temp = startSelect.value;
+            startSelect.value = endSelect.value;
+            endSelect.value = temp;
+            handleStationChange();
+        }
+
+        function handleStationChange() {
+            // 儲存偏好
+            localStorage.setItem(PREF_START_KEY, startSelect.value);
+            localStorage.setItem(PREF_END_KEY, endSelect.value);
+            
+            // 切換車站時，視為手動更新，清除畫面並重新抓取
+            lastActiveTime = Date.now();
+            list.innerHTML = ""; 
+            statusText.innerText = "切換路線中...";
+            countdownText.innerText = "";
+            fetchData();
+        }
+
+        function getCacheKey() {
+            return `${CACHE_PREFIX}${startSelect.value}_${endSelect.value}`;
+        }
+
+        function loadDataOrFetch() {
+            const key = getCacheKey();
+            const cached = localStorage.getItem(key);
             let hasCache = false;
+
             if (cached) {
                 const data = JSON.parse(cached);
                 const now = Date.now();
                 if (now - data.timestamp < 60 * 1000) {
                     console.log("使用 LocalStorage 快取");
                     renderCards(data.payload);
-                    // 修改：快取文字格式
                     statusText.innerText = `更新於(快取): ${data.payload.update_time}`;
                     hasCache = true;
                 }
@@ -105,27 +175,32 @@
             if (!hasCache) {
                 fetchData();
             } else {
-                scheduleNextAutoRefresh(); // 有快取也要排程下一次
+                scheduleNextAutoRefresh();
             }
         }
 
         async function fetchData() {
             btn.disabled = true;
             statusText.innerText = "更新中...";
-            countdownText.innerText = ""; // 更新中隱藏倒數
+            countdownText.innerText = "";
             
             if (!list.hasChildNodes()) {
                  list.innerHTML = '<div class="message loading">正在連線 TDX...</div>';
             }
 
+            const s = startSelect.value;
+            const e = endSelect.value;
+            const url = `/api/index?start=${s}&end=${e}`;
+
             try {
-                const res = await fetch(API_URL);
+                const res = await fetch(url);
                 const json = await res.json();
 
                 if (json.error) throw new Error(json.error);
 
+                // 寫入快取 (Key 要包含起訖站)
                 const cacheObj = { timestamp: Date.now(), payload: json };
-                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheObj));
+                localStorage.setItem(getCacheKey(), JSON.stringify(cacheObj));
 
                 renderCards(json);
                 statusText.innerText = `更新於 ${json.update_time}`;
@@ -142,12 +217,11 @@
         }
 
         function manualRefresh() { 
-            // 手動更新：重置「閒置起始時間」為現在
             lastActiveTime = Date.now();
             fetchData(); 
         }
 
-        // --- 核心邏輯：計算下一次更新時間 ---
+        // --- 核心更新邏輯 ---
         function scheduleNextAutoRefresh() {
             if (autoUpdateTimer) clearInterval(autoUpdateTimer);
 
@@ -155,41 +229,29 @@
             const idleTime = now - lastActiveTime;
             let interval = 0;
 
-            // 規則判斷
-            if (idleTime < 15 * MINUTE) {
-                interval = 5 * MINUTE;      // 0~15分: 每5分
-            } else if (idleTime < 60 * MINUTE) {
-                interval = 15 * MINUTE;     // 15~60分: 每15分
-            } else if (idleTime < 2 * HOUR) {
-                interval = 30 * MINUTE;     // 1~2小時: 每30分
-            } else {
-                interval = -1;              // 超過2小時: 停止
-            }
+            if (idleTime < 15 * MINUTE) interval = 5 * MINUTE;
+            else if (idleTime < 60 * MINUTE) interval = 15 * MINUTE;
+            else if (idleTime < 2 * HOUR) interval = 30 * MINUTE;
+            else interval = -1;
 
             if (interval === -1) {
-                countdownText.innerText = ""; // 停止時不顯示倒數文字，或可顯示「自動更新已停止」
-                statusText.innerText = "自動更新已暫停 (閒置過久)";
+                countdownText.innerText = "";
+                statusText.innerText = "自動更新已暫停 (閒置)";
                 return;
             }
 
             nextFetchTime = now + interval;
-            console.log(`下次更新預計在: ${new Date(nextFetchTime).toLocaleTimeString()} (間隔 ${interval/1000}s)`);
-
-            // 啟動倒數計時器 (每秒更新 UI)
             autoUpdateTimer = setInterval(tickAutoUpdate, 1000);
-            tickAutoUpdate(); // 立即執行一次顯示
+            tickAutoUpdate();
         }
 
         function tickAutoUpdate() {
-            // 如果網頁在背景，不執行倒數更新與 Fetch
             if (document.hidden) return;
-
             const now = Date.now();
             const remain = Math.ceil((nextFetchTime - now) / 1000);
 
             if (remain <= 0) {
                 clearInterval(autoUpdateTimer);
-                
                 if (btn.disabled && btn.innerText.includes("s")) {
                     nextFetchTime = now + 10000;
                     autoUpdateTimer = setInterval(tickAutoUpdate, 1000);
@@ -197,27 +259,21 @@
                 }
                 fetchData();
             } else {
-                // 格式化倒數顯示 MM:SS
                 const m = Math.floor(remain / 60);
                 const s = remain % 60;
                 const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                // 修改：倒數文字格式
                 countdownText.innerText = `自動更新: ${timeStr}`;
             }
         }
 
         function handleVisibilityChange() {
-            if (document.hidden) {
-                console.log("背景模式：暫停 UI 倒數");
-            } else {
-                // 回到前景：如果時間已過，立即更新
-                if (nextFetchTime > 0 && Date.now() > nextFetchTime) {
-                    fetchData();
-                }
+            if (!document.hidden && nextFetchTime > 0 && Date.now() > nextFetchTime) {
+                fetchData();
             }
         }
 
-        // --- 按鈕冷卻邏輯 ---
+        // --- 冷卻與渲染 ---
+        const COOLDOWN_KEY = "next_refresh_time";
         function setButtonCooldown(seconds) {
             const nextTime = Date.now() + (seconds * 1000);
             localStorage.setItem(COOLDOWN_KEY, nextTime);
@@ -227,25 +283,19 @@
         function checkButtonCooldown() {
             const nextTime = localStorage.getItem(COOLDOWN_KEY);
             if (!nextTime) return;
-
-            const now = Date.now();
-            const remain = Math.ceil((parseInt(nextTime) - now) / 1000);
-
-            if (remain > 0) {
-                startButtonTimer(remain);
-            } else {
+            const remain = Math.ceil((parseInt(nextTime) - Date.now()) / 1000);
+            if (remain > 0) startButtonTimer(remain);
+            else {
                 localStorage.removeItem(COOLDOWN_KEY);
                 btn.disabled = false;
                 btn.innerText = "更新";
             }
         }
 
-        function startButtonTimer(initialSeconds) {
+        function startButtonTimer(sec) {
             if (cooldownTimer) clearInterval(cooldownTimer);
-            let sec = initialSeconds;
             btn.disabled = true;
             btn.innerText = `${sec}s`;
-
             cooldownTimer = setInterval(() => {
                 sec--;
                 btn.innerText = `${sec}s`;
@@ -263,12 +313,10 @@
                 list.innerHTML = '<div class="message">目前無符合班次</div>';
                 return;
             }
-
             let html = "";
             data.trains.forEach(t => {
                 const delayTag = t.delay > 0 ? `<div class="delay-badge">誤點 ${t.delay} 分</div>` : "";
                 const trainUrl = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-
                 html += `
                 <a href="${trainUrl}" target="_blank">
                     <div class="card" style="border-left-color: ${t.color};">
@@ -277,8 +325,7 @@
                         <div class="main-time"><span>${t.act_dep}</span><span class="arrow">➔</span><span>${t.act_arr}</span></div>
                         <div class="sub-time">原定 ${t.sch_dep} ➔ ${t.sch_arr}</div>
                     </div>
-                </a>
-                `;
+                </a>`;
             });
             list.innerHTML = html;
         }
