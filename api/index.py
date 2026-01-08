@@ -34,19 +34,20 @@ class handler(BaseHTTPRequestHandler):
             return None
         except: return None
 
-    # === 修改：專門抓取剩餘額度的函式 ===
+    # === 修改：智慧搜尋 Header ===
     def get_header_info(self, res):
-        # TDX 的 Header 通常是 'x-ratelimit-remaining' (日/月額度) 或 'x-ratelimit-remaining-minute' (分額度)
-        # 我們優先抓 'x-ratelimit-remaining'
-        limit = res.headers.get('x-ratelimit-remaining')
+        # 搜尋所有包含 'remaining' (剩餘) 或 'limit' (限制) 的標頭
+        # 這樣我們就能知道 TDX 到底用了什麼名字
+        found_headers = []
+        for k, v in res.headers.items():
+            if 'remaining' in k.lower() or 'ratelimit' in k.lower():
+                found_headers.append(f"{k}={v}")
         
-        # 如果抓不到，試試看大寫 (有些環境會變大寫)
-        if not limit: limit = res.headers.get('X-RateLimit-Remaining')
+        if found_headers:
+            # 將找到的所有資訊串接起來回傳
+            return f"API {res.status_code} ({', '.join(found_headers)})"
         
-        # 如果還是抓不到，可能是 TDX 改了名字，或是沒有回傳
-        if not limit: limit = "未知"
-            
-        return f"API {res.status_code} (剩餘: {limit})"
+        return f"API {res.status_code} (無額度Header)"
 
     def get_cached_delays(self, headers):
         global _DELAY_CACHE
@@ -58,7 +59,7 @@ class handler(BaseHTTPRequestHandler):
         res = requests.get(delay_url, headers=headers)
         
         if res.status_code == 200:
-            status_str = self.get_header_info(res) # 抓取額度
+            status_str = self.get_header_info(res) # 智慧偵測
             d_data = res.json()
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
@@ -78,7 +79,7 @@ class handler(BaseHTTPRequestHandler):
         res = requests.get(timetable_url, headers=headers)
         
         if res.status_code == 200:
-            status_str = self.get_header_info(res) # 抓取額度
+            status_str = self.get_header_info(res) # 智慧偵測
             raw_list = res.json().get('TrainTimetables', [])
             _ROUTE_CACHE[cache_key] = {"date": date_str, "trains": raw_list}
             return (raw_list, status_str)
