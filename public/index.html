@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>列車時刻 Live</title>
+    <style>
+        /* === 基礎設定 === */
+        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; overflow-x: hidden; } /* 防止左右滑動 */
+        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; width: 100%; box-sizing: border-box; }
+
+        /* === 頂部區域 === */
+        .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
+        
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+
+        .tool-btn {
+            background: none; border: 1px solid #444; color: #666; 
+            padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; 
+            cursor: pointer; font-weight: bold; transition: all 0.2s;
+        }
+        .tool-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); }
+        .tool-btn:active { transform: scale(0.95); }
+
+        .menu-btn-trigger { 
+            background: #333; border: 1px solid #555; color: #fff; 
+            width: 32px; height: 32px; border-radius: 8px; 
+            font-size: 1.1rem; cursor: pointer; display: flex; 
+            align-items: center; justify-content: center; font-weight: bold;
+            transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .menu-btn-trigger:active { transform: scale(0.95); background: #444; }
+
+        /* === 修正搜尋欄爆版問題 === */
+        .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
+        
+        .search-target { 
+            flex: 1; 
+            background: #222; border: 1px solid #444; color: #ccc; 
+            border-radius: 8px; font-size: 0.85rem; padding-left: 5px; 
+            min-width: 0; /* 關鍵修正：允許縮小 */
+        }
+        
+        .search-box { 
+            flex: 3; 
+            box-sizing: border-box; background: #222; border: 1px solid #444; color: #fff; 
+            padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; text-align: left; 
+            min-width: 0; /* 關鍵修正：允許縮小 */
+        }
+        .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
+
+        /* === 選單區域 === */
+        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center; flex-shrink: 0;}
+        .select-group { flex: 1; display: flex; gap: 5px; min-width: 0; }
+        .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; appearance: none; -webkit-appearance: none; text-align: center; min-width: 0; }
+        .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; appearance: none; -webkit-appearance: none; text-align: center; min-width: 0; }
+        .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
+        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
+
+        /* === 按鈕與狀態 === */
+        .action-area { margin-top: 15px; display: flex; gap: 10px; align-items: stretch; }
+        .btn { border: none; padding: 12px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
+        .btn-search { flex: 2; background: #fff; color: #000; }
+        .btn-refresh { flex: 1; background: #4d7f5e; color: white; font-size: 0.9rem; }
+        .btn-half { flex: 1; font-size: 0.9rem; }
+        .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
+        .btn-primary { background: #007AFF; color: white; }
+        .btn.error { background: #d32f2f !important; color: white !important; }
+
+        .status-container { text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+        .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
+        .status-msg.alert { color: #ff4d4d; font-weight: bold; } 
+        .status-msg.warning { color: #e6b800; } 
+        .status-msg.unsync { color: #4d7f5e; } 
+        .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
+
+        /* === 卡片 === */
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; }
+        .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+        .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; padding: 6px 0; }
+        .arrow { margin: 0 12px; color: #666; font-size: 0.8rem; }
+        .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
+        a { text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
+        
+        .card.past { opacity: 0.5; filter: grayscale(0.8); }
+        .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
+
+        .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
+        .loading { color: #4d7f5e; }
+
+        /* === Modal === */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
+        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 85vh; overflow-y: auto;}
+        .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; }
+        .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
+        .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
+        .menu-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+        .menu-btn:active { background: #3a3a3c; }
+        .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
+        .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
+        .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .modal-page { display: none; }
+        .modal-page.active { display: block; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .report-box { width: 100%; height: 150px; background: #111; border: 1px solid #444; color: #0f0; font-family: monospace; font-size: 0.75rem; padding: 10px; border-radius: 8px; margin-bottom: 10px; resize: none; box-sizing: border-box;}
+        
+        .report-hint { font-size: 0.8rem; color: #888; margin-bottom: 15px; }
+        .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
+        .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
+        .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
+        .stat-card.danger .stat-val { color: #ff4d4d; }
+        
+        /* 動畫 */
+        @keyframes pulse-gold {
+            0%, 100% { color: #fff; border-color: #555; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); box-shadow: 0 0 8px rgba(255, 166, 0, 0.4); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-top">
+                <div class="app-title">TRAIN LIVE</div>
+                <div class="header-actions">
+                    <button id="btnShowAll" class="tool-btn" onclick="toggleShowAll()">全部</button>
+                    <button id="btnTimeFormat" class="tool-btn" onclick="toggleTimeFormat()">24H</button>
+                    <button class="menu-btn-trigger" onclick="openModal()">☰</button>
+                </div>
+            </div>
+
+            <div class="search-row">
+                <select id="searchTarget" class="search-target" onchange="handleSearch()" autocomplete="off"><option value="start">設為起點</option><option value="end">設為終點</option></select>
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站" oninput="handleSearch()" autocomplete="off">
+            </div>
+            
+            <div class="selector-row">
+                <div class="selector-label">起點</div>
+                <div class="select-group">
+                    <select id="startRegion" class="region-select" onchange="updateStationList('start')" autocomplete="off"></select>
+                    <select id="startStation" class="station-select" onchange="markAsChanged()" autocomplete="off"></select>
+                </div>
+            </div>
+            <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
+            <div class="selector-row">
+                <div class="selector-label">終點</div>
+                <div class="select-group">
+                    <select id="endRegion" class="region-select" onchange="updateStationList('end')" autocomplete="off"></select>
+                    <select id="endStation" class="station-select" onchange="markAsChanged()" autocomplete="off"></select>
+                </div>
+            </div>
+
+            <div class="action-area">
+                <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
+                <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
+            </div>
+            
+            <div class="status-container">
+                <div id="statusMsg" class="status-msg"></div>
+                <div id="updateTime" class="update-time"></div>
+            </div>
+        </div>
+
+        <div id="cardList"></div>
+    </div>
+
+    <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div id="pageMenu" class="modal-page active">
+                <div class="modal-header-row"><div class="modal-title">選單</div></div>
+                <button class="menu-btn" onclick="goToPage('Why')">設計理念</button>
+                <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
+                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
+                <div style="height:10px"></div>
+                <button class="modal-close" onclick="closeModal()">關閉</button>
+            </div>
+            <div id="pageWhy" class="modal-page">
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
+                <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
+            </div>
+            <div id="pageHow" class="modal-page">
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
+                <div class="modal-text"><strong>雙按鈕機制：</strong><br><br>1. <strong>🔍 查詢路線 (左)：</strong><br>切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>若<strong>真的變更車站</strong>，每分鐘限查詢 4 次。<br><br>2. <strong>🔄 更新 (右)：</strong><br>刷新當前狀態。每次點擊後需等待 60 秒冷卻。<br><br><strong>燈號：</strong><br><span style="color:#e6b800">黃字</span>：誤點資料失敗 (自動重試)。<br><span style="color:#ff4d4d">紅字</span>：操作過於頻繁。</div>
+            </div>
+            <div id="pageReport" class="modal-page">
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
+                <div class="stats-dashboard">
+                    <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分鐘內請求</div></div>
+                    <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
+                    <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(秒)</div></div>
+                </div>
+                <div class="report-hint">若遇到問題，請先「複製報告」，再點擊寄信並貼上內容。</div>
+                <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
+                <textarea id="reportContent" class="report-box" readonly></textarea>
+                <div class="action-area" style="margin-top:5px;">
+                    <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
+                    <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STATION_DATA={"基隆/新北":["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],"臺北市":["南港","松山","臺北","萬華"],"桃園市":["桃園","內壢","中壢","埔心","楊梅","富岡","新富"],"新竹縣市":["北湖","湖口","新豐","竹北","北新竹","新竹","三姓橋","香山","六家","竹中","上員","榮華","竹東","橫山","九讚頭","合興","富貴","內灣"],"苗栗縣":["崎頂","竹南","造橋","豐富","苗栗","南勢","銅鑼","三義","談文","大山","後龍","龍港","白沙屯","新埔","通霄","苑裡"],"臺中市":["泰安","后里","豐原","栗林","潭子","頭家厝","松竹","太原","精武","臺中","五權","大慶","烏日","新烏日","成功","日南","大甲","臺中港","清水","沙鹿","龍井","大肚","追分"],"彰化縣":["彰化","花壇","大村","員林","永靖","社頭","田中","二水","源泉","濁水","龍泉","集集","水里","車埕"],"雲林縣":["林內","石榴","斗六","斗南","石龜"],"嘉義縣市":["大林","民雄","嘉北","嘉義","水上","南靖"],"臺南市":["後壁","新營","柳營","林鳳營","隆田","拔林","善化","南科","新市","永康","大橋","臺南","保安","仁德","中洲","大湖","沙崙"],"高雄市":["路竹","岡山","橋頭","楠梓","新左營","左營","內惟","美術館","鼓山","三塊厝","高雄","民族","科工館","正義","鳳山","後庄","九曲堂"],"屏東縣":["六塊厝","屏東","歸來","麟洛","西勢","竹田","潮州","崁頂","南州","鎮安","林邊","佳冬","東海","枋寮","加祿","內獅","枋山"],"宜蘭縣":["漢本","武塔","南澳","東澳","永樂","蘇澳","蘇澳新","冬山","羅東","中里","二結","宜蘭","四城","礁溪","頂埔","頭城","外澳","龜山","大溪","大里","石城"],"花蓮縣":["和平","和仁","崇德","新城","景美","北埔","花蓮","吉安","志學","平和","壽豐","豐田","林榮新光","南平","鳳林","萬榮","光復","大富","富源","瑞穗","三民","玉里","東里","東竹","富里"],"臺東縣":["池上","海端","關山","瑞和","瑞源","鹿野","山里","臺東","康樂","知本","太麻里","金崙","瀧溪","大武"]};
+        const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
+
+        const CACHE_PREFIX="train_data_v2_";
+        const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
+        const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
+        
+        const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
+        const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
+        const searchInput=document.getElementById('searchInput');const searchTarget=document.getElementById('searchTarget');
+        const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
+        const btnTimeFormat=document.getElementById('btnTimeFormat'); const btnShowAll=document.getElementById('btnShowAll');
+        const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
+        const list=document.getElementById('cardList');const modal=document.getElementById('aboutModal');
+
+        let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
+        const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
+        const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
+        const LS_IS_24H="tl_pref_is_24h"; 
+        
+        const MAX_SEARCH_PER_MIN=4;
+        let lastFetchedPair={start:"",end:""};
+        let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
+        let isShowAll = false;
+
+        function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
+        function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
+        function getSearchResetTime(){return parseInt(localStorage.getItem(LS_SEARCH_RESET)||"0");}
+        function setSearchResetTime(v){localStorage.setItem(LS_SEARCH_RESET,v);}
+        function getSearchLockedUntil(){return parseInt(localStorage.getItem(LS_SEARCH_LOCK)||"0");}
+        function setSearchLockedUntil(v){localStorage.setItem(LS_SEARCH_LOCK,v);}
+        function getRefreshLockedUntil(){return parseInt(localStorage.getItem(LS_REFRESH_LOCK)||"0");}
+        function setRefreshLockedUntil(v){localStorage.setItem(LS_REFRESH_LOCK,v);}
+
+        function updateToggleBtns() {
+            btnTimeFormat.innerText = is24Hour ? "24H" : "12H";
+            if (isShowAll) btnShowAll.classList.add('active');
+            else btnShowAll.classList.remove('active');
+        }
+
+        function toggleTimeFormat() {
+            is24Hour = !is24Hour;
+            localStorage.setItem(LS_IS_24H, is24Hour);
+            updateToggleBtns();
+            reRenderLocal(); 
+        }
+
+        function toggleShowAll() {
+            isShowAll = !isShowAll;
+            updateToggleBtns();
+            reRenderLocal(); 
+        }
+
+        function formatTime(t) {
+            if(!t) return "";
+            if(is24Hour) return t;
+            const p=t.split(':'); if(p.length<2) return t;
+            let h=parseInt(p[0]); const m=p[1];
+            let suffix="上午";
+            if(h>=12){ suffix="下午"; if(h>12) h-=12; } else if(h===0) h=12;
+            return `${suffix} ${h}:${m}`;
+        }
+
+        function init() {
+            logSystem("Init","App Started");
+            updateToggleBtns();
+            const regions=Object.keys(STATION_DATA);
+            const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
+            
+            const savedSR = localStorage.getItem(PREF_START_R_KEY);
+
+            if (savedSR) {
+                startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
+                const sS=localStorage.getItem(PREF_START_S_KEY)||"屏東";
+                const eR=localStorage.getItem(PREF_END_R_KEY)||"屏東縣"; const eS=localStorage.getItem(PREF_END_S_KEY)||"潮州";
+                setMenu('start',savedSR,sS); setMenu('end',eR,eS);
+                checkLocksOnLoad();
+                loadDataOrFetch();
+            } else {
+                const ph = `<option value="" disabled selected>選擇縣市</option>`;
+                startRegion.innerHTML=ph+rOpts; endRegion.innerHTML=ph+rOpts;
+                startStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
+                endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
+                list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
+                statusMsg.innerText = "等待輸入...";
+                checkLocksOnLoad();
+            }
+        }
+
+        function checkLocksOnLoad() {
+            const now=Date.now();
+            const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
+            const rL=getRefreshLockedUntil(); if(rL>now) lockRefreshButton(Math.ceil((rL-now)/1000));
+        }
+
+        function setMenu(type,rV,sV) {
+            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
+            if(!STATION_DATA[rV]) { rSel.value = ""; return; }
+            rSel.value=rV;
+            sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join('');
+            if(STATION_DATA[rV].includes(sV)) sSel.value=sV; else sSel.selectedIndex=0;
+        }
+
+        function updateStationList(type) {
+            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
+            const rVal = rSel.value;
+            if (!rVal) return;
+            sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join('');
+            sSel.selectedIndex=0; 
+            if (startStation.value && endStation.value) markAsChanged();
+        }
+
+        function swapStations() {
+            if (!startStation.value || !endStation.value) return;
+            logSystem("UI","Swap");
+            const sR=startRegion.value; const sS=startStation.value;
+            setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
+            markAsChanged();
+        }
+
+        function handleSearch() {
+            const val=searchInput.value.trim(); const tgt=searchTarget.value;
+            if(!val) return;
+            let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
+            if(found) {
+                logSystem("UI",`Search: ${found}`);
+                setMenu(tgt,STATION_INDEX[found],found);
+                searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
+                if (startStation.value && endStation.value) markAsChanged();
+            }
+        }
+
+        function markAsChanged() {
+            if (!startStation.value || !endStation.value) return;
+            localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
+            localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
+            attemptLoadCache(false);
+        }
+
+        function savePrefs() { markAsChanged(); } 
+
+        function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
+
+        function reRenderLocal() {
+            const c=localStorage.getItem(getCacheKey());
+            if(c) {
+                const d=JSON.parse(c);
+                renderCards(d.payload);
+            } else {
+                if (startStation.value && endStation.value) attemptLoadCache(false);
+            }
+        }
+
+        function attemptLoadCache(isInit) {
+            if (!startStation.value || !endStation.value) return;
+            const c=localStorage.getItem(getCacheKey());
+            let hit=false;
+            if(c) {
+                const d=JSON.parse(c);
+                if(Date.now()-d.timestamp<60000) {
+                    renderCards(d.payload);
+                    setUpdateText(`更新於(快取): ${d.payload.update_time}`);
+                    statusMsg.innerText=""; statusMsg.className="status-msg";
+                    list.style.opacity="1"; lastFetchedPair={start:startStation.value,end:endStation.value};
+                    hit=true;
+                }
+            }
+            if(!hit) {
+                if(isInit) {
+                    statusMsg.innerText="請按「查詢」開始使用"; statusMsg.className="status-msg";
+                    updateTimeDiv.innerText="";
+                    list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
+                } else {
+                    list.style.opacity="0.4";
+                    statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg unsync";
+                    updateTimeDiv.innerText="";
+                }
+            }
+            updateButtonMode();
+        }
+
+        function loadDataOrFetch(){attemptLoadCache(true);}
+
+        function updateButtonMode() {
+            const sL=getSearchLockedUntil(); if(sL>Date.now()) return;
+            if(startStation.value!==lastFetchedPair.start || endStation.value!==lastFetchedPair.end) btnSearch.disabled=false;
+        }
+
+        function doSearch() {
+            const sS=startStation.value; const eS=endStation.value;
+            if (!sS || !eS) {
+                statusMsg.innerText = "請先選擇起點與終點";
+                statusMsg.className = "status-msg alert";
+                setTimeout(()=>statusMsg.innerText="", 2000);
+                return;
+            }
+            savePrefs();
+            if(sS===lastFetchedPair.start && eS===lastFetchedPair.end) {
+                statusMsg.innerText="車站未變更，執行更新"; setTimeout(()=>{if(!statusMsg.classList.contains("alert"))statusMsg.innerText="";},2000);
+                doRefresh(); return;
+            }
+            const now=Date.now();
+            let cnt=getSearchCount(); let rst=getSearchResetTime();
+            if(now-rst>60000) { cnt=0; setSearchCount(0); rst=now; setSearchResetTime(now); }
+            if(cnt===0) { rst=now; setSearchResetTime(now); }
+            
+            if(cnt>=MAX_SEARCH_PER_MIN) {
+                const w=Math.ceil((60000-(now-rst))/1000);
+                const safeW=w>0?w:60;
+                setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW);
+                logSystem("Limit","Search Limit"); return;
+            }
+            cnt++; setSearchCount(cnt);
+            logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN})`);
+            fetchData("search");
+        }
+
+        function doRefresh(skip=false) {
+            if(!skip) {
+                const now=Date.now(); const rL=getRefreshLockedUntil();
+                if(rL>now) { lockRefreshButton(Math.ceil((rL-now)/1000)); return; }
+            }
+            logSystem("Action","Refresh"); fetchData("refresh");
+        }
+
+        async function fetchData(mode) {
+            statusMsg.innerText="連線中..."; statusMsg.className="status-msg"; list.style.opacity="1";
+            if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
+            if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
+            const s=startStation.value; const e=endStation.value; recordRequest();
+            try {
+                const res=await fetch(`/api/index?start=${s}&end=${e}`);
+                const json=await res.json();
+                if(json.error) throw new Error(json.error);
+                lastFetchedPair={start:s,end:e};
+                localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
+                renderCards(json);
+                logSystem("API",`DelayFailed:${json.delay_failed}`);
+                
+                if(json.delay_failed) {
+                    statusMsg.innerText="誤點資訊無法取得 (60s 後自動重試)"; statusMsg.className="status-msg warning";
+                    scheduleRetry(); setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
+                } else {
+                    statusMsg.innerText="更新完成"; statusMsg.className="status-msg";
+                    setTimeout(()=>{if(statusMsg.innerText==="更新完成")statusMsg.innerText="";},2000);
+                    setUpdateText(`更新於: ${json.update_time}`);
+                }
+                const now=Date.now();
+                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+60000); lockRefreshButton(60); }
+                if(mode==="refresh"){ setRefreshLockedUntil(now+60000); lockRefreshButton(60); }
+            } catch(err) {
+                console.error(err); logSystem("API Error",err.message);
+                statusMsg.innerText="連線發生問題"; statusMsg.className="status-msg alert";
+                list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`;
+                if(mode==="search") setTimeout(()=>btnSearch.disabled=false,2000);
+                if(mode==="refresh") setTimeout(()=>btnRefresh.disabled=false,2000);
+            }
+        }
+
+        function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
+        function scheduleRetry() {
+            let c=60; retryTimer=setInterval(()=>{
+                c--; statusMsg.innerText=`誤點資訊無法取得 (${c}s 後自動重試)`;
+                if(c<=0){clearInterval(retryTimer);retryTimer=null;doRefresh(true);}
+            },1000);
+        }
+
+        function lockSearchButton(s) {
+            if(searchLockTimer) clearInterval(searchLockTimer);
+            statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-msg alert";
+            btnSearch.classList.add('error'); btnSearch.disabled=true;
+            const t=()=>{
+                btnSearch.innerText=`頻繁操作 (${s})`;
+                if(s<=0){
+                    clearInterval(searchLockTimer); btnSearch.disabled=false;
+                    btnSearch.classList.remove('error'); btnSearch.innerText="🔍 查詢路線";
+                    statusMsg.innerText=""; setSearchLockedUntil(0);
+                }
+                s--;
+            }; t(); searchLockTimer=setInterval(t,1000);
+        }
+
+        function lockRefreshButton(s) {
+            if(refreshTimer) clearInterval(refreshTimer);
+            btnRefresh.disabled=true;
+            const t=()=>{
+                btnRefresh.innerText=`更新 (${s})`;
+                if(s<=0){
+                    clearInterval(refreshTimer); btnRefresh.disabled=false;
+                    btnRefresh.innerText="🔄 更新"; setRefreshLockedUntil(0);
+                }
+                s--;
+            }; t(); refreshTimer=setInterval(t,1000);
+        }
+
+        function renderCards(data) {
+            if(data.trains&&data.trains.length>0) {
+                let html="";
+                let hasVisibleTrains = false;
+                data.trains.forEach(t=>{
+                    if (!isShowAll && t.is_past) return;
+                    hasVisibleTrains = true;
+                    let delayTag="";
+                    if(!data.delay_failed && t.delay>0) delayTag=`<div class="delay-badge">誤點 ${t.delay} 分</div>`;
+                    const url=`https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
+                    const pastClass = t.is_past ? 'past' : '';
+                    html+=`<a href="${url}" target="_blank">
+                        <div class="card ${pastClass}" style="border-left-color:${t.color};">
+                            ${delayTag}
+                            <div class="train-info" style="color:${t.color};">${t.type} ${t.no} 次</div>
+                            <div class="main-time"><span>${formatTime(t.act_dep)}</span><span class="arrow">➔</span><span>${formatTime(t.act_arr)}</span></div>
+                            <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
+                        </div></a>`;
+                });
+                
+                if (!hasVisibleTrains && !isShowAll) {
+                    list.innerHTML = `<div class="message">後續已無班次 👋<br><span style="font-size:0.8rem;color:#666">點擊上方「全部」查看整日班表</span></div>`;
+                } else {
+                    list.innerHTML=html;
+                }
+                return;
+            }
+            const orig=data.stats?data.stats.original_count:0;
+            if(orig>0) list.innerHTML=`<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>`;
+            else list.innerHTML=`<div class="message">查無此區間直達列車 ⚠️</div>`;
+        }
+
+        // System
+        let systemLogs=[]; let requestHistory=[];
+        function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
+        function recordRequest(){requestHistory.push(Date.now());}
+        function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
+        function closeModal(){document.getElementById('aboutModal').style.display='none';}
+        function goToPage(id){
+            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
+            document.getElementById('page'+id).classList.add('active');
+            if(id==='Report'){
+                const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
+                document.getElementById('statRpm').innerText=rpm;
+                if(rpm>=5)document.getElementById('cardRpm').classList.add('danger');
+                else document.getElementById('cardRpm').classList.remove('danger');
+                document.getElementById('statTotal').innerText=requestHistory.length;
+                const last=requestHistory[requestHistory.length-1];
+                document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
+                
+                let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n裝置: ${navigator.userAgent}\n路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n--- Log ---\n${systemLogs.join("\n")}`;
+                const u=document.getElementById('userDesc').value; if(u) r+=`\n\nUser: ${u}`;
+                document.getElementById('reportContent').value=r;
+            }
+        }
+        
+        function copyReportOnly() {
+            const b=document.getElementById('reportContent'); b.select(); document.execCommand('copy');
+            const btn=document.getElementById('btnCopyReport'); 
+            const originalText = btn.innerText;
+            btn.innerText = "已複製！"; 
+            setTimeout(()=>{ btn.innerText = originalText; }, 2000);
+        }
+
+        function openMailClient() {
+            const subject = encodeURIComponent("TRAIN LIVE 系統診斷回報");
+            const body = encodeURIComponent("（請長按貼上剛剛複製的診斷報告）\n\n我的問題描述：\n");
+            window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
+        }
+
+        init();
+    </script>
+</body>
+</html>
