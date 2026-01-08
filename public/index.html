@@ -16,9 +16,13 @@
         .header-actions { display: flex; gap: 8px; align-items: center; }
         .tool-btn { background: none; border: 1px solid #444; color: #666; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .tool-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); }
-        #btnInstall { display: none; background: #4d7f5e; color: white; border: none; border-radius: 8px; padding: 3px 8px; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
+        
+        /* 恢復按鈕動畫 */
+        @keyframes pulse-gold { 0%, 100% { color: #ccc; border-color: #555; box-shadow: 0 0 0 rgba(0,0,0,0); } 50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); box-shadow: 0 0 8px rgba(255, 166, 0, 0.3); } }
         .menu-btn-trigger { background: #333; border: 1px solid #555; color: #fff; width: 32px; height: 32px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; animation: pulse-gold 3s infinite ease-in-out; }
-        @keyframes pulse-gold { 0%, 100% { color: #ccc; border-color: #555; } 50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); } }
+        .menu-btn.special { animation: pulse-gold 3s infinite ease-in-out; }
+
+        #btnInstall { display: none; background: #4d7f5e; color: white; border: none; border-radius: 8px; padding: 3px 8px; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
         .search-target { flex: 1; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
         .search-box { flex: 3; background: #222; border: 1px solid #444; color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; }
@@ -32,7 +36,6 @@
         .btn-search { background: #fff; color: #000; flex: 2; }
         .btn-refresh { background: #4d7f5e; color: white; }
         .btn:disabled { background: #333 !important; color: #888 !important; cursor: not-allowed; }
-        .btn.error { background: #d32f2f !important; color: white !important; }
         .status-container { text-align: center; margin-top: 10px; }
         .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
         .status-msg.warning { color: #e6b800; }
@@ -49,15 +52,22 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; max-height: 85vh; overflow-y: auto; }
         .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; margin-bottom: 15px; }
-        .menu-btn { width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; text-align: left; cursor: pointer; }
+        .menu-btn { width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        /* 恢復舊版關閉按鈕樣式 */
+        .modal-close { background: #333; color: #fff; border: none; padding: 12px 0; width: 100%; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; }
         .modal-page { display: none; }
-        .modal-page.active { display: block; }
+        .modal-page.active { display: block; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .report-box { width: 100%; height: 150px; background: #111; color: #0f0; font-family: monospace; font-size: 0.75rem; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #444; resize: none; box-sizing: border-box; }
         .api-status-box { background:#111; border:1px solid #333; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.8rem;}
         .api-row { display:flex; justify-content:space-between; margin-bottom:4px; }
+        .api-val { font-family:monospace; font-weight:bold; }
         .api-val.cache { color: #4d7f5e; }
         .api-val.api { color: #e6b800; }
-        .report-box { width: 100%; height: 150px; background: #111; color: #0f0; font-family: monospace; font-size: 0.75rem; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #444; }
+        .ios-instruction { text-align: center; margin-top: 20px; }
+        .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.95rem; }
+        .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
     </style>
 </head>
 <body>
@@ -89,31 +99,31 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="pageMenu" class="modal-page active">
                 <div class="modal-title">選單</div>
-                <button class="menu-btn" onclick="goToPage('Why')">設計理念</button>
+                <button class="menu-btn special" onclick="goToPage('Why')">設計理念</button>
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
-                <button class="menu-btn" style="background:#333" onclick="closeModal()">關閉</button>
+                <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
             <div id="pageWhy" class="modal-page">
                 <div class="modal-title">設計理念</div>
-                <div class="modal-text">TRAIN LIVE 專注於顯示「實際發車時間」。<br><br>我們結合了誤點補償計算，讓你在火車大量延誤時，依然能一眼看出「我還有幾分鐘可以走到月台」，而不必在腦中加減計算。</div>
-                <button class="menu-btn" style="margin-top:20px" onclick="goToPage('Menu')">返回</button>
+                <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
+                <button class="modal-close" onclick="goToPage('Menu')">返回</button>
             </div>
             <div id="pageHow" class="modal-page">
                 <div class="modal-title">操作說明</div>
                 <div class="modal-text">
                     <strong>🕹️ 雙按鈕機制：</strong><br>
-                    1. <strong>🔍 查詢路線</strong>：切換車站後使用。每分鐘限查詢 <strong>2 次</strong>。<br>
-                    2. <strong>🔄 更新</strong>：刷新誤點。需等待 60 秒冷卻。<br><br>
+                    1. <strong>🔍 查詢路線</strong>：切換車站後使用。每分鐘限查詢 2 次。<br>
+                    2. <strong>🔄 更新</strong>：刷新誤點資訊。需等待 60 秒冷卻。<br><br>
                     <strong>✨ 進階功能：</strong><br>
-                    ● <strong>地圖定位</strong>：點擊卡片開啟即時地圖與停靠站。<br>
-                    ● <strong>全部班次</strong>：點擊「全部」查看已駛離班次。<br>
-                    ● <strong>安裝 App</strong>：點擊上方按鈕將此工具加入主畫面。<br><br>
+                    ● <strong>地圖定位</strong>：點擊列車卡片查看「列車地圖位置」與「詳細停靠站」。<br>
+                    ● <strong>全部班次</strong>：點擊上方「全部」查看已駛離的班次。<br>
+                    ● <strong>安裝 App</strong>：點擊上方「安裝 App」將此工具加入主畫面即可全螢幕執行。<br><br>
                     <strong>🚦 狀態燈號：</strong><br>
-                    <span style="color:#e6b800">黃字</span>：誤點讀取失敗 (系統會自動重試)。<br>
-                    <span style="color:#e6b800">忙碌</span>：操作過快 (系統會倒數並自動更新)。
+                    <span style="color:#e6b800">黃字</span>：誤點讀取失敗 (系統將自動重試)。<br>
+                    <span style="color:#e6b800">系統忙碌</span>：操作過快 (系統將倒數並自動更新)。
                 </div>
-                <button class="menu-btn" style="margin-top:20px" onclick="goToPage('Menu')">返回</button>
+                <button class="modal-close" onclick="goToPage('Menu')">返回</button>
             </div>
             <div id="pageReport" class="modal-page">
                 <div class="modal-title">系統診斷</div>
@@ -121,21 +131,20 @@
                     <div class="api-row"><span>時刻表來源 (V3)</span><span id="diagRoute" class="api-val">--</span></div>
                     <div class="api-row"><span>誤點資訊來源 (V2)</span><span id="diagDelay" class="api-val">--</span></div>
                 </div>
-                <div class="report-hint" style="font-size:0.7rem; color:#888; margin-bottom:10px;">Log 已自動記錄最近 30 次 API 連線狀態。</div>
                 <textarea id="reportContent" class="report-box" readonly></textarea>
-                <button class="menu-btn" onclick="copyReportOnly()">📋 複製報告</button>
-                <button class="menu-btn" style="background:#333" onclick="goToPage('Menu')">返回</button>
+                <button class="modal-close" style="background:#4d7f5e" onclick="copyReportOnly()">📋 複製報告</button>
+                <button class="modal-close" onclick="goToPage('Menu')">返回</button>
             </div>
             <div id="pageIOS" class="modal-page">
                 <div class="modal-title">安裝到 iPhone</div>
-                <div class="modal-text">1. 點擊瀏覽器下方的 <span style="color:#4d7f5e">分享按鈕</span><br>2. 選擇 <span style="color:#4d7f5e">加入主畫面</span><br>3. 點擊右上角「加入」即可。</div>
-                <button class="menu-btn" style="margin-top:20px" onclick="closeModal()">我明白了</button>
+                <div class="modal-text">1. 點擊工具列的 <span style="color:#4d7f5e">分享按鈕</span><br>2. 選擇 <span style="color:#4d7f5e">加入主畫面</span><br>3. 點擊右上角「加入」即可。</div>
+                <button class="modal-close" onclick="closeModal()">我明白了</button>
             </div>
         </div>
     </div>
 
     <script>
-        const STATION_DATA={"基隆/新北":["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],"臺北市":["南港","松山","臺北","萬華"],"桃園市":["桃園","內壢","中壢","埔心","楊梅","富岡","新富"],"新竹縣市":["北湖","湖口","新豐","竹北","北新竹","新竹","三姓橋","香山","六家","竹中","上員","榮華","竹東","橫山","九讚頭","合興","富貴","內灣"],"苗栗縣":["崎頂","竹南","造橋","豐富","苗栗","南勢","銅鑼","三義","談文","大山","後龍","龍港","白沙屯","新埔","通霄","苑裡"],"臺中市":["泰安","后里","豐原","栗林","潭子","頭家厝","松竹","太原","精武","臺中","五權","大慶","烏日","新烏日","成功","日南","大甲","臺中港","清水","沙鹿","龍井","大肚","追分"],"彰化縣":["彰化","花壇","大村","員林","永靖","社頭","田中","二水","源泉","濁水","龍泉","集集","水里","車埕"],"雲林縣":["林內","石榴","斗六","斗南","石龜"],"嘉義縣市":["大林","民雄","嘉北","嘉義","水上","南靖"],"臺南市":["後壁","新營","柳營","林鳳營","隆田","拔林","善化","南科","新市","永康","大橋","臺南","保安","仁德","中洲","大湖","沙崙"],"高雄市":["路竹","岡山","橋頭","楠梓","新左營","左營","內惟","美術館","鼓山","三塊厝","高雄","民族","科工館","正義","鳳山","後庄","九曲堂"],"屏東縣":["六塊厝","屏東","歸來","麟洛","西勢","竹田","潮州","崁頂","南州","鎮安","林邊","佳冬","東海","枋寮","加祿","內獅","枋山"],"宜蘭縣":["漢本","武塔","南澳","東澳","永樂","蘇澳","蘇澳新","冬山","羅東","中里","二結","宜蘭","四城","礁溪","頂埔","頭城","外澳","龜山","大溪","大里","石城"],"花蓮縣":["和平","和仁","崇德","新城","景美","北埔","花蓮","吉安","志學","平和","壽豐","豐田","林榮新光","南平","鳳林","萬榮","光復","大富","富源","瑞穗","三民","玉里","東里","東竹","富里"],"臺東縣":["池上","海端","關山","瑞和","瑞源","鹿野","山里","臺東","康樂","知本","太麻里","金崙","瀧溪","大武"]};
+        const STATION_DATA={"基隆/新北":["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],"臺北市":["南港","松山","臺北","萬華"],"桃園市":["桃園","內壢","中壢","埔心","楊梅","富岡","新富"],"新竹縣市":["北湖","湖口","新豐","竹北","北新竹","新竹","三姓橋","香山","六家","竹中","上員","榮華","竹東","橫山","九讚頭","合興","富貴","內灣"],"苗栗縣":["崎頂","竹南","造橋","豐富","苗栗","南勢","銅鑼","三義","談文","大山","後龍","龍港","白沙屯","新埔","通霄","苑裡"],"臺中市":["泰安","后里","豐原","栗林","潭子","頭家厝","松竹","太原","精武","臺中","五權","大慶","烏日","新烏日","成功","日南","大甲","臺中港","清水","沙鹿","龍井","大肚","追分"],"彰化縣":["彰化","花壇","大村","員林","永靖","社頭","田中","二水","源泉","濁水","龍泉","集集","水里","車埕"],"雲林縣":["林內","石榴","斗六","斗南","石龜"],"嘉義縣市":["大林","民雄","嘉北","嘉義","水上","南靖"],"臺南市":["後壁","新營","柳營","林鳳營","隆田","拔林","善化","南科","新市","優康","大橋","臺南","保安","仁德","中洲","大湖","沙崙"],"高雄市":["路竹","岡山","橋頭","楠梓","新左營","左營","內惟","美術館","鼓山","三塊厝","高雄","民族","科工館","正義","鳳山","後庄","九曲堂"],"屏東縣":["六塊厝","屏東","歸來","麟洛","西勢","竹田","潮州","崁頂","南州","鎮安","林邊","佳冬","東海","枋寮","加祿","內獅","枋山"],"宜蘭縣":["漢本","武塔","南澳","東澳","永樂","蘇澳","蘇澳新","冬山","羅東","中里","二結","宜蘭","四城","礁溪","頂埔","頭城","外澳","龜山","大溪","大里","石城"],"花蓮縣":["和平","和仁","崇德","新城","景美","北埔","花蓮","吉安","志學","平和","壽豐","豐田","林榮新光","南平","鳳林","萬榮","光復","大富","富源","瑞穗","三民","玉里","東里","東竹","富里"],"臺東縣":["池上","海端","關山","瑞和","瑞源","鹿野","山里","臺東","康樂","知本","太麻里","金崙","瀧溪","大武"]};
         const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
@@ -151,7 +160,6 @@
         let is24Hour = localStorage.getItem("is24H") !== 'false'; let isShowAll = false;
         let lastFetchedPair={start:"",end:""};
 
-        // PWA 安裝邏輯
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
         if (isIos && !window.navigator.standalone) { btnInstall.style.display = 'block'; }
         window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; btnInstall.style.display = 'block'; });
@@ -170,7 +178,9 @@
             startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
             const sR=localStorage.getItem(PREF_START_R_KEY)||"屏東縣"; setMenu('start',sR,localStorage.getItem(PREF_START_S_KEY)||"屏東");
             const eR=localStorage.getItem(PREF_END_R_KEY)||"屏東縣"; setMenu('end',eR,localStorage.getItem(PREF_END_S_KEY)||"潮州");
-            updateToggleBtns(); loadDataOrFetch();
+            updateToggleBtns(); 
+            const cache = localStorage.getItem(`train_${startStation.value}_${endStation.value}`);
+            if(cache) renderCards(JSON.parse(cache).payload);
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
         }
         function setMenu(type,rV,sV) {
@@ -183,10 +193,7 @@
         function handleSearch(){ const v=searchInput.value.trim(); if(!v)return; const f=Object.keys(STATION_INDEX).find(s=>s.includes(v)); if(f){ setMenu(document.getElementById('searchTarget').value,STATION_INDEX[f],f); markAsChanged(); }}
         function markAsChanged(){ localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value); localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value); }
         
-        function getCacheKey(){return `train_${startStation.value}_${endStation.value}`;}
-        function reRender(){ const c=localStorage.getItem(getCacheKey()); if(c) renderCards(JSON.parse(c).payload); }
-        function loadDataOrFetch(){ const c=localStorage.getItem(getCacheKey()); if(c && Date.now()-JSON.parse(c).ts<60000) renderCards(JSON.parse(c).payload); }
-
+        function reRender(){ const c=localStorage.getItem(`train_${startStation.value}_${endStation.value}`); if(c) renderCards(JSON.parse(c).payload); }
         function doSearch() {
             if(startStation.value===lastFetchedPair.start && endStation.value===lastFetchedPair.end) { statusMsg.innerText="車站未變更"; setTimeout(()=>statusMsg.innerText="",2000); doRefresh(); return; }
             const cnt=parseInt(localStorage.getItem("search_cnt")||"0"), rst=parseInt(localStorage.getItem("search_rst")||"0");
@@ -210,9 +217,9 @@
                     lastDiagnostics=json.diagnostics;
                     logSystem("API", `Route:[${json.diagnostics.route_status}], Delay:[${json.diagnostics.delay_status}]`);
                 }
-                localStorage.setItem(getCacheKey(),JSON.stringify({ts:Date.now(),payload:json}));
+                localStorage.setItem(`train_${startStation.value}_${endStation.value}`,JSON.stringify({ts:Date.now(),payload:json}));
                 renderCards(json); updateTimeDiv.innerText=`更新於: ${json.update_time}`;
-                statusMsg.innerText=json.delay_failed?"誤點資訊失敗，將重試":"更新完成";
+                statusMsg.innerText=json.delay_failed?"系統忙碌，將重試":"更新完成";
                 if(json.delay_failed) startRetry(60); else setTimeout(()=>statusMsg.innerText="",2000);
                 localStorage.setItem("ref_lock",Date.now()+60000); lockRefresh(60);
             } catch(e){
@@ -225,17 +232,19 @@
         function lockRefresh(s){ let t=setInterval(()=>{ btnRefresh.innerText=`更新 (${s})`; if(s--<=0){ clearInterval(t); btnRefresh.disabled=false; btnRefresh.innerText="🔄 更新"; } },1000); }
 
         function renderCards(data) {
-            let html=data.trains.filter(t=>isShowAll || !t.is_past).map(t=>`
-                <a href="https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live" target="_blank">
+            let html=`<div class="click-hint" style="text-align:center;color:#666;font-size:0.75rem;margin-bottom:8px;margin-top:-5px;">👆 點擊卡片查看列車即時位置與完整停靠站</div>`;
+            const trains = data.trains.filter(t=>isShowAll || !t.is_past);
+            if(trains.length === 0) { list.innerHTML = '<div class="message">目前無後續班次</div>'; return; }
+            html += trains.map(t=>`
+                <a href="https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live" target="_blank" style="text-decoration:none;color:inherit;display:block;">
                 <div class="card" style="border-left-color:${t.color}">
                     ${t.delay>0?`<div class="delay-badge">誤點 ${t.delay} 分</div>`:''}
                     <div class="train-info" style="color:${t.color}">${t.type} ${t.no} 次</div>
                     <div class="main-time"><span>${t.act_dep}</span><span class="arrow">➔</span><span>${t.act_arr}</span></div>
                     <div class="sub-time">原定 ${t.sch_dep} ➔ ${t.sch_arr}</div>
                 </div></a>`).join('');
-            list.innerHTML=html || '<div class="message">目前無班次</div>';
+            list.innerHTML=html;
         }
-
         function openModal(){ document.getElementById('aboutModal').style.display='flex'; goToPage('Menu'); }
         function closeModal(){ document.getElementById('aboutModal').style.display='none'; }
         function goToPage(id){
@@ -247,7 +256,11 @@
                 document.getElementById('reportContent').value=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n裝置: ${navigator.userAgent}\n路線: ${startStation.value}->${endStation.value}\n\n--- Log ---\n${systemLogs.join('\n')}`;
             }
         }
-        function copyReportOnly(){ const c=document.getElementById('reportContent'); c.select(); document.execCommand('copy'); }
+        function copyReportOnly(){ 
+            const c=document.getElementById('reportContent'); c.select(); document.execCommand('copy');
+            const btn = event.target; const oldText = btn.innerText;
+            btn.innerText = "已複製！"; setTimeout(()=>btn.innerText = oldText, 2000);
+        }
         init();
     </script>
 </body>
