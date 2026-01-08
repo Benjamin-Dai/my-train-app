@@ -348,7 +348,7 @@
                     statusMsg.innerText="請按「查詢」開始使用"; statusMsg.className="status-msg"; updateTimeDiv.innerText="";
                     list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
                 } else {
-                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg unsync"; updateTimeDiv.innerText="";
+                    statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg unsync"; updateTimeDiv.innerText="";
                 }
             }
             updateButtonMode();
@@ -397,9 +397,14 @@
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
                 lastFetchedPair={start:s,end:e};
-                if(json.diagnostics) lastDiagnostics = json.diagnostics;
+                if(json.diagnostics) {
+                    lastDiagnostics = json.diagnostics;
+                    // === 新增：將 API 回傳狀態寫入 Log ===
+                    logSystem("API", `Route=[${json.diagnostics.route_status}], Delay=[${json.diagnostics.delay_status}]`);
+                }
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
-                renderCards(json); logSystem("API",`DelayFailed:${json.delay_failed}`);
+                renderCards(json); 
+                
                 if(json.delay_failed) {
                     statusMsg.innerText="誤點資訊無法取得 (60s 後自動重試)"; statusMsg.className="status-msg warning";
                     scheduleRetry(); setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
