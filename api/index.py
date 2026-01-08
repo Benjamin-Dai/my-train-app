@@ -49,7 +49,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response("Missing Environment Variables")
             return
 
-        # 1. 查表取得 ID (省流量)
+        # 1. 查表取得 ID
         start_id = STATION_MAP.get(start_station)
         end_id = STATION_MAP.get(end_station)
 
@@ -73,12 +73,13 @@ class handler(BaseHTTPRequestHandler):
             
             # 檢查 TDX 是否回傳錯誤
             if res.status_code != 200:
+                # 這裡直接拋出錯誤，讓前端知道出事了
                 raise Exception(f"TDX API Error: {res.status_code}")
 
             timetable_data = res.json()
             raw_list = timetable_data.get('TrainTimetables', []) if isinstance(timetable_data, dict) else []
             
-            # === 紀錄原始數量 (用於前端診斷) ===
+            # 紀錄原始數量
             original_count = len(raw_list)
 
             # 3. V2 誤點資訊
@@ -107,7 +108,6 @@ class handler(BaseHTTPRequestHandler):
 
                 if not dep_time or not arr_time: continue 
 
-                # 車種顏色
                 display_type = raw_type
                 type_color = "#ffffff" 
                 if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
@@ -120,18 +120,15 @@ class handler(BaseHTTPRequestHandler):
 
                 delay = int(delays.get(no, 0))
 
-                # 時間計算
                 dep_dt = datetime.strptime(f"{today_str} {dep_time}", "%Y-%m-%d %H:%M")
                 arr_dt = datetime.strptime(f"{today_str} {arr_time}", "%Y-%m-%d %H:%M")
                 
-                # 跨日處理
                 if arr_dt < dep_dt:
                     arr_dt += timedelta(days=1)
 
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
 
-                # 過濾：只顯示目前時間 - 10分鐘以後的車
                 if real_dep > now - timedelta(minutes=10):
                     processed.append({
                         "no": no, 
@@ -157,7 +154,6 @@ class handler(BaseHTTPRequestHandler):
                 "update_time": now.strftime("%H:%M:%S"),
                 "start": start_station,
                 "end": end_station,
-                # 新增統計數據，供前端判斷
                 "stats": {
                     "original_count": original_count,
                     "filtered_count": len(result)
