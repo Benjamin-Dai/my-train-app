@@ -34,32 +34,51 @@ class handler(BaseHTTPRequestHandler):
             return None
         except: return None
 
+    # 抓取 Header 中的剩餘額度
+    def get_header_info(self, res):
+        # 嘗試抓取各種可能的 Rate Limit Header
+        limit = res.headers.get('x-ratelimit-remaining', '-')
+        if limit == '-': limit = res.headers.get('X-RateLimit-Remaining', '-')
+        return f"API {res.status_code} (剩餘: {limit})"
+
     def get_cached_delays(self, headers):
         global _DELAY_CACHE
         now_ts = time.time()
-        if _DELAY_CACHE["data"] and (now_ts - _DELAY_CACHE["timestamp"] < 50): return _DELAY_CACHE["data"]
+        if _DELAY_CACHE["data"] and (now_ts - _DELAY_CACHE["timestamp"] < 50): 
+            return (_DELAY_CACHE["data"], "Cache Hit (0點)")
+        
         delay_url = f"{API_BASE_V2}/LiveTrainDelay"
         res = requests.get(delay_url, headers=headers)
+        
+        status_str = "Error"
         if res.status_code == 200:
+            status_str = self.get_header_info(res) # 抓取額度
             d_data = res.json()
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             _DELAY_CACHE["data"] = new_delays
             _DELAY_CACHE["timestamp"] = now_ts
-            return new_delays
-        else: raise Exception(f"Delay API Error: {res.status_code}")
+            return (new_delays, status_str)
+        else: 
+            raise Exception(f"Delay API Error: {res.status_code}")
 
     def get_route_timetable(self, start_id, end_id, date_str, headers):
         global _ROUTE_CACHE
         cache_key = f"{start_id}_{end_id}"
-        if cache_key in _ROUTE_CACHE and _ROUTE_CACHE[cache_key]["date"] == date_str: return _ROUTE_CACHE[cache_key]["trains"]
+        if cache_key in _ROUTE_CACHE and _ROUTE_CACHE[cache_key]["date"] == date_str: 
+            return (_ROUTE_CACHE[cache_key]["trains"], "Cache Hit (0點)")
+        
         timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
         res = requests.get(timetable_url, headers=headers)
+        
+        status_str = "Error"
         if res.status_code == 200:
+            status_str = self.get_header_info(res) # 抓取額度
             raw_list = res.json().get('TrainTimetables', [])
             _ROUTE_CACHE[cache_key] = {"date": date_str, "trains": raw_list}
-            return raw_list
-        else: raise Exception(f"TDX Timetable Error: {res.status_code}")
+            return (raw_list, status_str)
+        else: 
+            raise Exception(f"TDX Timetable Error: {res.status_code}")
 
     def do_GET(self):
         parsed_path = urlparse(self.path)
@@ -80,13 +99,23 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            raw_list = self.get_route_timetable(start_id, end_id, today_str, headers)
+            # 取得資料與狀態
+            raw_list, route_status = self.get_route_timetable(start_id, end_id, today_str, headers)
+            
             delays = {}
             delay_failed = False
-            try: delays = self.get_cached_delays(headers)
+            delay_status = "Unknown"
+            
+            try: 
+                delays, delay_status = self.get_cached_delays(headers)
             except: 
-                if _DELAY_CACHE["data"]: delays = _DELAY_CACHE["data"]; delay_failed = True
-                else: delay_failed = True
+                if _DELAY_CACHE["data"]: 
+                    delays = _DELAY_CACHE["data"]
+                    delay_failed = True
+                    delay_status = "Fallback Cache (Error)"
+                else: 
+                    delay_failed = True
+                    delay_status = "Failed"
 
             processed = []
             for item in raw_list:
@@ -119,7 +148,6 @@ class handler(BaseHTTPRequestHandler):
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
                 
-                # 關鍵修改：不再過濾，而是加上 is_past 標記
                 is_past = real_dep < (now - timedelta(minutes=10))
 
                 processed.append({
@@ -127,7 +155,7 @@ class handler(BaseHTTPRequestHandler):
                     "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
                     "sch_dep": dep_time, "sch_arr": arr_time,
                     "sort_key": real_dep.timestamp(),
-                    "is_past": is_past # 傳給前端
+                    "is_past": is_past
                 })
 
             result = sorted(processed, key=lambda x: x['sort_key'])
@@ -136,12 +164,18 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
+            
+            # 回傳診斷資訊
             self.wfile.write(json.dumps({
                 "update_time": now.strftime("%H:%M:%S"),
                 "start": start_station,
                 "end": end_station,
                 "delay_failed": delay_failed,
-                "trains": result
+                "trains": result,
+                "diagnostics": {
+                    "route_status": route_status,
+                    "delay_status": delay_status
+                }
             }).encode())
         except Exception as e: self.send_error_response(str(e))
 
