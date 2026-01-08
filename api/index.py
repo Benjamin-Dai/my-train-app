@@ -11,13 +11,10 @@ try:
 except ImportError:
     from stations import STATION_MAP
 
-# ================= 設定區 =================
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
-
 DEFAULT_START = '屏東'
 DEFAULT_END = '潮州'
-
 API_BASE_V3 = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA"
 API_BASE_V2 = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA"
 
@@ -25,7 +22,6 @@ _DELAY_CACHE = { "data": {}, "timestamp": 0 }
 _ROUTE_CACHE = {} 
 
 class handler(BaseHTTPRequestHandler):
-
     def get_token(self, cid, csecret):
         auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
         try:
@@ -34,20 +30,11 @@ class handler(BaseHTTPRequestHandler):
             return None
         except: return None
 
-    # === 修改：智慧搜尋 Header ===
     def get_header_info(self, res):
-        # 搜尋所有包含 'remaining' (剩餘) 或 'limit' (限制) 的標頭
-        # 這樣我們就能知道 TDX 到底用了什麼名字
-        found_headers = []
-        for k, v in res.headers.items():
-            if 'remaining' in k.lower() or 'ratelimit' in k.lower():
-                found_headers.append(f"{k}={v}")
-        
-        if found_headers:
-            # 將找到的所有資訊串接起來回傳
-            return f"API {res.status_code} ({', '.join(found_headers)})"
-        
-        return f"API {res.status_code} (無額度Header)"
+        limit = res.headers.get('x-ratelimit-remaining')
+        if not limit: limit = res.headers.get('X-RateLimit-Remaining')
+        if not limit: limit = "未知"
+        return f"API {res.status_code} (剩餘: {limit})"
 
     def get_cached_delays(self, headers):
         global _DELAY_CACHE
@@ -59,13 +46,15 @@ class handler(BaseHTTPRequestHandler):
         res = requests.get(delay_url, headers=headers)
         
         if res.status_code == 200:
-            status_str = self.get_header_info(res) # 智慧偵測
+            status_str = self.get_header_info(res)
             d_data = res.json()
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             _DELAY_CACHE["data"] = new_delays
             _DELAY_CACHE["timestamp"] = now_ts
             return (new_delays, status_str)
+        elif res.status_code == 429: # 捕捉 429
+            raise Exception("429")
         else: 
             raise Exception(f"Delay API Error: {res.status_code}")
 
@@ -79,10 +68,12 @@ class handler(BaseHTTPRequestHandler):
         res = requests.get(timetable_url, headers=headers)
         
         if res.status_code == 200:
-            status_str = self.get_header_info(res) # 智慧偵測
+            status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
             _ROUTE_CACHE[cache_key] = {"date": date_str, "trains": raw_list}
             return (raw_list, status_str)
+        elif res.status_code == 429: # 捕捉 429
+            raise Exception("429")
         else: 
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
@@ -92,13 +83,13 @@ class handler(BaseHTTPRequestHandler):
         start_station = params.get('start', [DEFAULT_START])[0]
         end_station = params.get('end', [DEFAULT_END])[0]
 
-        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Environment Variables")
+        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Environment Variables", 500)
         start_id = STATION_MAP.get(start_station)
         end_id = STATION_MAP.get(end_station)
-        if not start_id or not end_id: return self.send_error_response(f"找不到車站 ID")
+        if not start_id or not end_id: return self.send_error_response(f"找不到車站 ID", 400)
 
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
-        if not token: return self.send_error_response("Auth Failed")
+        if not token: return self.send_error_response("Auth Failed", 500)
 
         now = datetime.now() + timedelta(hours=8)
         today_str = now.strftime('%Y-%m-%d')
@@ -113,8 +104,11 @@ class handler(BaseHTTPRequestHandler):
             
             try: 
                 delays, delay_status = self.get_cached_delays(headers)
-            except: 
-                if _DELAY_CACHE["data"]: 
+            except Exception as e:
+                if "429" in str(e): # 如果誤點 API 429，也視為忙碌
+                    delay_status = "API 429 (Busy)"
+                    delay_failed = True
+                elif _DELAY_CACHE["data"]: 
                     delays = _DELAY_CACHE["data"]
                     delay_failed = True
                     delay_status = "Fallback Cache (Error)"
@@ -152,7 +146,6 @@ class handler(BaseHTTPRequestHandler):
 
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
-                
                 is_past = real_dep < (now - timedelta(minutes=10))
 
                 processed.append({
@@ -169,22 +162,20 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
-            
             self.wfile.write(json.dumps({
                 "update_time": now.strftime("%H:%M:%S"),
-                "start": start_station,
-                "end": end_station,
-                "delay_failed": delay_failed,
-                "trains": result,
-                "diagnostics": {
-                    "route_status": route_status,
-                    "delay_status": delay_status
-                }
+                "start": start_station, "end": end_station,
+                "delay_failed": delay_failed, "trains": result,
+                "diagnostics": { "route_status": route_status, "delay_status": delay_status }
             }).encode())
-        except Exception as e: self.send_error_response(str(e))
+        except Exception as e:
+            if "429" in str(e): # 捕捉 429
+                self.send_error_response("Rate Limit", 429)
+            else:
+                self.send_error_response(str(e), 500)
 
-    def send_error_response(self, msg):
-        self.send_response(500)
+    def send_error_response(self, msg, code):
+        self.send_response(code) # 使用正確的 status code
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
