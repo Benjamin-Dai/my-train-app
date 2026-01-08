@@ -514,8 +514,7 @@
                 logSystem("API Success", `DelayFailed: ${json.delay_failed}`);
 
                 if (json.delay_failed) {
-                    // === 修正：簡化誤點失敗訊息 ===
-                    statusMsg.innerText = `誤點資訊無法取得 (詳見診斷)`;
+                    statusMsg.innerText = `誤點資訊無法取得 (60s 後自動重試)`;
                     statusMsg.className = "status-msg warning";
                     scheduleRetry(); 
                     setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
@@ -540,7 +539,6 @@
                 console.error(err);
                 logSystem("API Error", err.message);
                 
-                // === 修正：簡化嚴重錯誤訊息 ===
                 statusMsg.innerText = "連線發生問題";
                 statusMsg.className = "status-msg alert";
                 list.innerHTML = `<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem; color:#888">請點擊右上角「?」進入系統診斷</span></div>`;
@@ -559,7 +557,7 @@
             let count = 60;
             retryTimer = setInterval(() => {
                 count--;
-                // 倒數時不顯示文字干擾，保持"誤點資訊無法取得"
+                statusMsg.innerText = `誤點資訊無法取得 (${count}s 後自動重試)`;
                 if (count <= 0) {
                     clearInterval(retryTimer);
                     retryTimer = null;
