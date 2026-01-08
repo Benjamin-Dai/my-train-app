@@ -12,7 +12,18 @@
         .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
-        .about-btn { background: none; border: 1px solid #444; color: #888; width: 24px; height: 24px; border-radius: 50%; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        
+        /* 問號按鈕動畫 - 白色 <-> Hue 40 (夕陽金) */
+        @keyframes pulse-gold {
+            0%, 100% { color: #888; border-color: #444; box-shadow: 0 0 0 rgba(255, 166, 0, 0); }
+            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); box-shadow: 0 0 8px rgba(255, 166, 0, 0.3); }
+        }
+        .about-btn { 
+            background: none; border: 1px solid #444; color: #888; width: 24px; height: 24px; 
+            border-radius: 50%; font-size: 0.8rem; cursor: pointer; display: flex; 
+            align-items: center; justify-content: center; font-weight: bold;
+            animation: pulse-gold 3s infinite ease-in-out; /* 3秒緩慢閃爍 */
+        }
 
         /* 搜尋列 */
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -29,33 +40,13 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        /* 按鈕區域 (雙按鈕佈局) */
+        /* 按鈕區域 */
         .action-area { margin-top: 15px; display: flex; gap: 10px; align-items: stretch; }
-        
-        .btn {
-            border: none; padding: 12px; border-radius: 12px; 
-            font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s;
-            display: flex; align-items: center; justify-content: center;
-        }
+        .btn { border: none; padding: 12px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
-
-        /* 搜尋按鈕 (左邊，白色，大一點) */
-        .btn-search { 
-            flex: 2; /* 佔比較大 */
-            background: #fff; 
-            color: #000; 
-        }
-        
-        /* 更新按鈕 (右邊，綠色，小一點) */
-        .btn-refresh { 
-            flex: 1; /* 佔比較小 */
-            background: #4d7f5e; 
-            color: white; 
-            font-size: 0.9rem;
-        }
-        
-        /* 錯誤/鎖定狀態 (紅色) */
+        .btn-search { flex: 2; background: #fff; color: #000; }
+        .btn-refresh { flex: 1; background: #4d7f5e; color: white; font-size: 0.9rem; }
         .btn.error { background: #d32f2f !important; color: white !important; }
 
         /* 狀態文字區 */
@@ -78,19 +69,38 @@
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
         .loading { color: #4d7f5e; }
 
-        /* Modal */
+        /* Modal (關於視窗) */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
-        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; }
-        .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #4d7f5e; }
+        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative;}
+        
+        .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; }
+        .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
+        .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
+        
+        /* Modal 選單按鈕 */
+        .menu-btn { 
+            display: block; width: 100%; padding: 15px; margin-bottom: 10px; 
+            background: #2c2c2e; border: 1px solid #444; color: #fff; 
+            border-radius: 12px; font-size: 1rem; cursor: pointer; text-align: left;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .menu-btn:active { background: #3a3a3c; }
+        .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
+
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        /* 控制頁面切換 */
+        .modal-page { display: none; }
+        .modal-page.active { display: block; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div class="header-top">
-                <div class="app-title">TRAIN LIVE V3</div>
+                <div class="app-title">TRAIN LIVE</div>
                 <button class="about-btn" onclick="openModal()">?</button>
             </div>
 
@@ -101,12 +111,12 @@
             
             <div class="selector-row">
                 <div class="selector-label">起點</div>
-                <div class="select-group"><select id="startRegion" class="region-select" onchange="updateStationList('start')"></select><select id="startStation" class="station-select" onchange="markAsChanged()"></select></div>
+                <div class="select-group"><select id="startRegion" class="region-select" onchange="updateStationList('start')"></select><select id="startStation" class="station-select" onchange="handleSelectionChange()"></select></div>
             </div>
             <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
             <div class="selector-row">
                 <div class="selector-label">終點</div>
-                <div class="select-group"><select id="endRegion" class="region-select" onchange="updateStationList('end')"></select><select id="endStation" class="station-select" onchange="markAsChanged()"></select></div>
+                <div class="select-group"><select id="endRegion" class="region-select" onchange="updateStationList('end')"></select><select id="endStation" class="station-select" onchange="handleSelectionChange()"></select></div>
             </div>
 
             <div class="action-area">
@@ -125,21 +135,56 @@
 
     <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-title">操作說明</div>
-            <div class="modal-text">
-                <strong>雙按鈕機制：</strong><br><br>
-                1. <strong>🔍 查詢路線 (左)：</strong><br>
-                切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
-                若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
-                2. <strong>🔄 更新 (右)：</strong><br>
-                刷新當前狀態。每次點擊後需等待 90 秒冷卻。<br><br>
+            
+            <div id="pageMenu" class="modal-page active">
+                <div class="modal-header-row">
+                    <div class="modal-title">關於本站</div>
+                </div>
+                <button class="menu-btn" onclick="goToPage('Why')">為什麼要做這個？</button>
+                <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
+                <div style="height:10px"></div>
+                <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
-            <button class="modal-close" onclick="closeModal()">關閉</button>
+
+            <div id="pageWhy" class="modal-page">
+                <div class="modal-header-row">
+                    <button class="back-btn" onclick="goToPage('Menu')">‹</button>
+                    <div class="modal-title">設計初衷</div>
+                </div>
+                <div class="modal-text">
+                    現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>
+                    當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br>
+                    <strong>TRAIN LIVE 的設計目標：</strong><br>
+                    1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>
+                    2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>
+                    3. 一眼看出現在該搭哪一班車。<br><br>
+                    希望這個工具能解決你的通勤焦慮。
+                </div>
+            </div>
+
+            <div id="pageHow" class="modal-page">
+                <div class="modal-header-row">
+                    <button class="back-btn" onclick="goToPage('Menu')">‹</button>
+                    <div class="modal-title">操作說明</div>
+                </div>
+                <div class="modal-text">
+                    <strong>雙按鈕機制：</strong><br><br>
+                    1. <strong>🔍 查詢路線 (左)：</strong><br>
+                    切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
+                    若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
+                    2. <strong>🔄 更新 (右)：</strong><br>
+                    刷新當前狀態。每次點擊後需等待 90 秒冷卻。<br><br>
+                    <strong>燈號：</strong><br>
+                    <span style="color:#e6b800">黃字</span>：誤點資料失敗 (自動重試)。<br>
+                    <span style="color:#ff4d4d">紅字</span>：操作過於頻繁。
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script>
-        // ================= 資料結構區 =================
+        // ================= 資料結構區 (保持不變) =================
         const STATION_DATA = {
             "基隆/新北": ["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],
             "臺北市": ["南港","松山","臺北","萬華"],
@@ -192,9 +237,10 @@
 
         // 更新限制相關
         let lastRefreshTime = 0; 
-        
-        // 紀錄上次成功抓取的車站，用來判斷是否真的切換了
         let lastFetchedPair = { start: "", end: "" };
+
+        // 頻繁操作鎖定時間
+        let lockedUntil = 0;
 
         function init() {
             // 初始化選單
@@ -209,11 +255,9 @@
 
             setMenu('start', savedStartR, savedStartS); setMenu('end', savedEndR, savedEndS);
             
-            // 恢復上次的更新時間顯示
             const savedUpdateText = localStorage.getItem("last_update_text");
             if(savedUpdateText) updateTimeDiv.innerText = savedUpdateText;
 
-            // 嘗試載入快取
             loadDataOrFetch();
         }
 
@@ -235,14 +279,14 @@
             const stations = STATION_DATA[region];
             sSelect.innerHTML = stations.map(s => `<option value="${s}">${s}</option>`).join('');
             sSelect.selectedIndex = 0;
-            markAsChanged();
+            handleSelectionChange();
         }
 
         function swapStations() {
             const sR = startRegion.value; const sS = startStation.value;
             const eR = endRegion.value; const eS = endStation.value;
             setMenu('start', eR, eS); setMenu('end', sR, sS);
-            markAsChanged();
+            handleSelectionChange();
         }
 
         function handleSearch() {
@@ -256,16 +300,20 @@
                 const region = STATION_INDEX[found];
                 setMenu(target, region, found); 
                 searchInput.style.borderColor = "#4d7f5e"; setTimeout(() => searchInput.style.borderColor = "#444", 500);
-                markAsChanged();
+                handleSelectionChange();
             }
         }
 
-        function markAsChanged() {
+        // 當設定變更時的處理
+        function handleSelectionChange() {
             localStorage.setItem(PREF_START_R_KEY, startRegion.value); localStorage.setItem(PREF_START_S_KEY, startStation.value);
             localStorage.setItem(PREF_END_R_KEY, endRegion.value); localStorage.setItem(PREF_END_S_KEY, endStation.value);
+
+            attemptLoadCache(false);
             
-            // 檢查快取
-            attemptLoadCache(false); 
+            // 重要：切換車站時，如果原本有誤點重試，先取消
+            if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+            updateButtonMode();
         }
 
         function getCacheKey() { return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`; }
@@ -281,52 +329,59 @@
                 if (now - data.timestamp < 60 * 1000) {
                     console.log("快取命中");
                     renderCards(data.payload);
+                    lastFetchedPair = { start: startStation.value, end: endStation.value }; // 同步狀態
                     setUpdateText(`更新於(快取): ${data.payload.update_time}`);
                     statusMsg.innerText = "準備就緒";
                     statusMsg.className = "status-msg";
                     list.style.opacity = "1";
-                    
-                    // 快取命中也視為同步成功
-                    lastFetchedPair = { start: startStation.value, end: endStation.value };
                     hit = true;
                 }
             }
 
             if (!hit) {
                 if (isInit) {
-                    // 初始化沒快取，強制執行一次更新 (不計入搜尋次數)
-                    doRefresh(true); 
+                    doRefresh(true);
                 } else {
                     list.style.opacity = "0.4";
                     statusMsg.innerText = "設定已變更，請按「查詢」";
                     statusMsg.className = "status-msg unsync";
                 }
             }
+            updateButtonMode();
         }
 
-        function loadDataOrFetch() {
-            attemptLoadCache(true);
+        function loadDataOrFetch() { attemptLoadCache(true); }
+
+        function updateButtonMode() {
+            const currentStart = startStation.value;
+            const currentEnd = endStation.value;
+            const isChanged = (currentStart !== lastFetchedPair.start || currentEnd !== lastFetchedPair.end);
+
+            if (lockedUntil > Date.now()) return; // 鎖定中不處理
+
+            if (isChanged) {
+                btnSearch.disabled = false; // 切換車站時，搜尋按鈕解鎖
+            } else {
+                // 車站未變，按鈕狀態交由 doRefresh 邏輯的冷卻控制
+            }
         }
 
         // ================= 按鈕邏輯區 =================
 
-        // 1. 搜尋按鈕邏輯
+        // 1. 搜尋按鈕
         function doSearch() {
             const currentStart = startStation.value;
             const currentEnd = endStation.value;
 
-            // 檢查是否真的換了車站
-            // 如果沒換，視為「更新」
+            // 如果沒換車站，視為「更新」
             if (currentStart === lastFetchedPair.start && currentEnd === lastFetchedPair.end) {
-                statusMsg.innerText = "車站未變更，執行更新模式";
+                statusMsg.innerText = "車站未變更，執行更新";
                 setTimeout(() => { if(!statusMsg.classList.contains("alert")) statusMsg.innerText = "準備就緒"; }, 2000);
-                doRefresh(); // 轉發給更新邏輯
+                doRefresh(); 
                 return;
             }
 
             const now = Date.now();
-
-            // 重置計數器 (如果過了一分鐘)
             if (now - searchResetTime > 60000) {
                 searchCount = 0;
                 searchResetTime = now;
@@ -338,19 +393,17 @@
                 return;
             }
 
-            // 先不+1，等成功再+1，但要鎖住防止連點
             fetchData("search"); 
         }
 
-        // 2. 更新按鈕邏輯
+        // 2. 更新按鈕
         function doRefresh(skipCheck = false) {
             if (!skipCheck) {
                 const now = Date.now();
                 const elapsed = now - lastRefreshTime;
                 if (elapsed < 90000) {
-                    // 顯示冷卻警告
                     const wait = Math.ceil((90000 - elapsed) / 1000);
-                    lockRefreshButton(wait); // 觸發視覺倒數
+                    lockRefreshButton(wait);
                     return;
                 }
             }
@@ -359,14 +412,12 @@
 
         // ================= 資料抓取 =================
         async function fetchData(mode) {
-            // UI 設定
             statusMsg.innerText = "連線中...";
             statusMsg.className = "status-msg";
             list.style.opacity = "1";
             
             if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
 
-            // 鎖定按鈕
             if (mode === "search") btnSearch.disabled = true;
             if (mode === "refresh") btnRefresh.disabled = true;
 
@@ -381,17 +432,14 @@
                 if (json.error) throw new Error(json.error);
 
                 // 成功抓取
+                lastFetchedPair = { start: s, end: e };
                 const cacheObj = { timestamp: Date.now(), payload: json };
                 localStorage.setItem(getCacheKey(), JSON.stringify(cacheObj));
-                
-                // 更新同步狀態
-                lastFetchedPair = { start: s, end: e };
 
                 renderCards(json);
 
-                // 判斷誤點狀況
                 if (json.delay_failed) {
-                    statusMsg.innerText = `無法取得誤點資訊，60s 後自動重試`;
+                    statusMsg.innerText = `無法取得誤點資訊，60s 後重試`;
                     statusMsg.className = "status-msg warning";
                     scheduleRetry(); 
                     setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
@@ -402,20 +450,14 @@
                 }
 
                 // === 成功後的後續處理 ===
-                
                 if (mode === "search") {
-                    // 搜尋成功：搜尋計數 +1
-                    searchCount++;
-                    // 解鎖搜尋按鈕 (給個短暫延遲，視覺好一點)
+                    searchCount++; // 只有搜尋成功才計數
                     setTimeout(() => btnSearch.disabled = false, 500);
-                    
-                    // 搜尋成功同時也算一次更新，所以更新按鈕也要進入 90秒 冷卻
                     lastRefreshTime = Date.now();
-                    lockRefreshButton(90);
+                    lockRefreshButton(90); // 搜尋成功也算更新，鎖右邊
                 }
 
                 if (mode === "refresh") {
-                    // 更新成功：進入 90秒 冷卻
                     lastRefreshTime = Date.now();
                     lockRefreshButton(90);
                 }
@@ -424,8 +466,6 @@
                 console.error(err);
                 statusMsg.innerText = "查詢失敗";
                 list.innerHTML = `<div class="message">發生錯誤：${err.message}<br>請稍後再試</div>`;
-                
-                // 失敗處理：解除按鈕鎖定 (給一點點延遲防刷)
                 if (mode === "search") setTimeout(() => btnSearch.disabled = false, 2000);
                 if (mode === "refresh") setTimeout(() => btnRefresh.disabled = false, 2000);
             }
@@ -436,7 +476,6 @@
             localStorage.setItem("last_update_text", text);
         }
 
-        // 誤點失敗的自動重試
         function scheduleRetry() {
             let count = 60;
             retryTimer = setInterval(() => {
@@ -445,16 +484,14 @@
                 if (count <= 0) {
                     clearInterval(retryTimer);
                     retryTimer = null;
-                    doRefresh(true); // 強制重試
+                    doRefresh(true); 
                 }
             }, 1000);
         }
 
-        // --- 鎖定邏輯 ---
-
-        // 鎖定「搜尋按鈕」 (紅字警告)
         function lockSearchButton(seconds) {
             if (searchLockTimer) clearInterval(searchLockTimer);
+            lockedUntil = Date.now() + (seconds * 1000);
             
             statusMsg.innerText = "請勿頻繁操作";
             statusMsg.className = "status-msg alert";
@@ -468,11 +505,9 @@
                     btnSearch.disabled = false;
                     btnSearch.classList.remove('error');
                     btnSearch.innerText = "🔍 查詢路線";
-                    // 只有當狀態還是頻繁操作時才清除
-                    if (statusMsg.innerText.includes("頻繁")) {
-                        statusMsg.innerText = "準備就緒";
-                        statusMsg.className = "status-msg";
-                    }
+                    statusMsg.innerText = "準備就緒";
+                    statusMsg.className = "status-msg";
+                    lockedUntil = 0;
                 }
                 seconds--;
             };
@@ -480,12 +515,9 @@
             searchLockTimer = setInterval(tick, 1000);
         }
 
-        // 鎖定「更新按鈕」 (正常倒數)
         function lockRefreshButton(seconds) {
             if (refreshTimer) clearInterval(refreshTimer);
-            
             btnRefresh.disabled = true;
-            
             const tick = () => {
                 btnRefresh.innerText = `更新 (${seconds})`;
                 if (seconds <= 0) {
@@ -499,15 +531,12 @@
             refreshTimer = setInterval(tick, 1000);
         }
 
-        // --- 渲染 ---
         function renderCards(data) {
             if (data.trains && data.trains.length > 0) {
                 let html = "";
                 data.trains.forEach(t => {
                     let delayTag = "";
-                    if (!data.delay_failed && t.delay > 0) {
-                        delayTag = `<div class="delay-badge">誤點 ${t.delay} 分</div>`;
-                    }
+                    if (!data.delay_failed && t.delay > 0) delayTag = `<div class="delay-badge">誤點 ${t.delay} 分</div>`;
                     const trainUrl = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
                     html += `
                     <a href="${trainUrl}" target="_blank">
@@ -527,8 +556,19 @@
             else list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️<br><span style="font-size:0.8rem; color:#666">TDX 回傳無資料</span></div>`;
         }
 
-        function openModal() { modal.style.display = 'flex'; }
-        function closeModal() { modal.style.display = 'none'; }
+        // Modal Functions
+        function openModal() { 
+            document.getElementById('aboutModal').style.display = 'flex'; 
+            goToPage('Menu'); 
+        }
+        function closeModal() { document.getElementById('aboutModal').style.display = 'none'; }
+        
+        function goToPage(pageId) {
+            document.getElementById('pageMenu').classList.remove('active');
+            document.getElementById('pageWhy').classList.remove('active');
+            document.getElementById('pageHow').classList.remove('active');
+            document.getElementById('page' + pageId).classList.add('active');
+        }
 
         init();
     </script>
