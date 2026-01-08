@@ -34,11 +34,18 @@ class handler(BaseHTTPRequestHandler):
             return None
         except: return None
 
-    # 抓取 Header 中的剩餘額度
+    # === 修改：專門抓取剩餘額度的函式 ===
     def get_header_info(self, res):
-        # 嘗試抓取各種可能的 Rate Limit Header
-        limit = res.headers.get('x-ratelimit-remaining', '-')
-        if limit == '-': limit = res.headers.get('X-RateLimit-Remaining', '-')
+        # TDX 的 Header 通常是 'x-ratelimit-remaining' (日/月額度) 或 'x-ratelimit-remaining-minute' (分額度)
+        # 我們優先抓 'x-ratelimit-remaining'
+        limit = res.headers.get('x-ratelimit-remaining')
+        
+        # 如果抓不到，試試看大寫 (有些環境會變大寫)
+        if not limit: limit = res.headers.get('X-RateLimit-Remaining')
+        
+        # 如果還是抓不到，可能是 TDX 改了名字，或是沒有回傳
+        if not limit: limit = "未知"
+            
         return f"API {res.status_code} (剩餘: {limit})"
 
     def get_cached_delays(self, headers):
@@ -50,7 +57,6 @@ class handler(BaseHTTPRequestHandler):
         delay_url = f"{API_BASE_V2}/LiveTrainDelay"
         res = requests.get(delay_url, headers=headers)
         
-        status_str = "Error"
         if res.status_code == 200:
             status_str = self.get_header_info(res) # 抓取額度
             d_data = res.json()
@@ -71,7 +77,6 @@ class handler(BaseHTTPRequestHandler):
         timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
         res = requests.get(timetable_url, headers=headers)
         
-        status_str = "Error"
         if res.status_code == 200:
             status_str = self.get_header_info(res) # 抓取額度
             raw_list = res.json().get('TrainTimetables', [])
@@ -99,7 +104,6 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            # 取得資料與狀態
             raw_list, route_status = self.get_route_timetable(start_id, end_id, today_str, headers)
             
             delays = {}
@@ -165,7 +169,6 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
             
-            # 回傳診斷資訊
             self.wfile.write(json.dumps({
                 "update_time": now.strftime("%H:%M:%S"),
                 "start": start_station,
