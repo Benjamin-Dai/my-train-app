@@ -11,7 +11,7 @@ try:
 except ImportError:
     from stations import STATION_MAP
 
-CLIENT_ID = os.environ.get('TDX_ID')
+CLIENT_ID = os.environ.get('TD_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 DEFAULT_START = '屏東'
 DEFAULT_END = '潮州'
@@ -30,11 +30,19 @@ class handler(BaseHTTPRequestHandler):
             return None
         except: return None
 
+    # 強化版標頭偵測
     def get_header_info(self, res):
-        limit = res.headers.get('x-ratelimit-remaining')
+        # 優先尋找 TDX 幾種常見的剩餘次數標頭
+        limit = res.headers.get('RateLimit-Remaining')
+        if not limit: limit = res.headers.get('x-ratelimit-remaining-minute')
         if not limit: limit = res.headers.get('X-RateLimit-Remaining')
-        if not limit: limit = "未知"
-        return f"API {res.status_code} (剩餘: {limit})"
+        if not limit: limit = res.headers.get('x-ratelimit-remaining')
+        
+        if limit: return f"API {res.status_code} (剩餘: {limit})"
+        
+        # 備用方案：掃描所有包含 remaining 字眼的標頭
+        found = [v for k, v in res.headers.items() if 'remaining' in k.lower()]
+        return f"API {res.status_code} (剩餘: {found[0] if found else '未知'})"
 
     def get_cached_delays(self, headers):
         global _DELAY_CACHE
@@ -43,20 +51,19 @@ class handler(BaseHTTPRequestHandler):
             return (_DELAY_CACHE["data"], "Cache Hit (0點)")
         
         delay_url = f"{API_BASE_V2}/LiveTrainDelay"
-        res = requests.get(delay_url, headers=headers)
-        
-        if res.status_code == 200:
-            status_str = self.get_header_info(res)
-            d_data = res.json()
-            d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
-            new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
-            _DELAY_CACHE["data"] = new_delays
-            _DELAY_CACHE["timestamp"] = now_ts
-            return (new_delays, status_str)
-        elif res.status_code == 429: # 捕捉 429
-            raise Exception("429")
-        else: 
-            raise Exception(f"Delay API Error: {res.status_code}")
+        try:
+            res = requests.get(delay_url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                status_str = self.get_header_info(res)
+                d_data = res.json()
+                d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
+                new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
+                _DELAY_CACHE["data"] = new_delays
+                _DELAY_CACHE["timestamp"] = now_ts
+                return (new_delays, status_str)
+            elif res.status_code == 429: raise Exception("429")
+            else: raise Exception(f"Error {res.status_code}")
+        except Exception as e: raise e
 
     def get_route_timetable(self, start_id, end_id, date_str, headers):
         global _ROUTE_CACHE
@@ -65,57 +72,39 @@ class handler(BaseHTTPRequestHandler):
             return (_ROUTE_CACHE[cache_key]["trains"], "Cache Hit (0點)")
         
         timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
-        res = requests.get(timetable_url, headers=headers)
-        
-        if res.status_code == 200:
-            status_str = self.get_header_info(res)
-            raw_list = res.json().get('TrainTimetables', [])
-            _ROUTE_CACHE[cache_key] = {"date": date_str, "trains": raw_list}
-            return (raw_list, status_str)
-        elif res.status_code == 429: # 捕捉 429
-            raise Exception("429")
-        else: 
-            raise Exception(f"TDX Timetable Error: {res.status_code}")
+        try:
+            res = requests.get(timetable_url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                status_str = self.get_header_info(res)
+                raw_list = res.json().get('TrainTimetables', [])
+                _ROUTE_CACHE[cache_key] = {"date": date_str, "trains": raw_list}
+                return (raw_list, status_str)
+            elif res.status_code == 429: raise Exception("429")
+            else: raise Exception(f"Error {res.status_code}")
+        except Exception as e: raise e
 
     def do_GET(self):
         parsed_path = urlparse(self.path)
         params = parse_qs(parsed_path.query)
         start_station = params.get('start', [DEFAULT_START])[0]
         end_station = params.get('end', [DEFAULT_END])[0]
-
-        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Environment Variables", 500)
+        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Env", 500)
         start_id = STATION_MAP.get(start_station)
         end_id = STATION_MAP.get(end_station)
-        if not start_id or not end_id: return self.send_error_response(f"找不到車站 ID", 400)
-
+        if not start_id or not end_id: return self.send_error_response("Station Not Found", 400)
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed", 500)
-
         now = datetime.now() + timedelta(hours=8)
-        today_str = now.strftime('%Y-%m-%d')
         headers = {'authorization': f'Bearer {token}'}
-
         try:
-            raw_list, route_status = self.get_route_timetable(start_id, end_id, today_str, headers)
-            
-            delays = {}
+            raw_list, route_status = self.get_route_timetable(start_id, end_id, now.strftime('%Y-%m-%d'), headers)
+            delays, delay_status = {}, "Unknown"
             delay_failed = False
-            delay_status = "Unknown"
-            
-            try: 
-                delays, delay_status = self.get_cached_delays(headers)
+            try: delays, delay_status = self.get_cached_delays(headers)
             except Exception as e:
-                if "429" in str(e): # 如果誤點 API 429，也視為忙碌
-                    delay_status = "API 429 (Busy)"
-                    delay_failed = True
-                elif _DELAY_CACHE["data"]: 
-                    delays = _DELAY_CACHE["data"]
-                    delay_failed = True
-                    delay_status = "Fallback Cache (Error)"
-                else: 
-                    delay_failed = True
-                    delay_status = "Failed"
-
+                delay_failed = True
+                delay_status = "API 429 (Busy)" if "429" in str(e) else "Error"
+                if _DELAY_CACHE["data"]: delays = _DELAY_CACHE["data"]
             processed = []
             for item in raw_list:
                 info = item.get('TrainInfo', {})
@@ -124,58 +113,42 @@ class handler(BaseHTTPRequestHandler):
                 stop_times = item.get('StopTimes', [])
                 dep_time, arr_time = None, None
                 for stop in stop_times:
-                    s_id = stop.get('StationID')
-                    if s_id == start_id: dep_time = stop.get('DepartureTime')
-                    elif s_id == end_id: arr_time = stop.get('ArrivalTime')
+                    if stop.get('StationID') == start_id: dep_time = stop.get('DepartureTime')
+                    elif stop.get('StationID') == end_id: arr_time = stop.get('ArrivalTime')
                 if not dep_time or not arr_time: continue 
-
-                display_type = raw_type
                 type_color = "#ffffff"
-                if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
-                elif "區間" in raw_type: display_type, type_color = "區間車", "#0076B2"
-                elif "普悠瑪" in raw_type: display_type, type_color = "普悠瑪", "#9C1637"
-                elif "3000" in raw_type: display_type, type_color = "自強3000", "#85a38f"
-                elif "自強" in raw_type: display_type, type_color = "自強號", "#DF3F1F"
-                elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
-                elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
-
+                if "區間" in raw_type: type_color = "#0076B2"
+                elif "自強3000" in raw_type or "EMU3000" in raw_type: type_color = "#85a38f"
+                elif "自強" in raw_type: type_color = "#DF3F1F"
+                elif "莒光" in raw_type: type_color = "#FF8C00"
+                elif "普悠瑪" in raw_type or "太魯閣" in raw_type: type_color = "#9C1637"
                 delay = int(delays.get(no, 0))
-                dep_dt = datetime.strptime(f"{today_str} {dep_time}", "%Y-%m-%d %H:%M")
-                arr_dt = datetime.strptime(f"{today_str} {arr_time}", "%Y-%m-%d %H:%M")
+                dep_dt = datetime.strptime(f"{now.strftime('%Y-%m-%d')} {dep_time}", "%Y-%m-%d %H:%M")
+                arr_dt = datetime.strptime(f"{now.strftime('%Y-%m-%d')} {arr_time}", "%Y-%m-%d %H:%M")
                 if arr_dt < dep_dt: arr_dt += timedelta(days=1)
-
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
-                is_past = real_dep < (now - timedelta(minutes=10))
-
                 processed.append({
-                    "no": no, "type": display_type, "delay": delay, "color": type_color,
+                    "no": no, "type": raw_type[:4], "delay": delay, "color": type_color,
                     "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
                     "sch_dep": dep_time, "sch_arr": arr_time,
-                    "sort_key": real_dep.timestamp(),
-                    "is_past": is_past
+                    "sort_key": real_dep.timestamp(), "is_past": real_dep < (now - timedelta(minutes=10))
                 })
-
-            result = sorted(processed, key=lambda x: x['sort_key'])
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
             self.wfile.write(json.dumps({
-                "update_time": now.strftime("%H:%M:%S"),
-                "start": start_station, "end": end_station,
-                "delay_failed": delay_failed, "trains": result,
+                "update_time": now.strftime("%H:%M:%S"), "start": start_station, "end": end_station,
+                "delay_failed": delay_failed, "trains": sorted(processed, key=lambda x: x['sort_key']),
                 "diagnostics": { "route_status": route_status, "delay_status": delay_status }
             }).encode())
         except Exception as e:
-            if "429" in str(e): # 捕捉 429
-                self.send_error_response("Rate Limit", 429)
-            else:
-                self.send_error_response(str(e), 500)
+            code = 429 if "429" in str(e) else 500
+            self.send_error_response("Rate Limit" if code==429 else str(e), code)
 
     def send_error_response(self, msg, code):
-        self.send_response(code) # 使用正確的 status code
+        self.send_response(code)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
