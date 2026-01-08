@@ -6,27 +6,45 @@
     <title>列車時刻 Live</title>
     <style>
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
-        .container { max-width: 500px; margin: 0 auto; padding-bottom: 60px; }
+        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
-        /* 標題與選單區域 */
+        /* 頂部區域 */
         .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
-        .app-title { font-size: 0.8rem; color: #888; margin-bottom: 10px; text-align: center; letter-spacing: 1px;}
+        .app-title { font-size: 0.8rem; color: #888; margin-bottom: 10px; text-align: center; letter-spacing: 1px; font-weight: bold;}
         
-        .station-selector { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-        .station-group { flex: 1; display: flex; flex-direction: column; }
-        .station-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
-        .station-select { 
-            width: 100%; background: #2c2c2e; color: #fff; border: 1px solid #444; 
-            padding: 8px; border-radius: 8px; font-size: 1.1rem; font-weight: bold;
+        /* 搜尋框 */
+        .search-box { 
+            width: 100%; box-sizing: border-box; background: #222; border: 1px solid #444; 
+            color: #fff; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px;
+            font-size: 0.9rem; text-align: center;
+        }
+        .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
+
+        /* 選擇器區域 */
+        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
+        
+        .select-group { flex: 1; display: flex; gap: 5px; }
+        /* 縣市選單 (較窄) */
+        .region-select { 
+            flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; 
+            padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold;
             appearance: none; -webkit-appearance: none; text-align: center;
         }
-        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 5px; cursor: pointer; }
+        /* 車站選單 (較寬) */
+        .station-select { 
+            flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; 
+            padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold;
+            appearance: none; -webkit-appearance: none; text-align: center;
+        }
+
+        .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
+        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
         /* 控制列 */
-        .controls { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 10px; gap: 5px; margin-top: 10px;}
+        .controls { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 10px; gap: 5px; margin-top: 15px;}
         .controls-row { display: flex; align-items: center; gap: 10px; }
         .status-text { font-size: 0.75rem; color: #888; text-align: right;}
-        .countdown-text { font-size: 0.75rem; color: #4d7f5e; font-weight: 600; }
         
         .refresh-btn {
             background: #4d7f5e; color: white; border: none; padding: 6px 16px; 
@@ -34,8 +52,8 @@
             transition: opacity 0.2s;
         }
         .refresh-btn:disabled { background: #333; color: #888; cursor: not-allowed; }
-        .refresh-btn:active { transform: scale(0.95); }
-
+        
+        /* 卡片樣式 */
         .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; }
         .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
@@ -52,14 +70,25 @@
     <div class="container">
         <div class="header">
             <div class="app-title">TRAIN LIVE V3</div>
-            <div class="station-selector">
-                <div class="station-group">
-                    <label class="station-label">起點</label>
+            
+            <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站 (如: 臺北, Zuoying)" oninput="handleSearch()">
+
+            <div class="selector-row">
+                <div class="selector-label">起點</div>
+                <div class="select-group">
+                    <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
                     <select id="startStation" class="station-select" onchange="handleStationChange()"></select>
                 </div>
+            </div>
+
+            <div class="swap-container">
                 <button class="swap-btn" onclick="swapStations()">⇄</button>
-                <div class="station-group">
-                    <label class="station-label">終點</label>
+            </div>
+
+            <div class="selector-row">
+                <div class="selector-label">終點</div>
+                <div class="select-group">
+                    <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
                     <select id="endStation" class="station-select" onchange="handleStationChange()"></select>
                 </div>
             </div>
@@ -70,39 +99,57 @@
                 <span id="statusText" class="status-text">準備就緒</span>
                 <button id="refreshBtn" class="refresh-btn" onclick="manualRefresh()">更新</button>
             </div>
-            <div id="countdownText" class="countdown-text"></div>
         </div>
 
         <div id="cardList"></div>
     </div>
 
     <script>
-        // ================= 設定區 =================
-        // 車站清單 (與後端 stations.py 對應，供前端選單使用)
-        const STATIONS = [
-            "基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","南港","松山","臺北","萬華","板橋","浮洲","樹林","南樹林","山佳","鶯歌","桃園","內壢","中壢","埔心","楊梅","富岡","新富","北湖","湖口","新豐","竹北","北新竹","新竹","三姓橋","香山","崎頂","竹南",
-            "造橋","豐富","苗栗","南勢","銅鑼","三義","泰安","后里","豐原","栗林","潭子","頭家厝","松竹","太原","精武","臺中","五權","大慶","烏日","新烏日","成功",
-            "談文","大山","後龍","龍港","白沙屯","新埔","通霄","苑裡","日南","大甲","臺中港","清水","沙鹿","龍井","大肚","追分",
-            "彰化","花壇","大村","員林","永靖","社頭","田中","二水","林內","石榴","斗六","斗南","石龜","大林","民雄","嘉北","嘉義","水上","南靖","後壁","新營","柳營","林鳳營","隆田","拔林","善化","南科","新市","永康","大橋","臺南","保安","仁德","中洲","大湖","路竹","岡山","橋頭","楠梓","新左營","左營","內惟","美術館","鼓山","三塊厝","高雄","民族","科工館","正義","鳳山","後庄","九曲堂","六塊厝","屏東","歸來","麟洛","西勢","竹田","潮州","崁頂","南州","鎮安","林邊","佳冬","東海","枋寮",
-            "加祿","內獅","枋山","大武","瀧溪","金崙","太麻里","知本","康樂","臺東",
-            "山里","鹿野","瑞源","瑞和","關山","海端","池上","富里","東竹","東里","玉里","三民","瑞穗","富源","大富","光復","萬榮","鳳林","南平","林榮新光","豐田","壽豐","平和","志學","吉安","花蓮",
-            "北埔","景美","新城","崇德","和仁","和平","漢本","武塔","南澳","東澳","永樂","蘇澳","蘇澳新","冬山","羅東","中里","二結","宜蘭","四城","礁溪","頂埔","頭城","外澳","龜山","大溪","大里","石城","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"
-        ];
+        // ================= 資料結構區 =================
+        const STATION_DATA = {
+            "基隆/新北": ["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],
+            "臺北市": ["南港","松山","臺北","萬華"],
+            "桃園市": ["桃園","內壢","中壢","埔心","楊梅","富岡","新富"],
+            "新竹縣市": ["北湖","湖口","新豐","竹北","北新竹","新竹","三姓橋","香山","六家","竹中","上員","榮華","竹東","橫山","九讚頭","合興","富貴","內灣"],
+            "苗栗縣": ["崎頂","竹南","造橋","豐富","苗栗","南勢","銅鑼","三義","談文","大山","後龍","龍港","白沙屯","新埔","通霄","苑裡"],
+            "臺中市": ["泰安","后里","豐原","栗林","潭子","頭家厝","松竹","太原","精武","臺中","五權","大慶","烏日","新烏日","成功","日南","大甲","臺中港","清水","沙鹿","龍井","大肚","追分"],
+            "彰化縣": ["彰化","花壇","大村","員林","永靖","社頭","田中","二水","源泉","濁水","龍泉","集集","水里","車埕"],
+            "雲林縣": ["林內","石榴","斗六","斗南","石龜"],
+            "嘉義縣市": ["大林","民雄","嘉北","嘉義","水上","南靖"],
+            "臺南市": ["後壁","新營","柳營","林鳳營","隆田","拔林","善化","南科","新市","永康","大橋","臺南","保安","仁德","中洲","大湖","沙崙"],
+            "高雄市": ["路竹","岡山","橋頭","楠梓","新左營","左營","內惟","美術館","鼓山","三塊厝","高雄","民族","科工館","正義","鳳山","後庄","九曲堂"],
+            "屏東縣": ["六塊厝","屏東","歸來","麟洛","西勢","竹田","潮州","崁頂","南州","鎮安","林邊","佳冬","東海","枋寮","加祿","內獅","枋山"],
+            "宜蘭縣": ["漢本","武塔","南澳","東澳","永樂","蘇澳","蘇澳新","冬山","羅東","中里","二結","宜蘭","四城","礁溪","頂埔","頭城","外澳","龜山","大溪","大里","石城"],
+            "花蓮縣": ["和平","和仁","崇德","新城","景美","北埔","花蓮","吉安","志學","平和","壽豐","豐田","林榮新光","南平","鳳林","萬榮","光復","大富","富源","瑞穗","三民","玉里","東里","東竹","富里"],
+            "臺東縣": ["池上","海端","關山","瑞和","瑞源","鹿野","山里","臺東","康樂","知本","太麻里","金崙","瀧溪","大武"]
+        };
 
-        const CACHE_PREFIX = "train_data_"; // 快取前綴
-        const PREF_START_KEY = "pref_start";
-        const PREF_END_KEY = "pref_end";
+        const STATION_INDEX = {};
+        Object.keys(STATION_DATA).forEach(region => {
+            STATION_DATA[region].forEach(station => {
+                STATION_INDEX[station] = region;
+            });
+        });
+
+        // ================= 設定區 =================
+        const CACHE_PREFIX = "train_data_v2_"; 
+        const PREF_START_R_KEY = "pref_start_region";
+        const PREF_START_S_KEY = "pref_start_station";
+        const PREF_END_R_KEY = "pref_end_region";
+        const PREF_END_S_KEY = "pref_end_station";
         
-        // 時間單位
         const MINUTE = 60 * 1000;
         const HOUR = 60 * MINUTE;
         // =========================================
 
-        const startSelect = document.getElementById('startStation');
-        const endSelect = document.getElementById('endStation');
+        const startRegion = document.getElementById('startRegion');
+        const startStation = document.getElementById('startStation');
+        const endRegion = document.getElementById('endRegion');
+        const endStation = document.getElementById('endStation');
+        const searchInput = document.getElementById('searchInput');
+
         const btn = document.getElementById('refreshBtn');
         const statusText = document.getElementById('statusText');
-        const countdownText = document.getElementById('countdownText');
         const list = document.getElementById('cardList');
         
         let cooldownTimer = null;
@@ -111,49 +158,102 @@
         let nextFetchTime = 0;
 
         function init() {
-            initStationSelector();
+            const regions = Object.keys(STATION_DATA);
+            const regionOptions = regions.map(r => `<option value="${r}">${r}</option>`).join('');
+            startRegion.innerHTML = regionOptions;
+            endRegion.innerHTML = regionOptions;
+
+            const savedStartR = localStorage.getItem(PREF_START_R_KEY) || "屏東縣";
+            const savedStartS = localStorage.getItem(PREF_START_S_KEY) || "屏東";
+            const savedEndR = localStorage.getItem(PREF_END_R_KEY) || "屏東縣";
+            const savedEndS = localStorage.getItem(PREF_END_S_KEY) || "潮州";
+
+            setMenu('start', savedStartR, savedStartS);
+            setMenu('end', savedEndR, savedEndS);
+
             checkButtonCooldown();
             document.addEventListener("visibilitychange", handleVisibilityChange);
-
-            // 載入上次選擇的車站
-            const savedStart = localStorage.getItem(PREF_START_KEY) || "屏東";
-            const savedEnd = localStorage.getItem(PREF_END_KEY) || "潮州";
-            
-            startSelect.value = savedStart;
-            endSelect.value = savedEnd;
 
             loadDataOrFetch();
         }
 
-        function initStationSelector() {
-            // 填充選單
-            const options = STATIONS.map(s => `<option value="${s}">${s}</option>`).join('');
-            startSelect.innerHTML = options;
-            endSelect.innerHTML = options;
+        function setMenu(type, regionVal, stationVal) {
+            const rSelect = type === 'start' ? startRegion : endRegion;
+            const sSelect = type === 'start' ? startStation : endStation;
+
+            if (!STATION_DATA[regionVal]) regionVal = "屏東縣";
+            rSelect.value = regionVal;
+            
+            const stations = STATION_DATA[regionVal];
+            sSelect.innerHTML = stations.map(s => `<option value="${s}">${s}</option>`).join('');
+            
+            if (stations.includes(stationVal)) {
+                sSelect.value = stationVal;
+            } else {
+                sSelect.selectedIndex = 0;
+            }
+        }
+
+        function updateStationList(type) {
+            const rSelect = type === 'start' ? startRegion : endRegion;
+            const sSelect = type === 'start' ? startStation : endStation;
+            
+            const region = rSelect.value;
+            const stations = STATION_DATA[region];
+            
+            sSelect.innerHTML = stations.map(s => `<option value="${s}">${s}</option>`).join('');
+            sSelect.selectedIndex = 0;
+            
+            handleStationChange(); 
         }
 
         function swapStations() {
-            const temp = startSelect.value;
-            startSelect.value = endSelect.value;
-            endSelect.value = temp;
+            const sR = startRegion.value;
+            const sS = startStation.value;
+            const eR = endRegion.value;
+            const eS = endStation.value;
+
+            setMenu('start', eR, eS);
+            setMenu('end', sR, sS);
+
             handleStationChange();
         }
 
-        function handleStationChange() {
-            // 儲存偏好
-            localStorage.setItem(PREF_START_KEY, startSelect.value);
-            localStorage.setItem(PREF_END_KEY, endSelect.value);
+        function handleSearch() {
+            const input = searchInput.value.trim();
+            if (!input) return;
             
-            // 切換車站時，視為手動更新，清除畫面並重新抓取
+            let found = null;
+            if (STATION_INDEX[input]) {
+                found = input;
+            } else {
+                const allStations = Object.keys(STATION_INDEX);
+                found = allStations.find(s => s.includes(input));
+            }
+
+            if (found) {
+                const region = STATION_INDEX[found];
+                setMenu('start', region, found);
+                handleStationChange();
+                searchInput.style.borderColor = "#4d7f5e";
+                setTimeout(() => searchInput.style.borderColor = "#444", 500);
+            }
+        }
+
+        function handleStationChange() {
+            localStorage.setItem(PREF_START_R_KEY, startRegion.value);
+            localStorage.setItem(PREF_START_S_KEY, startStation.value);
+            localStorage.setItem(PREF_END_R_KEY, endRegion.value);
+            localStorage.setItem(PREF_END_S_KEY, endStation.value);
+            
             lastActiveTime = Date.now();
             list.innerHTML = ""; 
             statusText.innerText = "切換路線中...";
-            countdownText.innerText = "";
             fetchData();
         }
 
         function getCacheKey() {
-            return `${CACHE_PREFIX}${startSelect.value}_${endSelect.value}`;
+            return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;
         }
 
         function loadDataOrFetch() {
@@ -182,14 +282,13 @@
         async function fetchData() {
             btn.disabled = true;
             statusText.innerText = "更新中...";
-            countdownText.innerText = "";
             
             if (!list.hasChildNodes()) {
                  list.innerHTML = '<div class="message loading">正在連線 TDX...</div>';
             }
 
-            const s = startSelect.value;
-            const e = endSelect.value;
+            const s = startStation.value;
+            const e = endStation.value;
             const url = `/api/index?start=${s}&end=${e}`;
 
             try {
@@ -198,7 +297,6 @@
 
                 if (json.error) throw new Error(json.error);
 
-                // 寫入快取 (Key 要包含起訖站)
                 const cacheObj = { timestamp: Date.now(), payload: json };
                 localStorage.setItem(getCacheKey(), JSON.stringify(cacheObj));
 
@@ -221,7 +319,7 @@
             fetchData(); 
         }
 
-        // --- 核心更新邏輯 ---
+        // --- 核心更新邏輯 (不顯示倒數文字) ---
         function scheduleNextAutoRefresh() {
             if (autoUpdateTimer) clearInterval(autoUpdateTimer);
 
@@ -235,14 +333,13 @@
             else interval = -1;
 
             if (interval === -1) {
-                countdownText.innerText = "";
                 statusText.innerText = "自動更新已暫停 (閒置)";
                 return;
             }
 
             nextFetchTime = now + interval;
             autoUpdateTimer = setInterval(tickAutoUpdate, 1000);
-            tickAutoUpdate();
+            // 不再執行 tickAutoUpdate 更新 UI，只在後台跑
         }
 
         function tickAutoUpdate() {
@@ -258,11 +355,6 @@
                     return;
                 }
                 fetchData();
-            } else {
-                const m = Math.floor(remain / 60);
-                const s = remain % 60;
-                const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                countdownText.innerText = `自動更新: ${timeStr}`;
             }
         }
 
@@ -272,7 +364,6 @@
             }
         }
 
-        // --- 冷卻與渲染 ---
         const COOLDOWN_KEY = "next_refresh_time";
         function setButtonCooldown(seconds) {
             const nextTime = Date.now() + (seconds * 1000);
