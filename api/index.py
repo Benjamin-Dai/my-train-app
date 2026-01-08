@@ -11,7 +11,8 @@ try:
 except ImportError:
     from stations import STATION_MAP
 
-CLIENT_ID = os.environ.get('TD_ID')
+# 確保環境變數抓取正確
+CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 DEFAULT_START = '屏東'
 DEFAULT_END = '潮州'
@@ -25,22 +26,17 @@ class handler(BaseHTTPRequestHandler):
     def get_token(self, cid, csecret):
         auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
         try:
-            res = requests.post(auth_url, data={'grant_type': 'client_credentials','client_id': cid,'client_secret': csecret})
+            res = requests.post(auth_url, data={'grant_type': 'client_credentials','client_id': cid,'client_secret': csecret}, timeout=10)
             if res.status_code == 200: return res.json().get('access_token')
             return None
         except: return None
 
-    # 強化版標頭偵測
     def get_header_info(self, res):
-        # 優先尋找 TDX 幾種常見的剩餘次數標頭
         limit = res.headers.get('RateLimit-Remaining')
         if not limit: limit = res.headers.get('x-ratelimit-remaining-minute')
         if not limit: limit = res.headers.get('X-RateLimit-Remaining')
         if not limit: limit = res.headers.get('x-ratelimit-remaining')
-        
         if limit: return f"API {res.status_code} (剩餘: {limit})"
-        
-        # 備用方案：掃描所有包含 remaining 字眼的標頭
         found = [v for k, v in res.headers.items() if 'remaining' in k.lower()]
         return f"API {res.status_code} (剩餘: {found[0] if found else '未知'})"
 
@@ -49,7 +45,6 @@ class handler(BaseHTTPRequestHandler):
         now_ts = time.time()
         if _DELAY_CACHE["data"] and (now_ts - _DELAY_CACHE["timestamp"] < 50): 
             return (_DELAY_CACHE["data"], "Cache Hit (0點)")
-        
         delay_url = f"{API_BASE_V2}/LiveTrainDelay"
         try:
             res = requests.get(delay_url, headers=headers, timeout=10)
@@ -70,7 +65,6 @@ class handler(BaseHTTPRequestHandler):
         cache_key = f"{start_id}_{end_id}"
         if cache_key in _ROUTE_CACHE and _ROUTE_CACHE[cache_key]["date"] == date_str: 
             return (_ROUTE_CACHE[cache_key]["trains"], "Cache Hit (0點)")
-        
         timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
         try:
             res = requests.get(timetable_url, headers=headers, timeout=10)
@@ -88,12 +82,12 @@ class handler(BaseHTTPRequestHandler):
         params = parse_qs(parsed_path.query)
         start_station = params.get('start', [DEFAULT_START])[0]
         end_station = params.get('end', [DEFAULT_END])[0]
-        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Env", 500)
+        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("後端配置錯誤", 500)
         start_id = STATION_MAP.get(start_station)
         end_id = STATION_MAP.get(end_station)
-        if not start_id or not end_id: return self.send_error_response("Station Not Found", 400)
+        if not start_id or not end_id: return self.send_error_response("車站 ID 錯誤", 400)
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
-        if not token: return self.send_error_response("Auth Failed", 500)
+        if not token: return self.send_error_response("TDX 認證失敗", 500)
         now = datetime.now() + timedelta(hours=8)
         headers = {'authorization': f'Bearer {token}'}
         try:
@@ -103,7 +97,7 @@ class handler(BaseHTTPRequestHandler):
             try: delays, delay_status = self.get_cached_delays(headers)
             except Exception as e:
                 delay_failed = True
-                delay_status = "API 429 (Busy)" if "429" in str(e) else "Error"
+                delay_status = "系統忙碌" if "429" in str(e) else "讀取失敗"
                 if _DELAY_CACHE["data"]: delays = _DELAY_CACHE["data"]
             processed = []
             for item in raw_list:
@@ -117,7 +111,8 @@ class handler(BaseHTTPRequestHandler):
                     elif stop.get('StationID') == end_id: arr_time = stop.get('ArrivalTime')
                 if not dep_time or not arr_time: continue 
                 type_color = "#ffffff"
-                if "區間" in raw_type: type_color = "#0076B2"
+                if "區間快" in raw_type: type_color = "#0076B2"
+                elif "區間" in raw_type: type_color = "#0076B2"
                 elif "自強3000" in raw_type or "EMU3000" in raw_type: type_color = "#85a38f"
                 elif "自強" in raw_type: type_color = "#DF3F1F"
                 elif "莒光" in raw_type: type_color = "#FF8C00"
@@ -129,7 +124,7 @@ class handler(BaseHTTPRequestHandler):
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
                 processed.append({
-                    "no": no, "type": raw_type[:4], "delay": delay, "color": type_color,
+                    "no": no, "type": raw_type, "delay": delay, "color": type_color,
                     "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
                     "sch_dep": dep_time, "sch_arr": arr_time,
                     "sort_key": real_dep.timestamp(), "is_past": real_dep < (now - timedelta(minutes=10))
