@@ -11,7 +11,7 @@ try:
 except ImportError:
     from stations import STATION_MAP
 
-# 確保環境變數抓取正確
+# 環境變數設定
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 DEFAULT_START = '屏東'
@@ -46,19 +46,17 @@ class handler(BaseHTTPRequestHandler):
         if _DELAY_CACHE["data"] and (now_ts - _DELAY_CACHE["timestamp"] < 50): 
             return (_DELAY_CACHE["data"], "Cache Hit (0點)")
         delay_url = f"{API_BASE_V2}/LiveTrainDelay"
-        try:
-            res = requests.get(delay_url, headers=headers, timeout=10)
-            if res.status_code == 200:
-                status_str = self.get_header_info(res)
-                d_data = res.json()
-                d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
-                new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
-                _DELAY_CACHE["data"] = new_delays
-                _DELAY_CACHE["timestamp"] = now_ts
-                return (new_delays, status_str)
-            elif res.status_code == 429: raise Exception("429")
-            else: raise Exception(f"Error {res.status_code}")
-        except Exception as e: raise e
+        res = requests.get(delay_url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            status_str = self.get_header_info(res)
+            d_data = res.json()
+            d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
+            new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
+            _DELAY_CACHE["data"] = new_delays
+            _DELAY_CACHE["timestamp"] = now_ts
+            return (new_delays, status_str)
+        elif res.status_code == 429: raise Exception("429")
+        else: raise Exception(f"Delay Error {res.status_code}")
 
     def get_route_timetable(self, start_id, end_id, date_str, headers):
         global _ROUTE_CACHE
@@ -66,26 +64,24 @@ class handler(BaseHTTPRequestHandler):
         if cache_key in _ROUTE_CACHE and _ROUTE_CACHE[cache_key]["date"] == date_str: 
             return (_ROUTE_CACHE[cache_key]["trains"], "Cache Hit (0點)")
         timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
-        try:
-            res = requests.get(timetable_url, headers=headers, timeout=10)
-            if res.status_code == 200:
-                status_str = self.get_header_info(res)
-                raw_list = res.json().get('TrainTimetables', [])
-                _ROUTE_CACHE[cache_key] = {"date": date_str, "trains": raw_list}
-                return (raw_list, status_str)
-            elif res.status_code == 429: raise Exception("429")
-            else: raise Exception(f"Error {res.status_code}")
-        except Exception as e: raise e
+        res = requests.get(timetable_url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            status_str = self.get_header_info(res)
+            raw_list = res.json().get('TrainTimetables', [])
+            _ROUTE_CACHE[cache_key] = {"date": date_str, "trains": raw_list}
+            return (raw_list, status_str)
+        elif res.status_code == 429: raise Exception("429")
+        else: raise Exception(f"Route Error {res.status_code}")
 
     def do_GET(self):
         parsed_path = urlparse(self.path)
         params = parse_qs(parsed_path.query)
         start_station = params.get('start', [DEFAULT_START])[0]
         end_station = params.get('end', [DEFAULT_END])[0]
-        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("後端配置錯誤", 500)
+        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("後端環境變數缺失", 500)
         start_id = STATION_MAP.get(start_station)
         end_id = STATION_MAP.get(end_station)
-        if not start_id or not end_id: return self.send_error_response("車站 ID 錯誤", 400)
+        if not start_id or not end_id: return self.send_error_response("找不到車站 ID", 400)
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("TDX 認證失敗", 500)
         now = datetime.now() + timedelta(hours=8)
@@ -111,9 +107,8 @@ class handler(BaseHTTPRequestHandler):
                     elif stop.get('StationID') == end_id: arr_time = stop.get('ArrivalTime')
                 if not dep_time or not arr_time: continue 
                 type_color = "#ffffff"
-                if "區間快" in raw_type: type_color = "#0076B2"
-                elif "區間" in raw_type: type_color = "#0076B2"
-                elif "自強3000" in raw_type or "EMU3000" in raw_type: type_color = "#85a38f"
+                if "區間" in raw_type: type_color = "#0076B2"
+                elif "3000" in raw_type: type_color = "#85a38f"
                 elif "自強" in raw_type: type_color = "#DF3F1F"
                 elif "莒光" in raw_type: type_color = "#FF8C00"
                 elif "普悠瑪" in raw_type or "太魯閣" in raw_type: type_color = "#9C1637"
