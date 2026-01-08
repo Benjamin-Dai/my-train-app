@@ -13,7 +13,6 @@
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
         
-        /* 問號按鈕動畫 - 白色 <-> Hue 40 (夕陽金) */
         @keyframes pulse-gold {
             0%, 100% { color: #888; border-color: #444; box-shadow: 0 0 0 rgba(255, 166, 0, 0); }
             50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); box-shadow: 0 0 8px rgba(255, 166, 0, 0.3); }
@@ -22,7 +21,7 @@
             background: none; border: 1px solid #444; color: #888; width: 24px; height: 24px; 
             border-radius: 50%; font-size: 0.8rem; cursor: pointer; display: flex; 
             align-items: center; justify-content: center; font-weight: bold;
-            animation: pulse-gold 3s infinite ease-in-out; /* 3秒緩慢閃爍 */
+            animation: pulse-gold 3s infinite ease-in-out;
         }
 
         /* 搜尋列 */
@@ -71,13 +70,12 @@
 
         /* Modal (關於視窗) */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
-        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative;}
+        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 85vh; overflow-y: auto;}
         
         .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; }
         .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
         .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
         
-        /* Modal 選單按鈕 */
         .menu-btn { 
             display: block; width: 100%; padding: 15px; margin-bottom: 10px; 
             background: #2c2c2e; border: 1px solid #444; color: #fff; 
@@ -90,10 +88,23 @@
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
-        /* 控制頁面切換 */
         .modal-page { display: none; }
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 系統診斷頁面樣式 */
+        .report-box { width: 100%; height: 150px; background: #111; border: 1px solid #444; color: #0f0; font-family: monospace; font-size: 0.75rem; padding: 10px; border-radius: 8px; margin-bottom: 10px; resize: none; box-sizing: border-box;}
+        .copy-btn { width: 100%; background: #007AFF; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .copy-btn.copied { background: #4d7f5e; }
+        .report-hint { font-size: 0.8rem; color: #888; margin-bottom: 15px; }
+        
+        /* 流量儀表板 */
+        .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
+        .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
+        .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
+        .stat-card.danger .stat-val { color: #ff4d4d; }
+        .contact-info { background: #222; padding: 10px; border-radius: 8px; font-size: 0.85rem; color: #ccc; margin-bottom: 15px; text-align: center; border: 1px solid #333;}
     </style>
 </head>
 <body>
@@ -138,10 +149,11 @@
             
             <div id="pageMenu" class="modal-page active">
                 <div class="modal-header-row">
-                    <div class="modal-title">關於本站</div>
+                    <div class="modal-title">選單</div>
                 </div>
                 <button class="menu-btn" onclick="goToPage('Why')">為什麼要做這個？</button>
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
+                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
                 <div style="height:10px"></div>
                 <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
@@ -178,6 +190,40 @@
                     <span style="color:#e6b800">黃字</span>：誤點資料失敗 (自動重試)。<br>
                     <span style="color:#ff4d4d">紅字</span>：操作過於頻繁。
                 </div>
+            </div>
+
+            <div id="pageReport" class="modal-page">
+                <div class="modal-header-row">
+                    <button class="back-btn" onclick="goToPage('Menu')">‹</button>
+                    <div class="modal-title">系統診斷</div>
+                </div>
+                
+                <div class="contact-info">
+                    開發者聯絡資訊<br>
+                    <strong>d96benjamin@gmail.com</strong>
+                </div>
+
+                <div class="stats-dashboard">
+                    <div class="stat-card" id="cardRpm">
+                        <div class="stat-val" id="statRpm">0</div>
+                        <div class="stat-label">1分鐘內請求</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-val" id="statTotal">0</div>
+                        <div class="stat-label">本次總數</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-val" id="statLast">--</div>
+                        <div class="stat-label">距上次(秒)</div>
+                    </div>
+                </div>
+
+                <div class="report-hint">
+                    若遇到問題，請描述狀況並點擊「複製報告」，傳送至上方信箱。
+                </div>
+                <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="請在此描述問題..."></textarea>
+                <textarea id="reportContent" class="report-box" readonly></textarea>
+                <button id="btnCopy" class="copy-btn" onclick="copyReport()">複製診斷報告</button>
             </div>
 
         </div>
@@ -225,25 +271,60 @@
         const list = document.getElementById('cardList');
         const modal = document.getElementById('aboutModal');
 
+        // --- 診斷與監控系統 ---
+        let systemLogs = []; 
+        let requestHistory = []; // 存所有請求的時間戳記
+
+        function logSystem(action, detail) {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = `[${time}] ${action}: ${detail}`;
+            systemLogs.push(logEntry);
+            if (systemLogs.length > 30) systemLogs.shift(); 
+        }
+
+        function recordRequest() {
+            requestHistory.push(Date.now());
+        }
+
+        // 更新儀表板數據
+        function updateDashboard() {
+            const now = Date.now();
+            
+            // 1. 計算 RPM (過去 60 秒內的請求數)
+            const recentReqs = requestHistory.filter(t => now - t < 60000);
+            const rpm = recentReqs.length;
+            
+            document.getElementById('statRpm').innerText = rpm;
+            // 如果超過 5 次，顯示紅色警告
+            if(rpm >= 5) document.getElementById('cardRpm').classList.add('danger');
+            else document.getElementById('cardRpm').classList.remove('danger');
+
+            // 2. 總數
+            document.getElementById('statTotal').innerText = requestHistory.length;
+
+            // 3. 距離上次
+            if(requestHistory.length > 0) {
+                const last = requestHistory[requestHistory.length - 1];
+                const diff = Math.floor((now - last) / 1000);
+                document.getElementById('statLast').innerText = diff;
+            } else {
+                document.getElementById('statLast').innerText = "--";
+            }
+        }
+
         // --- 變數管理 ---
         let refreshTimer = null; 
         let searchLockTimer = null; 
         let retryTimer = null; 
-
-        // 搜尋限制相關
         let searchCount = 0;
         let searchResetTime = Date.now();
         const MAX_SEARCH_PER_MIN = 3;
-
-        // 更新限制相關
         let lastRefreshTime = 0; 
         let lastFetchedPair = { start: "", end: "" };
-
-        // 頻繁操作鎖定時間
         let lockedUntil = 0;
 
         function init() {
-            // 初始化選單
+            logSystem("Init", "App Started");
             const regions = Object.keys(STATION_DATA);
             const regionOptions = regions.map(r => `<option value="${r}">${r}</option>`).join('');
             startRegion.innerHTML = regionOptions; endRegion.innerHTML = regionOptions;
@@ -261,7 +342,6 @@
             loadDataOrFetch();
         }
 
-        // --- 選單邏輯 ---
         function setMenu(type, regionVal, stationVal) {
             const rSelect = type === 'start' ? startRegion : endRegion;
             const sSelect = type === 'start' ? startStation : endStation;
@@ -279,14 +359,15 @@
             const stations = STATION_DATA[region];
             sSelect.innerHTML = stations.map(s => `<option value="${s}">${s}</option>`).join('');
             sSelect.selectedIndex = 0;
-            handleSelectionChange();
+            markAsChanged();
         }
 
         function swapStations() {
+            logSystem("UI", "Swap Stations");
             const sR = startRegion.value; const sS = startStation.value;
             const eR = endRegion.value; const eS = endStation.value;
             setMenu('start', eR, eS); setMenu('end', sR, sS);
-            handleSelectionChange();
+            markAsChanged();
         }
 
         function handleSearch() {
@@ -297,23 +378,18 @@
             if (STATION_INDEX[input]) found = input;
             else { const allStations = Object.keys(STATION_INDEX); found = allStations.find(s => s.includes(input)); }
             if (found) {
+                logSystem("UI", `Search Found: ${found}`);
                 const region = STATION_INDEX[found];
                 setMenu(target, region, found); 
                 searchInput.style.borderColor = "#4d7f5e"; setTimeout(() => searchInput.style.borderColor = "#444", 500);
-                handleSelectionChange();
+                markAsChanged();
             }
         }
 
-        // 當設定變更時的處理
-        function handleSelectionChange() {
+        function markAsChanged() {
             localStorage.setItem(PREF_START_R_KEY, startRegion.value); localStorage.setItem(PREF_START_S_KEY, startStation.value);
             localStorage.setItem(PREF_END_R_KEY, endRegion.value); localStorage.setItem(PREF_END_S_KEY, endStation.value);
-
-            attemptLoadCache(false);
-            
-            // 重要：切換車站時，如果原本有誤點重試，先取消
-            if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
-            updateButtonMode();
+            attemptLoadCache(false); 
         }
 
         function getCacheKey() { return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`; }
@@ -329,11 +405,11 @@
                 if (now - data.timestamp < 60 * 1000) {
                     console.log("快取命中");
                     renderCards(data.payload);
-                    lastFetchedPair = { start: startStation.value, end: endStation.value }; // 同步狀態
                     setUpdateText(`更新於(快取): ${data.payload.update_time}`);
                     statusMsg.innerText = "準備就緒";
                     statusMsg.className = "status-msg";
                     list.style.opacity = "1";
+                    lastFetchedPair = { start: startStation.value, end: endStation.value };
                     hit = true;
                 }
             }
@@ -357,23 +433,17 @@
             const currentEnd = endStation.value;
             const isChanged = (currentStart !== lastFetchedPair.start || currentEnd !== lastFetchedPair.end);
 
-            if (lockedUntil > Date.now()) return; // 鎖定中不處理
+            if (lockedUntil > Date.now()) return;
 
             if (isChanged) {
-                btnSearch.disabled = false; // 切換車站時，搜尋按鈕解鎖
-            } else {
-                // 車站未變，按鈕狀態交由 doRefresh 邏輯的冷卻控制
+                btnSearch.disabled = false;
             }
         }
 
-        // ================= 按鈕邏輯區 =================
-
-        // 1. 搜尋按鈕
         function doSearch() {
             const currentStart = startStation.value;
             const currentEnd = endStation.value;
 
-            // 如果沒換車站，視為「更新」
             if (currentStart === lastFetchedPair.start && currentEnd === lastFetchedPair.end) {
                 statusMsg.innerText = "車站未變更，執行更新";
                 setTimeout(() => { if(!statusMsg.classList.contains("alert")) statusMsg.innerText = "準備就緒"; }, 2000);
@@ -390,13 +460,15 @@
             if (searchCount >= MAX_SEARCH_PER_MIN) {
                 const waitTime = Math.ceil((60000 - (now - searchResetTime)) / 1000);
                 lockSearchButton(waitTime);
+                logSystem("Limit", "Search Limit Reached");
                 return;
             }
 
+            searchCount++;
+            logSystem("Action", `Search (${searchCount}/3): ${currentStart}->${currentEnd}`);
             fetchData("search"); 
         }
 
-        // 2. 更新按鈕
         function doRefresh(skipCheck = false) {
             if (!skipCheck) {
                 const now = Date.now();
@@ -404,13 +476,14 @@
                 if (elapsed < 90000) {
                     const wait = Math.ceil((90000 - elapsed) / 1000);
                     lockRefreshButton(wait);
+                    logSystem("Limit", "Refresh Cooldown");
                     return;
                 }
             }
+            logSystem("Action", "Refresh");
             fetchData("refresh");
         }
 
-        // ================= 資料抓取 =================
         async function fetchData(mode) {
             statusMsg.innerText = "連線中...";
             statusMsg.className = "status-msg";
@@ -425,21 +498,25 @@
             const e = endStation.value;
             const url = `/api/index?start=${s}&end=${e}`;
 
+            // 記錄這是一次真實的 API 請求
+            recordRequest();
+
             try {
                 const res = await fetch(url);
                 const json = await res.json();
 
                 if (json.error) throw new Error(json.error);
 
-                // 成功抓取
                 lastFetchedPair = { start: s, end: e };
                 const cacheObj = { timestamp: Date.now(), payload: json };
                 localStorage.setItem(getCacheKey(), JSON.stringify(cacheObj));
 
                 renderCards(json);
+                
+                logSystem("API Success", `DelayFailed: ${json.delay_failed}`);
 
                 if (json.delay_failed) {
-                    statusMsg.innerText = `無法取得誤點資訊，60s 後重試`;
+                    statusMsg.innerText = `無法取得誤點資訊，60s 後自動重試`;
                     statusMsg.className = "status-msg warning";
                     scheduleRetry(); 
                     setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
@@ -449,12 +526,10 @@
                     setUpdateText(`更新於: ${json.update_time}`);
                 }
 
-                // === 成功後的後續處理 ===
                 if (mode === "search") {
-                    searchCount++; // 只有搜尋成功才計數
                     setTimeout(() => btnSearch.disabled = false, 500);
                     lastRefreshTime = Date.now();
-                    lockRefreshButton(90); // 搜尋成功也算更新，鎖右邊
+                    lockRefreshButton(90);
                 }
 
                 if (mode === "refresh") {
@@ -464,6 +539,7 @@
 
             } catch (err) {
                 console.error(err);
+                logSystem("API Error", err.message);
                 statusMsg.innerText = "查詢失敗";
                 list.innerHTML = `<div class="message">發生錯誤：${err.message}<br>請稍後再試</div>`;
                 if (mode === "search") setTimeout(() => btnSearch.disabled = false, 2000);
@@ -556,18 +632,60 @@
             else list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️<br><span style="font-size:0.8rem; color:#666">TDX 回傳無資料</span></div>`;
         }
 
-        // Modal Functions
-        function openModal() { 
-            document.getElementById('aboutModal').style.display = 'flex'; 
-            goToPage('Menu'); 
-        }
+        // --- Modal & Report Functions ---
+        function openModal() { document.getElementById('aboutModal').style.display = 'flex'; goToPage('Menu'); }
         function closeModal() { document.getElementById('aboutModal').style.display = 'none'; }
         
         function goToPage(pageId) {
-            document.getElementById('pageMenu').classList.remove('active');
-            document.getElementById('pageWhy').classList.remove('active');
-            document.getElementById('pageHow').classList.remove('active');
+            document.querySelectorAll('.modal-page').forEach(p => p.classList.remove('active'));
             document.getElementById('page' + pageId).classList.add('active');
+            
+            if(pageId === 'Report') {
+                updateDashboard(); // 進入頁面時刷新數據
+                generateReport();
+            }
+        }
+
+        function generateReport() {
+            const box = document.getElementById('reportContent');
+            const userText = document.getElementById('userDesc').value;
+            
+            let report = "【TRAIN LIVE 診斷報告】\n";
+            report += `時間: ${new Date().toLocaleString()}\n`;
+            report += `裝置: ${navigator.userAgent}\n`;
+            report += `路線: ${startStation.value} -> ${endStation.value}\n`;
+            
+            // 加入流量統計
+            const now = Date.now();
+            const recentReqs = requestHistory.filter(t => now - t < 60000);
+            report += `流量監控: RPM=${recentReqs.length}, Total=${requestHistory.length}\n`;
+
+            report += "--- 操作紀錄 ---\n";
+            report += systemLogs.join("\n");
+            
+            if(userText) {
+                report += "\n\n--- 使用者描述 ---\n" + userText;
+            }
+            
+            box.value = report;
+        }
+
+        function copyReport() {
+            const box = document.getElementById('reportContent');
+            generateReport();
+            
+            box.select();
+            document.execCommand('copy');
+            
+            const btn = document.getElementById('btnCopy');
+            const originalText = btn.innerText;
+            btn.innerText = "已複製！請傳送給開發者";
+            btn.classList.add('copied');
+            
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove('copied');
+            }, 3000);
         }
 
         init();
