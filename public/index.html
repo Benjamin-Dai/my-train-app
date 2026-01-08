@@ -228,9 +228,19 @@
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
                 <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
             </div>
+            
             <div id="pageHow" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
-                <div class="modal-text"><strong>雙按鈕機制：</strong><br><br>1. <strong>🔍 查詢路線 (左)：</strong><br>切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>2. <strong>🔄 更新 (右)：</strong><br>刷新當前狀態。每次點擊後需等待 60 秒冷卻。<br><br><strong>燈號：</strong><br><span style="color:#e6b800">黃字</span>：誤點資料失敗 (自動重試)。<br><span style="color:#ff4d4d">紅字</span>：操作過於頻繁。</div>
+                <div class="modal-text">
+                    <strong>雙按鈕機制：</strong><br><br>
+                    1. <strong>🔍 查詢路線 (左)：</strong><br>
+                    切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
+                    若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
+                    2. <strong>🔄 更新 (右)：</strong><br>
+                    刷新當前狀態。每次點擊後需等待 60 秒冷卻。<br><br>
+                    <strong>自動重試機制：</strong><br>
+                    錯誤或系統忙碌都會自動重試，請耐心等候。
+                </div>
             </div>
             
             <div id="pageReport" class="modal-page">
@@ -588,7 +598,17 @@
 
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
-                logSystem("API",`DelayFailed:${json.delay_failed}`);
+                
+                // === 修改：簡化 Log 顯示，記錄剩餘額度 ===
+                const extVal = (str) => {
+                    if(!str) return "--";
+                    const match = str.match(/\(剩:\s*(\d+)\)/);
+                    return match ? match[1] : (str.includes("Cache") ? "Cache" : "API");
+                };
+                const rVal = extVal(json.diagnostics.route_status);
+                const dVal = extVal(json.diagnostics.delay_status);
+                logSystem("API", `額度 V3:${rVal}, V2:${dVal}`);
+                // ==========================================
 
                 if(json.delay_failed) {
                     statusMsg.innerText="誤點資訊無法取得 (60s 後自動重試)"; statusMsg.className="status-msg warning";
@@ -757,7 +777,6 @@
                 }, 2000);
             }).catch(err => {
                 console.error('複製失敗', err);
-                // Fallback for old browsers
                 const b=document.getElementById('reportContent'); 
                 b.style.display = 'block';
                 b.value = finalReport;
