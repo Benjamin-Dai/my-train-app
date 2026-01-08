@@ -67,30 +67,33 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            # 2. V3 時刻表 (OD)
+            # 2. V3 時刻表 (OD) - 這是核心資料，失敗則直接報錯
             timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{today_str}"
             res = requests.get(timetable_url, headers=headers)
             
-            # 檢查 TDX 是否回傳錯誤
             if res.status_code != 200:
-                # 這裡直接拋出錯誤，讓前端知道出事了
-                raise Exception(f"TDX API Error: {res.status_code}")
+                raise Exception(f"TDX Timetable Error: {res.status_code}")
 
             timetable_data = res.json()
             raw_list = timetable_data.get('TrainTimetables', []) if isinstance(timetable_data, dict) else []
-            
-            # 紀錄原始數量
             original_count = len(raw_list)
 
-            # 3. V2 誤點資訊
-            delay_url = f"{API_BASE_V2}/LiveTrainDelay"
-            delay_res = requests.get(delay_url, headers=headers)
+            # 3. V2 誤點資訊 (容錯處理)
+            # 如果這裡失敗，我們不拋出錯誤，而是標記 delay_failed = True
             delays = {}
-            if delay_res.status_code == 200:
-                d_data = delay_res.json()
-                d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
-                for t in d_list:
-                    delays[t.get('TrainNo')] = t.get('DelayTime', 0)
+            delay_failed = False
+            try:
+                delay_url = f"{API_BASE_V2}/LiveTrainDelay"
+                delay_res = requests.get(delay_url, headers=headers)
+                if delay_res.status_code == 200:
+                    d_data = delay_res.json()
+                    d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
+                    for t in d_list:
+                        delays[t.get('TrainNo')] = t.get('DelayTime', 0)
+                else:
+                    delay_failed = True # API 非 200
+            except:
+                delay_failed = True # 連線失敗
 
             # 4. 資料整合
             processed = []
@@ -118,6 +121,7 @@ class handler(BaseHTTPRequestHandler):
                 elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
                 elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
 
+                # 如果誤點API失敗，delay 設為 0，但在前端會提示
                 delay = int(delays.get(no, 0))
 
                 dep_dt = datetime.strptime(f"{today_str} {dep_time}", "%Y-%m-%d %H:%M")
@@ -129,6 +133,7 @@ class handler(BaseHTTPRequestHandler):
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
 
+                # 過濾：只顯示目前時間 - 10分鐘以後的車
                 if real_dep > now - timedelta(minutes=10):
                     processed.append({
                         "no": no, 
@@ -158,6 +163,7 @@ class handler(BaseHTTPRequestHandler):
                     "original_count": original_count,
                     "filtered_count": len(result)
                 },
+                "delay_failed": delay_failed, # 告訴前端誤點資訊是否正常
                 "trains": result
             }).encode())
 
