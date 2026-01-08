@@ -98,7 +98,6 @@
         .copy-btn.copied { background: #4d7f5e; }
         .report-hint { font-size: 0.8rem; color: #888; margin-bottom: 15px; }
         
-        /* 流量儀表板 */
         .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
         .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
@@ -219,11 +218,11 @@
                 </div>
 
                 <div class="report-hint">
-                    若遇到問題，請描述狀況並點擊「複製報告」，傳送至上方信箱。
+                    若遇到問題，請點擊下方按鈕複製報告，並傳送郵件給開發者。
                 </div>
-                <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="請在此描述問題..."></textarea>
+                <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
                 <textarea id="reportContent" class="report-box" readonly></textarea>
-                <button id="btnCopy" class="copy-btn" onclick="copyReport()">複製診斷報告</button>
+                <button id="btnCopy" class="copy-btn" onclick="sendReport()">複製報告並寄信</button>
             </div>
 
         </div>
@@ -273,7 +272,7 @@
 
         // --- 診斷與監控系統 ---
         let systemLogs = []; 
-        let requestHistory = []; // 存所有請求的時間戳記
+        let requestHistory = [];
 
         function logSystem(action, detail) {
             const time = new Date().toLocaleTimeString();
@@ -286,23 +285,17 @@
             requestHistory.push(Date.now());
         }
 
-        // 更新儀表板數據
         function updateDashboard() {
             const now = Date.now();
-            
-            // 1. 計算 RPM (過去 60 秒內的請求數)
             const recentReqs = requestHistory.filter(t => now - t < 60000);
             const rpm = recentReqs.length;
             
             document.getElementById('statRpm').innerText = rpm;
-            // 如果超過 5 次，顯示紅色警告
             if(rpm >= 5) document.getElementById('cardRpm').classList.add('danger');
             else document.getElementById('cardRpm').classList.remove('danger');
 
-            // 2. 總數
             document.getElementById('statTotal').innerText = requestHistory.length;
 
-            // 3. 距離上次
             if(requestHistory.length > 0) {
                 const last = requestHistory[requestHistory.length - 1];
                 const diff = Math.floor((now - last) / 1000);
@@ -498,7 +491,6 @@
             const e = endStation.value;
             const url = `/api/index?start=${s}&end=${e}`;
 
-            // 記錄這是一次真實的 API 請求
             recordRequest();
 
             try {
@@ -540,8 +532,12 @@
             } catch (err) {
                 console.error(err);
                 logSystem("API Error", err.message);
-                statusMsg.innerText = "查詢失敗";
-                list.innerHTML = `<div class="message">發生錯誤：${err.message}<br>請稍後再試</div>`;
+                
+                // === 修正：主頁面不顯示可怕錯誤，只引導診斷 ===
+                statusMsg.innerText = "連線發生錯誤";
+                statusMsg.className = "status-msg alert";
+                list.innerHTML = `<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem; color:#888">請點擊右上角「?」進入系統診斷</span></div>`;
+                
                 if (mode === "search") setTimeout(() => btnSearch.disabled = false, 2000);
                 if (mode === "refresh") setTimeout(() => btnRefresh.disabled = false, 2000);
             }
@@ -556,7 +552,8 @@
             let count = 60;
             retryTimer = setInterval(() => {
                 count--;
-                statusMsg.innerText = `無法取得誤點資訊，${count}s 後重試...`;
+                statusMsg.innerText = `誤點資訊無法取得，${count}s 後重試...`; // 修改文字更溫和
+                statusMsg.className = "status-msg warning";
                 if (count <= 0) {
                     clearInterval(retryTimer);
                     retryTimer = null;
@@ -632,7 +629,7 @@
             else list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️<br><span style="font-size:0.8rem; color:#666">TDX 回傳無資料</span></div>`;
         }
 
-        // --- Modal & Report Functions ---
+        // --- Report System (Modified) ---
         function openModal() { document.getElementById('aboutModal').style.display = 'flex'; goToPage('Menu'); }
         function closeModal() { document.getElementById('aboutModal').style.display = 'none'; }
         
@@ -641,7 +638,7 @@
             document.getElementById('page' + pageId).classList.add('active');
             
             if(pageId === 'Report') {
-                updateDashboard(); // 進入頁面時刷新數據
+                updateDashboard();
                 generateReport();
             }
         }
@@ -655,7 +652,6 @@
             report += `裝置: ${navigator.userAgent}\n`;
             report += `路線: ${startStation.value} -> ${endStation.value}\n`;
             
-            // 加入流量統計
             const now = Date.now();
             const recentReqs = requestHistory.filter(t => now - t < 60000);
             report += `流量監控: RPM=${recentReqs.length}, Total=${requestHistory.length}\n`;
@@ -670,22 +666,32 @@
             box.value = report;
         }
 
-        function copyReport() {
+        function sendReport() {
+            // 1. Copy to Clipboard
             const box = document.getElementById('reportContent');
             generateReport();
-            
             box.select();
             document.execCommand('copy');
             
+            // 2. UI Feedback
             const btn = document.getElementById('btnCopy');
-            const originalText = btn.innerText;
-            btn.innerText = "已複製！請傳送給開發者";
+            btn.innerText = "已複製！正在開啟郵件...";
             btn.classList.add('copied');
             
+            // 3. Open Email
             setTimeout(() => {
-                btn.innerText = originalText;
-                btn.classList.remove('copied');
-            }, 3000);
+                const subject = encodeURIComponent("TRAIN LIVE 系統診斷回報");
+                // 這裡的 body 故意留空或只給提示，因為 log 可能太長會被截斷，讓使用者自己貼上最安全
+                const body = encodeURIComponent("（請在此處長按貼上剛剛複製的診斷報告）\n\n我的問題描述：\n");
+                
+                window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
+                
+                // Reset button
+                setTimeout(() => {
+                    btn.innerText = "複製報告並寄信";
+                    btn.classList.remove('copied');
+                }, 2000);
+            }, 1000);
         }
 
         init();
