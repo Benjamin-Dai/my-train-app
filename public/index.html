@@ -12,10 +12,14 @@
         .station-title { font-size: 1.3rem; font-weight: bold; margin: 0; }
         .sub-title { color: #666; font-size: 0.75rem; }
 
-        .controls { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; gap: 10px; }
-        .status-text { font-size: 0.75rem; color: #888; }
+        .controls { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 10px; gap: 5px; }
+        .controls-row { display: flex; align-items: center; gap: 10px; }
+        
+        .status-text { font-size: 0.75rem; color: #888; text-align: right;}
+        .countdown-text { font-size: 0.75rem; color: #007AFF; font-weight: 600; }
+        
         .refresh-btn {
-            background: #4d7f5e; color: white; border: none; padding: 6px 16px; 
+            background: #007AFF; color: white; border: none; padding: 6px 16px; 
             border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
             transition: opacity 0.2s;
         }
@@ -44,8 +48,11 @@
         </div>
 
         <div class="controls">
-            <span id="statusText" class="status-text">準備就緒</span>
-            <button id="refreshBtn" class="refresh-btn" onclick="manualRefresh()">更新</button>
+            <div class="controls-row">
+                <span id="statusText" class="status-text">準備就緒</span>
+                <button id="refreshBtn" class="refresh-btn" onclick="manualRefresh()">更新</button>
+            </div>
+            <div id="countdownText" class="countdown-text"></div>
         </div>
 
         <div id="cardList"></div>
@@ -56,51 +63,58 @@
         const API_URL = "/api/index?start=屏東&end=潮州"; 
         const CACHE_KEY = "train_data_v1";
         const COOLDOWN_KEY = "next_refresh_time";
-        
-        // 修改 1: 自動更新改為 30 分鐘 (1800秒)
-        const AUTO_REFRESH_INTERVAL = 1800 * 1000; 
-        
-        // 修改 2: 設定最大閒置時間 (這裡設定 2 小時)，超過此時間未操作將停止自動更新
-        const MAX_IDLE_TIME = 2 * 60 * 60 * 1000; 
+
+        // 時間單位 (毫秒)
+        const MINUTE = 60 * 1000;
+        const HOUR = 60 * MINUTE;
         // =========================================
 
         const btn = document.getElementById('refreshBtn');
         const statusText = document.getElementById('statusText');
+        const countdownText = document.getElementById('countdownText');
         const list = document.getElementById('cardList');
         
-        let timerInterval = null;      // 倒數計時器用
-        let autoRefreshTimer = null;   // 自動更新排程用
-        let lastActiveTime = Date.now(); // 記錄最後一次使用者活躍的時間
+        let cooldownTimer = null;    // 按鈕冷卻倒數
+        let autoUpdateTimer = null;  // 自動更新倒數(每秒檢查)
+        
+        let lastActiveTime = Date.now(); // 最後使用者互動時間
+        let nextFetchTime = 0;           // 下一次預計更新的時間點
 
         function init() {
-            checkCooldown();
+            checkButtonCooldown();
             
-            // 綁定頁面可見性偵測 (當使用者切換分頁時觸發)
+            // 綁定頁面可見性偵測
             document.addEventListener("visibilitychange", handleVisibilityChange);
 
             const cached = localStorage.getItem(CACHE_KEY);
+            let hasCache = false;
             if (cached) {
                 const data = JSON.parse(cached);
                 const now = Date.now();
-                // 檢查是否為 60 秒內的快取
                 if (now - data.timestamp < 60 * 1000) {
                     console.log("使用 LocalStorage 快取");
                     renderCards(data.payload);
-                    statusText.innerText = `更新於 ${data.payload.update_time} (快取)`;
-                    startAutoRefresh(); // 啟動自動更新計時
-                    return;
+                    statusText.innerText = `快取於 ${data.payload.update_time}`;
+                    hasCache = true;
                 }
             }
-            fetchData();
-            startAutoRefresh(); // 啟動自動更新計時
+
+            if (!hasCache) {
+                fetchData();
+            } else {
+                scheduleNextAutoRefresh(); // 有快取也要排程下一次
+            }
         }
 
         async function fetchData() {
-            // 更新最後活躍時間
-            lastActiveTime = Date.now();
-
+            // 只要觸發更新(不論手動自動)，都視為一次活躍，重置閒置計時
+            // 如果你想讓「自動更新」不算活躍(人不在)，請註解掉下面這行，只在 manualRefresh 保留
+            // 但通常更新後畫面變動，視為一個活躍點較合理，這裡我先不重置，只在手動按時重置。
+            
             btn.disabled = true;
             statusText.innerText = "更新中...";
+            countdownText.innerText = ""; // 更新中隱藏倒數
+            
             if (!list.hasChildNodes()) {
                  list.innerHTML = '<div class="message loading">正在連線 TDX...</div>';
             }
@@ -116,31 +130,111 @@
 
                 renderCards(json);
                 statusText.innerText = `更新於 ${json.update_time}`;
-                setCooldown(60); 
+                setButtonCooldown(60); 
 
             } catch (err) {
                 console.error(err);
                 statusText.innerText = "更新失敗";
                 list.innerHTML = `<div class="message">發生錯誤：${err.message}<br>請稍後再試</div>`;
                 btn.disabled = false;
+            } finally {
+                // 無論成功失敗，都重新排程下一次自動更新
+                scheduleNextAutoRefresh();
             }
         }
 
         function manualRefresh() { 
-            // 手動更新時，重置閒置計時
+            // 手動更新：重置「閒置起始時間」為現在
             lastActiveTime = Date.now();
             fetchData(); 
-            // 如果自動更新之前因為閒置被停掉了，這裡可以重新啟動
-            if (!autoRefreshTimer) startAutoRefresh();
         }
 
-        function setCooldown(seconds) {
+        // --- 核心邏輯：計算下一次更新時間 ---
+        function scheduleNextAutoRefresh() {
+            if (autoUpdateTimer) clearInterval(autoUpdateTimer);
+
+            const now = Date.now();
+            const idleTime = now - lastActiveTime;
+            let interval = 0;
+
+            // 規則判斷
+            if (idleTime < 15 * MINUTE) {
+                interval = 5 * MINUTE;      // 0~15分: 每5分
+            } else if (idleTime < 60 * MINUTE) {
+                interval = 15 * MINUTE;     // 15~60分: 每15分
+            } else if (idleTime < 2 * HOUR) {
+                interval = 30 * MINUTE;     // 1~2小時: 每30分
+            } else {
+                interval = -1;              // 超過2小時: 停止
+            }
+
+            if (interval === -1) {
+                countdownText.innerText = "已閒置過久，停止自動更新";
+                console.log("停止自動更新");
+                return;
+            }
+
+            nextFetchTime = now + interval;
+            console.log(`下次更新預計在: ${new Date(nextFetchTime).toLocaleTimeString()} (間隔 ${interval/1000}s)`);
+
+            // 啟動倒數計時器 (每秒更新 UI)
+            autoUpdateTimer = setInterval(tickAutoUpdate, 1000);
+            tickAutoUpdate(); // 立即執行一次顯示
+        }
+
+        function tickAutoUpdate() {
+            // 如果網頁在背景，不執行倒數更新與 Fetch，但在回來時會補
+            if (document.hidden) return;
+
+            const now = Date.now();
+            const remain = Math.ceil((nextFetchTime - now) / 1000);
+
+            if (remain <= 0) {
+                // 時間到：執行更新
+                clearInterval(autoUpdateTimer);
+                
+                // 檢查是否還在按鈕冷卻中 (避免雙重觸發)
+                if (btn.disabled && btn.innerText.includes("s")) {
+                    console.log("遇到按鈕冷卻，延後 10 秒嘗試");
+                    nextFetchTime = now + 10000;
+                    autoUpdateTimer = setInterval(tickAutoUpdate, 1000);
+                    return;
+                }
+
+                console.log("自動更新時間到，執行 Fetch");
+                fetchData();
+            } else {
+                // 格式化倒數顯示 MM:SS
+                const m = Math.floor(remain / 60);
+                const s = remain % 60;
+                const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                countdownText.innerText = `下一次更新：${timeStr}`;
+            }
+        }
+
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                console.log("背景模式：暫停 UI 倒數");
+            } else {
+                console.log("回到前景：檢查是否過期");
+                // 如果回來的瞬間，時間已經超過 nextFetchTime，立即更新
+                if (nextFetchTime > 0 && Date.now() > nextFetchTime) {
+                    console.log("背景期間已過期，立即更新");
+                    fetchData();
+                } else {
+                    // 如果沒過期，UI 會在下一秒 tickAutoUpdate 自動校正
+                }
+            }
+        }
+
+        // --- 按鈕冷卻邏輯 (不變) ---
+        function setButtonCooldown(seconds) {
             const nextTime = Date.now() + (seconds * 1000);
             localStorage.setItem(COOLDOWN_KEY, nextTime);
-            checkCooldown();
+            checkButtonCooldown();
         }
 
-        function checkCooldown() {
+        function checkButtonCooldown() {
             const nextTime = localStorage.getItem(COOLDOWN_KEY);
             if (!nextTime) return;
 
@@ -148,7 +242,7 @@
             const remain = Math.ceil((parseInt(nextTime) - now) / 1000);
 
             if (remain > 0) {
-                startTimer(remain);
+                startButtonTimer(remain);
             } else {
                 localStorage.removeItem(COOLDOWN_KEY);
                 btn.disabled = false;
@@ -156,17 +250,17 @@
             }
         }
 
-        function startTimer(initialSeconds) {
-            if (timerInterval) clearInterval(timerInterval);
+        function startButtonTimer(initialSeconds) {
+            if (cooldownTimer) clearInterval(cooldownTimer);
             let sec = initialSeconds;
             btn.disabled = true;
             btn.innerText = `${sec}s`;
 
-            timerInterval = setInterval(() => {
+            cooldownTimer = setInterval(() => {
                 sec--;
                 btn.innerText = `${sec}s`;
                 if (sec <= 0) {
-                    clearInterval(timerInterval);
+                    clearInterval(cooldownTimer);
                     btn.disabled = false;
                     btn.innerText = "更新";
                     localStorage.removeItem(COOLDOWN_KEY);
@@ -197,51 +291,6 @@
                 `;
             });
             list.innerHTML = html;
-        }
-
-        // 處理頁面可見性變化 (當使用者離開或回來時)
-        function handleVisibilityChange() {
-            if (document.hidden) {
-                console.log("頁面進入背景，暫停關注");
-            } else {
-                console.log("頁面回到前景");
-            }
-        }
-
-        // 啟動自動更新邏輯
-        function startAutoRefresh() {
-            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-            
-            console.log(`啟動自動更新排程，每 ${AUTO_REFRESH_INTERVAL/1000} 秒一次`);
-
-            autoRefreshTimer = setInterval(() => {
-                const now = Date.now();
-
-                // 檢查 1: 網頁是否在背景 (分頁沒被打開，或手機關閉螢幕)
-                if (document.hidden) {
-                    console.log("略過自動更新 (背景模式)");
-                    return;
-                }
-
-                // 檢查 2: 按鈕是否還在冷卻
-                if (btn.disabled && btn.innerText.includes("s")) {
-                     console.log("略過自動更新 (按鈕冷卻中)");
-                     return;
-                }
-
-                // 檢查 3: 閒置保護 (超過 2 小時沒人動)
-                if (now - lastActiveTime > MAX_IDLE_TIME) {
-                    console.log("已停止自動更新 (閒置逾時)");
-                    clearInterval(autoRefreshTimer);
-                    autoRefreshTimer = null;
-                    statusText.innerText = "已暫停更新 (閒置過久)";
-                    return;
-                }
-
-                console.log("觸發自動更新");
-                fetchData();
-
-            }, AUTO_REFRESH_INTERVAL);
         }
 
         init();
