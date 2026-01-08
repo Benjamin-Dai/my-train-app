@@ -44,6 +44,7 @@
         .btn { border: none; padding: 12px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
+        
         .btn-search { flex: 2; background: #fff; color: #000; }
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; font-size: 0.9rem; }
         .btn.error { background: #d32f2f !important; color: white !important; }
@@ -68,7 +69,7 @@
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
         .loading { color: #4d7f5e; }
 
-        /* Modal (關於視窗) */
+        /* Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 85vh; overflow-y: auto;}
         
@@ -92,7 +93,7 @@
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 系統診斷頁面樣式 */
+        /* Report Styles */
         .report-box { width: 100%; height: 150px; background: #111; border: 1px solid #444; color: #0f0; font-family: monospace; font-size: 0.75rem; padding: 10px; border-radius: 8px; margin-bottom: 10px; resize: none; box-sizing: border-box;}
         .copy-btn { width: 100%; background: #007AFF; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
         .copy-btn.copied { background: #4d7f5e; }
@@ -182,7 +183,7 @@
                     <strong>雙按鈕機制：</strong><br><br>
                     1. <strong>🔍 查詢路線 (左)：</strong><br>
                     切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
-                    若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
+                    若<strong>真的變更車站</strong>，每分鐘限查詢 2 次。<br><br>
                     2. <strong>🔄 更新 (右)：</strong><br>
                     刷新當前狀態。每次點擊後需等待 90 秒冷卻。<br><br>
                     <strong>燈號：</strong><br>
@@ -218,7 +219,7 @@
                 </div>
 
                 <div class="report-hint">
-                    若遇到問題，請點擊下方按鈕複製報告，並傳送郵件給開發者。
+                    若遇到問題，請描述狀況並點擊「複製報告」，傳送至上方信箱。
                 </div>
                 <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
                 <textarea id="reportContent" class="report-box" readonly></textarea>
@@ -311,7 +312,7 @@
         let retryTimer = null; 
         let searchCount = 0;
         let searchResetTime = Date.now();
-        const MAX_SEARCH_PER_MIN = 2;
+        const MAX_SEARCH_PER_MIN = 2; // 設定為 2
         let lastRefreshTime = 0; 
         let lastFetchedPair = { start: "", end: "" };
         let lockedUntil = 0;
@@ -447,18 +448,23 @@
             const now = Date.now();
             if (now - searchResetTime > 60000) {
                 searchCount = 0;
+            }
+            
+            // 修正計時器起點
+            if (searchCount === 0) {
                 searchResetTime = now;
             }
 
             if (searchCount >= MAX_SEARCH_PER_MIN) {
                 const waitTime = Math.ceil((60000 - (now - searchResetTime)) / 1000);
-                lockSearchButton(waitTime);
+                const safeWaitTime = waitTime > 0 ? waitTime : 60;
+                lockSearchButton(safeWaitTime);
                 logSystem("Limit", "Search Limit Reached");
                 return;
             }
 
             searchCount++;
-            logSystem("Action", `Search (${searchCount}/3): ${currentStart}->${currentEnd}`);
+            logSystem("Action", `Search (${searchCount}/${MAX_SEARCH_PER_MIN}): ${currentStart}->${currentEnd}`);
             fetchData("search"); 
         }
 
@@ -508,7 +514,8 @@
                 logSystem("API Success", `DelayFailed: ${json.delay_failed}`);
 
                 if (json.delay_failed) {
-                    statusMsg.innerText = `無法取得誤點資訊，60s 後自動重試`;
+                    // === 修正：簡化誤點失敗訊息 ===
+                    statusMsg.innerText = `誤點資訊無法取得 (詳見診斷)`;
                     statusMsg.className = "status-msg warning";
                     scheduleRetry(); 
                     setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
@@ -533,8 +540,8 @@
                 console.error(err);
                 logSystem("API Error", err.message);
                 
-                // === 修正：主頁面不顯示可怕錯誤，只引導診斷 ===
-                statusMsg.innerText = "連線發生錯誤";
+                // === 修正：簡化嚴重錯誤訊息 ===
+                statusMsg.innerText = "連線發生問題";
                 statusMsg.className = "status-msg alert";
                 list.innerHTML = `<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem; color:#888">請點擊右上角「?」進入系統診斷</span></div>`;
                 
@@ -552,8 +559,7 @@
             let count = 60;
             retryTimer = setInterval(() => {
                 count--;
-                statusMsg.innerText = `誤點資訊無法取得，${count}s 後重試...`; // 修改文字更溫和
-                statusMsg.className = "status-msg warning";
+                // 倒數時不顯示文字干擾，保持"誤點資訊無法取得"
                 if (count <= 0) {
                     clearInterval(retryTimer);
                     retryTimer = null;
@@ -681,7 +687,6 @@
             // 3. Open Email
             setTimeout(() => {
                 const subject = encodeURIComponent("TRAIN LIVE 系統診斷回報");
-                // 這裡的 body 故意留空或只給提示，因為 log 可能太長會被截斷，讓使用者自己貼上最安全
                 const body = encodeURIComponent("（請在此處長按貼上剛剛複製的診斷報告）\n\n我的問題描述：\n");
                 
                 window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
