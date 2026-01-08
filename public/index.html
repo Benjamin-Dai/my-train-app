@@ -44,7 +44,6 @@
         .btn { border: none; padding: 12px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
-        
         .btn-search { flex: 2; background: #fff; color: #000; }
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; font-size: 0.9rem; }
         .btn.error { background: #d32f2f !important; color: white !important; }
@@ -410,7 +409,10 @@
 
             if (!hit) {
                 if (isInit) {
-                    doRefresh(true);
+                    // 初始化沒快取，顯示提示，不自動抓
+                    statusMsg.innerText = "請按「查詢」開始使用";
+                    statusMsg.className = "status-msg";
+                    list.innerHTML = '<div class="message">請點擊上方按鈕查詢班次</div>';
                 } else {
                     list.style.opacity = "0.4";
                     statusMsg.innerText = "設定已變更，請按「查詢」";
@@ -450,7 +452,6 @@
                 searchCount = 0;
             }
             
-            // 修正計時器起點
             if (searchCount === 0) {
                 searchResetTime = now;
             }
