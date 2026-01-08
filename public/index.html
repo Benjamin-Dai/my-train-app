@@ -30,20 +30,31 @@
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
         /* 按鈕區域 (雙按鈕佈局) */
-        .action-area { margin-top: 15px; display: flex; gap: 10px; }
+        .action-area { margin-top: 15px; display: flex; gap: 10px; align-items: stretch; }
         
         .btn {
-            flex: 1; border: none; padding: 12px; border-radius: 12px; 
+            border: none; padding: 12px; border-radius: 12px; 
             font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s;
             display: flex; align-items: center; justify-content: center;
         }
         .btn:active { transform: scale(0.98); }
-        .btn:disabled { background: #333 !important; color: #888 !important; cursor: not-allowed; }
+        .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
 
-        /* 搜尋按鈕 (綠色) */
-        .btn-search { background: #4d7f5e; color: white; }
-        /* 更新按鈕 (藍色) */
-        .btn-refresh { background: #007AFF; color: white; }
+        /* 搜尋按鈕 (左邊，白色，大一點) */
+        .btn-search { 
+            flex: 2; /* 佔比較大 */
+            background: #fff; 
+            color: #000; 
+        }
+        
+        /* 更新按鈕 (右邊，綠色，小一點) */
+        .btn-refresh { 
+            flex: 1; /* 佔比較小 */
+            background: #4d7f5e; 
+            color: white; 
+            font-size: 0.9rem;
+        }
+        
         /* 錯誤/鎖定狀態 (紅色) */
         .btn.error { background: #d32f2f !important; color: white !important; }
 
@@ -100,7 +111,7 @@
 
             <div class="action-area">
                 <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
-                <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新誤點</button>
+                <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
             </div>
             
             <div class="status-container">
@@ -118,19 +129,17 @@
             <div class="modal-text">
                 <strong>雙按鈕機制：</strong><br><br>
                 1. <strong>🔍 查詢路線 (左)：</strong><br>
-                當您變更車站時使用。每分鐘限 3 次。超過將鎖定 60 秒。<br><br>
-                2. <strong>🔄 更新誤點 (右)：</strong><br>
-                當您想刷新當前誤點時使用。每次點擊後需等待 90 秒。<br><br>
-                <strong>狀態燈號：</strong><br>
-                <span style="color:#e6b800">黃字</span>：誤點資料連線失敗 (系統會自動重試)。<br>
-                <span style="color:#ff4d4d">紅字</span>：操作過於頻繁。
+                切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
+                若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
+                2. <strong>🔄 更新 (右)：</strong><br>
+                刷新當前狀態。每次點擊後需等待 90 秒冷卻。<br><br>
             </div>
             <button class="modal-close" onclick="closeModal()">關閉</button>
         </div>
     </div>
 
     <script>
-        // ================= 資料結構區 (保持不變) =================
+        // ================= 資料結構區 =================
         const STATION_DATA = {
             "基隆/新北": ["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],
             "臺北市": ["南港","松山","臺北","萬華"],
@@ -172,9 +181,9 @@
         const modal = document.getElementById('aboutModal');
 
         // --- 變數管理 ---
-        let refreshTimer = null; // 更新按鈕的倒數計時器
-        let searchLockTimer = null; // 搜尋按鈕鎖定的倒數計時器
-        let retryTimer = null; // 誤點重試計時器
+        let refreshTimer = null; 
+        let searchLockTimer = null; 
+        let retryTimer = null; 
 
         // 搜尋限制相關
         let searchCount = 0;
@@ -182,7 +191,10 @@
         const MAX_SEARCH_PER_MIN = 3;
 
         // 更新限制相關
-        let lastRefreshTime = 0; // 上次成功抓取資料的時間
+        let lastRefreshTime = 0; 
+        
+        // 紀錄上次成功抓取的車站，用來判斷是否真的切換了
+        let lastFetchedPair = { start: "", end: "" };
 
         function init() {
             // 初始化選單
@@ -252,7 +264,7 @@
             localStorage.setItem(PREF_START_R_KEY, startRegion.value); localStorage.setItem(PREF_START_S_KEY, startStation.value);
             localStorage.setItem(PREF_END_R_KEY, endRegion.value); localStorage.setItem(PREF_END_S_KEY, endStation.value);
             
-            // 如果快取有資料，先顯示，但提示已變更
+            // 檢查快取
             attemptLoadCache(false); 
         }
 
@@ -273,14 +285,17 @@
                     statusMsg.innerText = "準備就緒";
                     statusMsg.className = "status-msg";
                     list.style.opacity = "1";
+                    
+                    // 快取命中也視為同步成功
+                    lastFetchedPair = { start: startStation.value, end: endStation.value };
                     hit = true;
                 }
             }
 
             if (!hit) {
                 if (isInit) {
-                    // 初始化沒快取，強制執行一次更新
-                    doRefresh(true); // true 表示不扣額度
+                    // 初始化沒快取，強制執行一次更新 (不計入搜尋次數)
+                    doRefresh(true); 
                 } else {
                     list.style.opacity = "0.4";
                     statusMsg.innerText = "設定已變更，請按「查詢」";
@@ -295,8 +310,20 @@
 
         // ================= 按鈕邏輯區 =================
 
-        // 1. 搜尋按鈕邏輯 (切換路線用)
+        // 1. 搜尋按鈕邏輯
         function doSearch() {
+            const currentStart = startStation.value;
+            const currentEnd = endStation.value;
+
+            // 檢查是否真的換了車站
+            // 如果沒換，視為「更新」
+            if (currentStart === lastFetchedPair.start && currentEnd === lastFetchedPair.end) {
+                statusMsg.innerText = "車站未變更，執行更新模式";
+                setTimeout(() => { if(!statusMsg.classList.contains("alert")) statusMsg.innerText = "準備就緒"; }, 2000);
+                doRefresh(); // 轉發給更新邏輯
+                return;
+            }
+
             const now = Date.now();
 
             // 重置計數器 (如果過了一分鐘)
@@ -311,18 +338,20 @@
                 return;
             }
 
-            searchCount++;
-            fetchData("search"); // "search" 模式
+            // 先不+1，等成功再+1，但要鎖住防止連點
+            fetchData("search"); 
         }
 
-        // 2. 更新按鈕邏輯 (原地更新用)
+        // 2. 更新按鈕邏輯
         function doRefresh(skipCheck = false) {
             if (!skipCheck) {
                 const now = Date.now();
                 const elapsed = now - lastRefreshTime;
                 if (elapsed < 90000) {
-                    // 雖然按鈕應該 disabled，但防呆
-                    return; 
+                    // 顯示冷卻警告
+                    const wait = Math.ceil((90000 - elapsed) / 1000);
+                    lockRefreshButton(wait); // 觸發視覺倒數
+                    return;
                 }
             }
             fetchData("refresh");
@@ -335,10 +364,9 @@
             statusMsg.className = "status-msg";
             list.style.opacity = "1";
             
-            // 清除誤點重試 Timer
             if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
 
-            // 鎖定對應按鈕
+            // 鎖定按鈕
             if (mode === "search") btnSearch.disabled = true;
             if (mode === "refresh") btnRefresh.disabled = true;
 
@@ -352,9 +380,12 @@
 
                 if (json.error) throw new Error(json.error);
 
-                // 成功
+                // 成功抓取
                 const cacheObj = { timestamp: Date.now(), payload: json };
                 localStorage.setItem(getCacheKey(), JSON.stringify(cacheObj));
+                
+                // 更新同步狀態
+                lastFetchedPair = { start: s, end: e };
 
                 renderCards(json);
 
@@ -362,7 +393,7 @@
                 if (json.delay_failed) {
                     statusMsg.innerText = `無法取得誤點資訊，60s 後自動重試`;
                     statusMsg.className = "status-msg warning";
-                    scheduleRetry(); // 啟動自動重試
+                    scheduleRetry(); 
                     setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
                 } else {
                     statusMsg.innerText = "更新完成";
@@ -370,16 +401,23 @@
                     setUpdateText(`更新於: ${json.update_time}`);
                 }
 
-                // === 成功後的按鈕處理 ===
+                // === 成功後的後續處理 ===
                 
-                // 不管是 Search 還是 Refresh 成功，"更新按鈕" 都要進入 90秒 冷卻
-                // 因為資料已經是最新的了
-                lastRefreshTime = Date.now();
-                lockRefreshButton(90);
-
-                // 如果是 "搜尋模式"，搜尋按鈕可以解鎖 (除非達到每分鐘 3 次)
                 if (mode === "search") {
-                     btnSearch.disabled = false;
+                    // 搜尋成功：搜尋計數 +1
+                    searchCount++;
+                    // 解鎖搜尋按鈕 (給個短暫延遲，視覺好一點)
+                    setTimeout(() => btnSearch.disabled = false, 500);
+                    
+                    // 搜尋成功同時也算一次更新，所以更新按鈕也要進入 90秒 冷卻
+                    lastRefreshTime = Date.now();
+                    lockRefreshButton(90);
+                }
+
+                if (mode === "refresh") {
+                    // 更新成功：進入 90秒 冷卻
+                    lastRefreshTime = Date.now();
+                    lockRefreshButton(90);
                 }
 
             } catch (err) {
@@ -387,9 +425,9 @@
                 statusMsg.innerText = "查詢失敗";
                 list.innerHTML = `<div class="message">發生錯誤：${err.message}<br>請稍後再試</div>`;
                 
-                // 失敗時，簡單解鎖，讓使用者可以重試 (除了 Refresh 還是給一點冷卻防刷)
-                if (mode === "search") btnSearch.disabled = false;
-                if (mode === "refresh") lockRefreshButton(10); // 失敗給 10 秒冷卻
+                // 失敗處理：解除按鈕鎖定 (給一點點延遲防刷)
+                if (mode === "search") setTimeout(() => btnSearch.disabled = false, 2000);
+                if (mode === "refresh") setTimeout(() => btnRefresh.disabled = false, 2000);
             }
         }
 
@@ -398,7 +436,7 @@
             localStorage.setItem("last_update_text", text);
         }
 
-        // 誤點失敗的自動重試 (會觸發 Refresh 邏輯)
+        // 誤點失敗的自動重試
         function scheduleRetry() {
             let count = 60;
             retryTimer = setInterval(() => {
@@ -407,15 +445,14 @@
                 if (count <= 0) {
                     clearInterval(retryTimer);
                     retryTimer = null;
-                    // 重試相當於一次 Refresh (跳過冷卻檢查)
-                    doRefresh(true); 
+                    doRefresh(true); // 強制重試
                 }
             }, 1000);
         }
 
         // --- 鎖定邏輯 ---
 
-        // 鎖定「搜尋按鈕」(紅字警告)
+        // 鎖定「搜尋按鈕」 (紅字警告)
         function lockSearchButton(seconds) {
             if (searchLockTimer) clearInterval(searchLockTimer);
             
@@ -431,8 +468,11 @@
                     btnSearch.disabled = false;
                     btnSearch.classList.remove('error');
                     btnSearch.innerText = "🔍 查詢路線";
-                    statusMsg.innerText = "準備就緒";
-                    statusMsg.className = "status-msg";
+                    // 只有當狀態還是頻繁操作時才清除
+                    if (statusMsg.innerText.includes("頻繁")) {
+                        statusMsg.innerText = "準備就緒";
+                        statusMsg.className = "status-msg";
+                    }
                 }
                 seconds--;
             };
@@ -440,18 +480,18 @@
             searchLockTimer = setInterval(tick, 1000);
         }
 
-        // 鎖定「更新按鈕」(正常倒數)
+        // 鎖定「更新按鈕」 (正常倒數)
         function lockRefreshButton(seconds) {
             if (refreshTimer) clearInterval(refreshTimer);
             
             btnRefresh.disabled = true;
             
             const tick = () => {
-                btnRefresh.innerText = `更新誤點 (${seconds})`;
+                btnRefresh.innerText = `更新 (${seconds})`;
                 if (seconds <= 0) {
                     clearInterval(refreshTimer);
                     btnRefresh.disabled = false;
-                    btnRefresh.innerText = "🔄 更新誤點";
+                    btnRefresh.innerText = "🔄 更新";
                 }
                 seconds--;
             };
