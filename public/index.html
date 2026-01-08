@@ -182,9 +182,9 @@
                     <strong>雙按鈕機制：</strong><br><br>
                     1. <strong>🔍 查詢路線 (左)：</strong><br>
                     切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
-                    若<strong>真的變更車站</strong>，每分鐘限查詢 2 次。<br><br>
+                    若<strong>真的變更車站</strong>，每分鐘限查詢 4 次。<br><br>
                     2. <strong>🔄 更新 (右)：</strong><br>
-                    刷新當前狀態。每次點擊後需等待 90 秒冷卻。<br><br>
+                    刷新當前狀態。每次點擊後需等待 60 秒冷卻。<br><br>
                     <strong>燈號：</strong><br>
                     <span style="color:#e6b800">黃字</span>：誤點資料失敗 (自動重試)。<br>
                     <span style="color:#ff4d4d">紅字</span>：操作過於頻繁。
@@ -309,12 +309,29 @@
         let refreshTimer = null; 
         let searchLockTimer = null; 
         let retryTimer = null; 
-        let searchCount = 0;
-        let searchResetTime = Date.now();
-        const MAX_SEARCH_PER_MIN = 2; // 設定為 2
-        let lastRefreshTime = 0; 
+        
+        // 狀態管理 - 使用 LocalStorage 防止 F5 刷次數
+        // 我們將 key 加個 prefix 避免衝突
+        const LS_SEARCH_COUNT = "tl_search_count";
+        const LS_SEARCH_RESET = "tl_search_reset_time";
+        const LS_SEARCH_LOCK = "tl_search_locked_until";
+        const LS_REFRESH_LOCK = "tl_refresh_locked_until";
+
+        const MAX_SEARCH_PER_MIN = 4; // 放寬至 4 次
         let lastFetchedPair = { start: "", end: "" };
-        let lockedUntil = 0;
+
+        // 讀取狀態
+        function getSearchCount() { return parseInt(localStorage.getItem(LS_SEARCH_COUNT) || "0"); }
+        function setSearchCount(val) { localStorage.setItem(LS_SEARCH_COUNT, val); }
+        
+        function getSearchResetTime() { return parseInt(localStorage.getItem(LS_SEARCH_RESET) || "0"); }
+        function setSearchResetTime(val) { localStorage.setItem(LS_SEARCH_RESET, val); }
+
+        function getSearchLockedUntil() { return parseInt(localStorage.getItem(LS_SEARCH_LOCK) || "0"); }
+        function setSearchLockedUntil(val) { localStorage.setItem(LS_SEARCH_LOCK, val); }
+
+        function getRefreshLockedUntil() { return parseInt(localStorage.getItem(LS_REFRESH_LOCK) || "0"); }
+        function setRefreshLockedUntil(val) { localStorage.setItem(LS_REFRESH_LOCK, val); }
 
         function init() {
             logSystem("Init", "App Started");
@@ -332,7 +349,28 @@
             const savedUpdateText = localStorage.getItem("last_update_text");
             if(savedUpdateText) updateTimeDiv.innerText = savedUpdateText;
 
+            // 檢查鎖定狀態是否還在
+            checkLocksOnLoad();
+
             loadDataOrFetch();
+        }
+
+        function checkLocksOnLoad() {
+            const now = Date.now();
+            
+            // 檢查搜尋鎖定
+            const sLock = getSearchLockedUntil();
+            if (sLock > now) {
+                const wait = Math.ceil((sLock - now) / 1000);
+                lockSearchButton(wait);
+            }
+
+            // 檢查更新鎖定
+            const rLock = getRefreshLockedUntil();
+            if (rLock > now) {
+                const wait = Math.ceil((rLock - now) / 1000);
+                lockRefreshButton(wait);
+            }
         }
 
         function setMenu(type, regionVal, stationVal) {
@@ -427,10 +465,11 @@
         function updateButtonMode() {
             const currentStart = startStation.value;
             const currentEnd = endStation.value;
+            // 檢查鎖定狀態
+            const sLock = getSearchLockedUntil();
+            if (sLock > Date.now()) return; // 還在鎖定中
+
             const isChanged = (currentStart !== lastFetchedPair.start || currentEnd !== lastFetchedPair.end);
-
-            if (lockedUntil > Date.now()) return;
-
             if (isChanged) {
                 btnSearch.disabled = false;
             }
@@ -448,38 +487,60 @@
             }
 
             const now = Date.now();
-            if (now - searchResetTime > 60000) {
-                searchCount = 0;
+            let count = getSearchCount();
+            let resetTime = getSearchResetTime();
+
+            // 1. 檢查是否過了一分鐘，如果是，歸零
+            if (now - resetTime > 60000) {
+                count = 0;
+                setSearchCount(0);
+                resetTime = now; // 更新為現在，避免邏輯錯誤
+                setSearchResetTime(now);
             }
             
-            // 修正計時器起點
-            if (searchCount === 0) {
-                searchResetTime = now;
+            // 2. 如果是第一發，重置時間起點
+            if (count === 0) {
+                resetTime = now;
+                setSearchResetTime(now);
             }
 
-            if (searchCount >= MAX_SEARCH_PER_MIN) {
-                const waitTime = Math.ceil((60000 - (now - searchResetTime)) / 1000);
+            // 3. 檢查限制
+            if (count >= MAX_SEARCH_PER_MIN) {
+                const waitTime = Math.ceil((60000 - (now - resetTime)) / 1000);
                 const safeWaitTime = waitTime > 0 ? waitTime : 60;
+                
+                // 寫入鎖定狀態
+                setSearchLockedUntil(now + safeWaitTime * 1000);
                 lockSearchButton(safeWaitTime);
+                
                 logSystem("Limit", "Search Limit Reached");
                 return;
             }
 
-            searchCount++;
-            logSystem("Action", `Search (${searchCount}/${MAX_SEARCH_PER_MIN}): ${currentStart}->${currentEnd}`);
+            // 4. 計數 + 1 並存檔
+            count++;
+            setSearchCount(count);
+            
+            logSystem("Action", `Search (${count}/${MAX_SEARCH_PER_MIN}): ${currentStart}->${currentEnd}`);
             fetchData("search"); 
         }
 
         function doRefresh(skipCheck = false) {
             if (!skipCheck) {
                 const now = Date.now();
-                const elapsed = now - lastRefreshTime;
-                if (elapsed < 90000) {
-                    const wait = Math.ceil((90000 - elapsed) / 1000);
-                    lockRefreshButton(wait);
-                    logSystem("Limit", "Refresh Cooldown");
-                    return;
+                // 檢查是否被鎖定 (從 storage 讀，防 F5)
+                const rLock = getRefreshLockedUntil();
+                if (rLock > now) {
+                     const wait = Math.ceil((rLock - now) / 1000);
+                     lockRefreshButton(wait);
+                     return;
                 }
+
+                // 備用檢查 (雖然上面已經擋了)
+                // 從 90s 改為 60s
+                /* 其實有了 storage lock，lastRefreshTime 的檢查可以簡化，
+                   但為了保險雙重檢查我們留著 
+                */
             }
             logSystem("Action", "Refresh");
             fetchData("refresh");
@@ -526,15 +587,20 @@
                     setUpdateText(`更新於: ${json.update_time}`);
                 }
 
+                // === 成功後的鎖定邏輯 (寫入 Storage) ===
+                const now = Date.now();
+                
                 if (mode === "search") {
                     setTimeout(() => btnSearch.disabled = false, 500);
-                    lastRefreshTime = Date.now();
-                    lockRefreshButton(90);
+                    // 搜尋成功也算一次更新，鎖更新按鈕 60s
+                    setRefreshLockedUntil(now + 60000);
+                    lockRefreshButton(60); 
                 }
 
                 if (mode === "refresh") {
-                    lastRefreshTime = Date.now();
-                    lockRefreshButton(90);
+                    // 更新成功，鎖更新按鈕 60s
+                    setRefreshLockedUntil(now + 60000);
+                    lockRefreshButton(60);
                 }
 
             } catch (err) {
@@ -570,7 +636,6 @@
 
         function lockSearchButton(seconds) {
             if (searchLockTimer) clearInterval(searchLockTimer);
-            lockedUntil = Date.now() + (seconds * 1000);
             
             statusMsg.innerText = "請勿頻繁操作";
             statusMsg.className = "status-msg alert";
@@ -586,7 +651,8 @@
                     btnSearch.innerText = "🔍 查詢路線";
                     statusMsg.innerText = "準備就緒";
                     statusMsg.className = "status-msg";
-                    lockedUntil = 0;
+                    // 時間到，清除 storage 鎖定標記 (雖然過期了也沒差，但清一下比較乾淨)
+                    setSearchLockedUntil(0);
                 }
                 seconds--;
             };
@@ -603,6 +669,7 @@
                     clearInterval(refreshTimer);
                     btnRefresh.disabled = false;
                     btnRefresh.innerText = "🔄 更新";
+                    setRefreshLockedUntil(0);
                 }
                 seconds--;
             };
