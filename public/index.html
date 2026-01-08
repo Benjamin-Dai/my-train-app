@@ -15,7 +15,7 @@
         .controls { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; gap: 10px; }
         .status-text { font-size: 0.75rem; color: #888; }
         .refresh-btn {
-            background: #007AFF; color: white; border: none; padding: 6px 16px; 
+            background: #4d7f5e; color: white; border: none; padding: 6px 16px; 
             border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
             transition: opacity 0.2s;
         }
@@ -86,7 +86,7 @@
                 if (now - data.timestamp < 60 * 1000) {
                     console.log("使用 LocalStorage 快取");
                     renderCards(data.payload);
-                    statusText.innerText = `快取於 ${data.payload.update_time}`;
+                    statusText.innerText = `更新於 ${data.payload.update_time} (快取)`;
                     startAutoRefresh(); // 啟動自動更新計時
                     return;
                 }
