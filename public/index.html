@@ -140,7 +140,7 @@
     <div id="inAppOverlay" onclick="this.style.display='none'">
         <div class="guide-icon">🌏</div>
         <div style="color:#fff; font-size:1.1rem; line-height:1.6;">請切換至瀏覽器開啟</div>
-        <div class="guide-highlight">1. 點擊選單 (⋮ / ⋯)<br><br>2. 選擇「在瀏覽器開啟」</div>
+        <div class="guide-highlight">1. 點擊選單 (⋮)<br><br>2. 選擇「在瀏覽器開啟」</div>
         <div style="font-size:0.8rem; color:#aaa; margin-top:20px;">(點擊任意處關閉)</div>
     </div>
 
@@ -439,7 +439,6 @@
                 setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit","Search Limit"); return;
             }
             cnt++; setSearchCount(cnt); 
-            // === 修改：操作紀錄顯示路線 ===
             logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN}) ${sS}→${eS}`); 
             fetchData("search");
         }
@@ -448,7 +447,6 @@
                 const now=Date.now(); const rL=getRefreshLockedUntil();
                 if(rL>now) { lockRefreshButton(Math.ceil((rL-now)/1000)); return; }
             }
-            // === 修改：操作紀錄顯示路線 ===
             logSystem("Action",`Refresh ${startStation.value}→${endStation.value}`); 
             fetchData("refresh");
         }
@@ -489,9 +487,8 @@
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
-                // === 修改：Log 合併顯示額度 ===
                 const displayQuota = (rInfo.quota !== "--") ? rInfo.quota : dInfo.quota;
-                logSystem("Status", `${rInfo.source} / ${dInfo.source} (剩: ${displayQuota})`);
+                logSystem("Status", `狀態: ${rInfo.source} / ${dInfo.source} (剩: ${displayQuota})`);
 
                 if(json.delay_failed) {
                     statusMsg.innerText="誤點資訊無法取得 (60s 後重試)"; statusMsg.className="status-msg warning";
@@ -592,7 +589,6 @@
 
                 const displayQuota = (lastDiagnostics.route_quota !== "--") ? lastDiagnostics.route_quota : lastDiagnostics.delay_quota;
 
-                // === 修改：診斷面板合併顯示 ===
                 const elStatus = document.getElementById('diagStatus');
                 elStatus.innerHTML = `<span class="badge ${getColor(lastDiagnostics.route_source)}">${lastDiagnostics.route_source}</span> / <span class="badge ${getColor(lastDiagnostics.delay_source)}">${lastDiagnostics.delay_source}</span>`;
                 
