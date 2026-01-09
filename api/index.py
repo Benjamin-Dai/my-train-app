@@ -16,9 +16,9 @@ except ImportError:
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 
-# 自動抓取資料庫連線字串
-# 優先抓取你設定的 UPSTASH_REDIS_URL，如果沒有則嘗試預設的 KV_URL
-KV_URL = os.environ.get('UPSTASH_REDIS_URL') or os.environ.get('KV_URL')
+# 自動抓取資料庫連線字串 (修正版)
+# 優先抓取你截圖中的 UPSTASH_REDIS_KV_URL，如果沒有則嘗試其他可能的名稱
+KV_URL = os.environ.get('UPSTASH_REDIS_KV_URL') or os.environ.get('UPSTASH_REDIS_URL') or os.environ.get('KV_URL')
 
 DEFAULT_START = '屏東'
 DEFAULT_END = '潮州'
@@ -78,7 +78,7 @@ class handler(BaseHTTPRequestHandler):
         if val: return f"API {res.status_code} (剩: {val})"
         return f"API {res.status_code}"
 
-    # === 使用 Redis 存取誤點資訊 (關鍵修改) ===
+    # === 使用 Redis 存取誤點資訊 ===
     def get_cached_delays(self, headers):
         cache_key = "tra_delay_data"
         
@@ -223,7 +223,6 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
-            # Vercel Serverless Function 的快取設定
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
