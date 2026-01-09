@@ -122,8 +122,6 @@
         .menu-btn:active { background: #3a3a3c; }
         .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
         .menu-btn.special { animation: pulse-gold 3s infinite ease-in-out; }
-        /* 分享按鈕的特殊顏色 */
-        .menu-btn.share { border-color: #007AFF; color: #007AFF; background: rgba(0, 122, 255, 0.1); }
         
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
@@ -227,7 +225,7 @@
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
                 
-                <button class="menu-btn share" onclick="shareApp()">📤 分享給朋友</button>
+                <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
                 
                 <div style="height:10px"></div>
                 <button class="modal-close" onclick="closeModal()">關閉</button>
@@ -366,6 +364,7 @@
 
         if (isIos && !isInStandaloneMode) {
             btnInstall.style.display = 'block';
+            btnInstall.innerText = "📲 新增到主畫面"; // iOS 專屬文字
         }
 
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -390,7 +389,7 @@
         }
         // ====================================
 
-        // === 新增：分享功能 ===
+        // === 分享功能 ===
         async function shareApp() {
             const shareData = {
                 title: 'TRAIN LIVE 列車時刻',
@@ -398,7 +397,6 @@
                 url: window.location.href
             };
 
-            // 優先使用原生分享
             if (navigator.share) {
                 try {
                     await navigator.share(shareData);
@@ -406,7 +404,6 @@
                     console.log('Share canceled', err);
                 }
             } else {
-                // 不支援時，改為複製連結
                 try {
                     await navigator.clipboard.writeText(window.location.href);
                     alert('已複製連結！傳送給朋友吧！');
@@ -415,7 +412,7 @@
                 }
             }
         }
-        // ======================
+        // ===============
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
@@ -634,7 +631,6 @@
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
                 
-                // === 修改：簡化 Log 顯示，記錄剩餘額度 ===
                 const extVal = (str) => {
                     if(!str) return "--";
                     const match = str.match(/\(剩:\s*(\d+)\)/);
@@ -643,7 +639,6 @@
                 const rVal = extVal(json.diagnostics.route_status);
                 const dVal = extVal(json.diagnostics.delay_status);
                 logSystem("API", `額度 V3:${rVal}, V2:${dVal}`);
-                // ==========================================
 
                 if(json.delay_failed) {
                     statusMsg.innerText="誤點資訊無法取得 (60s 後自動重試)"; statusMsg.className="status-msg warning";
@@ -746,7 +741,6 @@
             
             if(id==='Report'){
                 const now=Date.now();
-                // 1. 計算流量
                 const rpm=requestHistory.filter(t=>now-t<60000).length;
                 document.getElementById('statRpm').innerText=rpm;
                 if(rpm>=5) document.getElementById('cardRpm').classList.add('danger');
@@ -756,14 +750,12 @@
                 const last=requestHistory[requestHistory.length-1];
                 document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
 
-                // 2. 設定 API 狀態標籤 (Route)
                 const dRoute = document.getElementById('diagRoute');
                 dRoute.innerText = lastDiagnostics.route_status;
                 if(lastDiagnostics.route_status.includes("Cache")) dRoute.className = "badge green";
                 else if(lastDiagnostics.route_status.includes("API")) dRoute.className = "badge yellow";
                 else dRoute.className = "badge red";
 
-                // 3. 設定 API 狀態標籤 (Delay)
                 const dDelay = document.getElementById('diagDelay');
                 dDelay.innerText = lastDiagnostics.delay_status;
                 if(lastDiagnostics.delay_status.includes("Cache") || lastDiagnostics.delay_status.includes("0點")) dDelay.className = "badge green";
@@ -771,12 +763,10 @@
                 else if(lastDiagnostics.delay_status.includes("Failed")) dDelay.className = "badge red";
                 else dDelay.className = "badge yellow";
 
-                // 4. 裝置資訊
                 const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
                 document.getElementById('diagPwa').innerText = isStandalone ? "已安裝 (App)" : "瀏覽器 (Web)";
                 document.getElementById('diagRes').innerText = `${window.innerWidth} x ${window.innerHeight}`;
 
-                // 5. 生成報告文字
                 let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
                 r += `裝置: ${navigator.userAgent}\n`;
                 r += `畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
@@ -785,22 +775,16 @@
                 r += `狀態: Route=[${lastDiagnostics.route_status}], Delay=[${lastDiagnostics.delay_status}]\n`;
                 r += `--- Log ---\n${systemLogs.join("\n")}`;
 
-                // 填入隱藏的 textarea (給複製用)
                 document.getElementById('reportContent').value = r;
-                
-                // 填入漂亮的 terminal view (給觀賞用)
                 document.getElementById('terminalView').innerText = systemLogs.join("\n");
             }
         }
 
         function copyReportOnly() {
-            // 取得基礎報告
             let finalReport = document.getElementById('reportContent').value;
-            // 加入使用者的描述
             const uDesc = document.getElementById('userDesc').value; 
             if(uDesc) finalReport += `\n\nUser: ${uDesc}`;
             
-            // 使用 Clipboard API
             navigator.clipboard.writeText(finalReport).then(() => {
                 const btn=document.getElementById('btnCopyReport'); 
                 const originalText = btn.innerText;
@@ -808,7 +792,7 @@
                 btn.style.background = "#4d7f5e";
                 setTimeout(()=>{ 
                     btn.innerText = originalText; 
-                    btn.style.background = ""; // 恢復原色
+                    btn.style.background = ""; 
                 }, 2000);
             }).catch(err => {
                 console.error('複製失敗', err);
