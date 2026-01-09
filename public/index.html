@@ -13,7 +13,7 @@
 
     <meta property="og:type" content="website">
     <meta property="og:title" content="TRAIN LIVE | 列車時刻即時看板">
-    <meta property="og:description" content="誤點自動計算，顯示實際到站時間。">
+    <meta property="og:description" content="誤點自動計算，顯示實際到站時間。掌握通勤節奏，不再焦慮等待。">
     <meta property="og:url" content="https://benjamindai-train-app.vercel.app/">
     <meta property="og:image" content="https://benjamindai-train-app.vercel.app/icon.png">
     <meta property="og:image:width" content="512">
@@ -92,8 +92,11 @@
         .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; padding: 6px 0; }
         .arrow { margin: 0 6px; color: #666; font-size: 0.8rem; }
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
+        .card.past { opacity: 0.5; filter: grayscale(0.8); }
+        .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
 
+        /* 骨架屏動畫樣式 */
         .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
         @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .sk-line { background: #333; border-radius: 4px; }
@@ -693,13 +696,6 @@
             const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
             const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
-        }
-
-        // 新增：註冊 Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js');
-            });
         }
 
         init();
