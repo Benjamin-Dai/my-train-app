@@ -130,7 +130,7 @@ class handler(BaseHTTPRequestHandler):
         else: 
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
-    # === 核心處理邏輯 (新增 fix_crossing_night 參數) ===
+    # === 核心處理邏輯 ===
     def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=False):
         processed = []
         for item in raw_list:
@@ -147,8 +147,8 @@ class handler(BaseHTTPRequestHandler):
             
             if not dep_time or not arr_time: continue 
 
-            # 過濾明天太晚的車
-            if is_tomorrow and dep_time > "06:00":
+            # 明天的資料只抓到中午12:00，避免顯示過多
+            if is_tomorrow and dep_time > "12:00":
                 continue
 
             display_type = raw_type
@@ -161,19 +161,19 @@ class handler(BaseHTTPRequestHandler):
             elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
             elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
 
-            delay = int(delays.get(no, 0))
+            # 【修正點】如果是明天的車，強制誤點為 0，避免繼承到今天的誤點資料
+            if is_tomorrow:
+                delay = 0
+            else:
+                delay = int(delays.get(no, 0))
             
-            # 解析時間
             dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
             arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
             
-            # 【關鍵修正】如果是處理昨天的班表，且發現時間是凌晨(跨日車)，必須強制+1天
-            # 這樣 "昨天 00:31" 就會變成 "今天 00:31"
             if fix_crossing_night:
                 if dep_time < "12:00": dep_dt += timedelta(days=1)
                 if arr_time < "12:00": arr_dt += timedelta(days=1)
 
-            # 處理一般的跨日抵達 (出發比抵達晚)
             if arr_dt < dep_dt: arr_dt += timedelta(days=1)
 
             real_dep = dep_dt + timedelta(minutes=delay)
@@ -220,7 +220,7 @@ class handler(BaseHTTPRequestHandler):
             # 2. 明天
             raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
             
-            # 3. 昨天 (凌晨 00:00~04:00 時才抓)
+            # 3. 昨天 (凌晨補救)
             raw_yest = []
             status_yest = "Skipped"
             if now.hour < 4:
@@ -240,21 +240,15 @@ class handler(BaseHTTPRequestHandler):
 
             processed = []
             
-            # 4. 合併資料與處理
-            
-            # (A) 處理昨天：開啟 fix_crossing_night=True，讓 00:31 的車變成今天
+            # 合併處理
             if raw_yest:
                 yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
                 processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=True))
 
-            # (B) 處理今天
             processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
-            
-            # (C) 處理明天
             processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=True))
 
-            # 5. 排序與去重 (避免極少數情況下有重複資料)
-            # 這裡用 dict 去重，以 sort_key + no 為鍵
+            # 去重與排序
             unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
             result = sorted(unique_dict.values(), key=lambda x: x['sort_key'])
             
