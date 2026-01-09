@@ -14,9 +14,11 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="TRAIN LIVE | 列車時刻即時看板">
     <meta property="og:description" content="誤點自動計算，顯示實際到站時間。掌握通勤節奏，不再焦慮等待。">
-    <meta property="og:image" content="/icon.png">
+    <meta property="og:url" content="https://benjamindai-train-app.vercel.app/">
+    <meta property="og:image" content="https://benjamindai-train-app.vercel.app/icon.png">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
+    <meta name="twitter:card" content="summary">
 
     <style>
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
@@ -437,7 +439,7 @@
             const c=localStorage.getItem(getCacheKey()); let hit=false;
             if(c) {
                 const d=JSON.parse(c);
-                if(Date.now()-d.timestamp<60000) {
+                if(Date.now()-d.timestamp < 60000) {
                     if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
                     renderCards(d.payload); setUpdateText(`更新於(快取): ${d.payload.update_time}`);
                     statusMsg.innerText=""; statusMsg.className="status-msg"; list.style.opacity="1"; 
@@ -511,11 +513,8 @@
         }
 
         async function fetchData(mode) {
-            // 1. 鎖定按鈕 UI
-            if(mode==="search") btnSearch.disabled=true; 
-            if(mode==="refresh") btnRefresh.disabled=true;
+            if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
             
-            // 2. 顯示骨架屏 (讓使用者覺得有在做事)
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
             statusMsg.innerText=""; 
@@ -523,43 +522,27 @@
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
             const s=startStation.value; const e=endStation.value; 
             
-            // === 核心修改：檢查快取是否在 60 秒內 ===
+            // 檢查快取 (60秒)
             const cacheKey = getCacheKey();
             const cached = localStorage.getItem(cacheKey);
-            let useCache = false;
 
             if (cached) {
                 const d = JSON.parse(cached);
-                // 如果資料存在且「小於 60 秒」
                 if (Date.now() - d.timestamp < 60000) { 
-                    useCache = true;
-                    // 模擬一點點延遲 (200ms)，讓使用者感覺有「刷新」的動作，體驗更好
                     await new Promise(r => setTimeout(r, 200)); 
-                    
-                    // 使用快取資料渲染
                     if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false);
                     renderCards(d.payload);
-                    setUpdateText(`更新於: ${d.payload.update_time} (資料未過期)`); // 提示使用者
-                    
-                    // 恢復變數
+                    setUpdateText(`更新於: ${d.payload.update_time} (資料未過期)`);
                     lastFetchedPair={start:s,end:e};
                     logSystem("Cache", "Hit local (Age < 60s)");
                     
-                    // 重新鎖定按鈕 (滿足 30 秒控制欲循環)
                     const now = Date.now();
-                    if(mode==="search"){ 
-                        setTimeout(()=>btnSearch.disabled=false, 500);
-                        setRefreshLockedUntil(now+30000); lockRefreshButton(30); 
-                    }
-                    if(mode==="refresh"){ 
-                        setRefreshLockedUntil(now+30000); lockRefreshButton(30); 
-                    }
-                    return; // <--- 直接結束，不發送真實請求
+                    if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false, 500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                    if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                    return;
                 }
             }
-            // ==========================================
 
-            // 3. 如果沒快取 或 資料已過期 (>60s)，才真的發送請求
             recordRequest();
             try {
                 const res=await fetch(`/api/index?start=${s}&end=${e}`);
@@ -571,7 +554,6 @@
                 lastFetchedPair={start:s,end:e};
 
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
-                // 寫入快取 (更新 timestamp)
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
@@ -584,18 +566,9 @@
                 } else {
                     setUpdateText(`更新於: ${json.update_time}`);
                 }
-                
-                // 請求完成，一樣鎖定按鈕
                 const now=Date.now();
-                if(mode==="search"){ 
-                    setTimeout(()=>btnSearch.disabled=false,500); 
-                    setRefreshLockedUntil(now+30000); // 30s
-                    lockRefreshButton(30); 
-                }
-                if(mode==="refresh"){ 
-                    setRefreshLockedUntil(now+30000); // 30s
-                    lockRefreshButton(30); 
-                }
+                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
                 scheduleRetry("連線發生問題", "status-msg alert");
