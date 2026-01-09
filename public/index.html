@@ -17,7 +17,6 @@
     <meta property="og:image" content="/icon.png">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
-    <meta name="twitter:card" content="summary">
 
     <style>
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
@@ -95,7 +94,7 @@
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
 
-        /* 骨架屏樣式 (優化項目 4) */
+        /* 骨架屏動畫樣式 */
         .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
         @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .sk-line { background: #333; border-radius: 4px; }
@@ -512,15 +511,56 @@
         }
 
         async function fetchData(mode) {
-            if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
+            // 1. 鎖定按鈕 UI
+            if(mode==="search") btnSearch.disabled=true; 
+            if(mode==="refresh") btnRefresh.disabled=true;
             
-            // 顯示骨架屏
+            // 2. 顯示骨架屏 (讓使用者覺得有在做事)
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
-            statusMsg.innerText=""; // 清空文字狀態
+            statusMsg.innerText=""; 
 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
-            const s=startStation.value; const e=endStation.value; recordRequest();
+            const s=startStation.value; const e=endStation.value; 
+            
+            // === 核心修改：檢查快取是否在 60 秒內 ===
+            const cacheKey = getCacheKey();
+            const cached = localStorage.getItem(cacheKey);
+            let useCache = false;
+
+            if (cached) {
+                const d = JSON.parse(cached);
+                // 如果資料存在且「小於 60 秒」
+                if (Date.now() - d.timestamp < 60000) { 
+                    useCache = true;
+                    // 模擬一點點延遲 (200ms)，讓使用者感覺有「刷新」的動作，體驗更好
+                    await new Promise(r => setTimeout(r, 200)); 
+                    
+                    // 使用快取資料渲染
+                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false);
+                    renderCards(d.payload);
+                    setUpdateText(`更新於: ${d.payload.update_time} (資料未過期)`); // 提示使用者
+                    
+                    // 恢復變數
+                    lastFetchedPair={start:s,end:e};
+                    logSystem("Cache", "Hit local (Age < 60s)");
+                    
+                    // 重新鎖定按鈕 (滿足 30 秒控制欲循環)
+                    const now = Date.now();
+                    if(mode==="search"){ 
+                        setTimeout(()=>btnSearch.disabled=false, 500);
+                        setRefreshLockedUntil(now+30000); lockRefreshButton(30); 
+                    }
+                    if(mode==="refresh"){ 
+                        setRefreshLockedUntil(now+30000); lockRefreshButton(30); 
+                    }
+                    return; // <--- 直接結束，不發送真實請求
+                }
+            }
+            // ==========================================
+
+            // 3. 如果沒快取 或 資料已過期 (>60s)，才真的發送請求
+            recordRequest();
             try {
                 const res=await fetch(`/api/index?start=${s}&end=${e}`);
                 const age = res.headers.get('Age');
@@ -531,6 +571,7 @@
                 lastFetchedPair={start:s,end:e};
 
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
+                // 寫入快取 (更新 timestamp)
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
@@ -541,9 +582,10 @@
                     scheduleRetry("誤點資訊無法取得", "status-msg warning");
                     setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
                 } else {
-                    // statusMsg.innerText="更新完成"; statusMsg.className="status-msg"; // 移除文字提示，讓畫面更乾淨
                     setUpdateText(`更新於: ${json.update_time}`);
                 }
+                
+                // 請求完成，一樣鎖定按鈕
                 const now=Date.now();
                 if(mode==="search"){ 
                     setTimeout(()=>btnSearch.disabled=false,500); 
