@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import urllib.request
 import urllib.error
 
-# === 1. 車站代碼對照表 (修正版) ===
+# === 1. 車站代碼對照表 ===
 STATION_MAP = {
     # === 縱貫線北段 ===
     "基隆": "0900", "三坑": "0910", "八堵": "0920", "七堵": "0930", "百福": "0940",
@@ -87,7 +87,7 @@ class TDXToken:
     def __init__(self):
         self.access_token = None
         self.expires_at = 0
-        # 🔴 這裡修正了：改成讀取您 Vercel 設定的環境變數名稱
+        # 讀取 Vercel 設定的環境變數 (TDX_ID / TDX_SECRET)
         self.client_id = os.environ.get("TDX_ID")
         self.client_secret = os.environ.get("TDX_SECRET")
 
@@ -152,17 +152,16 @@ class handler(BaseHTTPRequestHandler):
             now = datetime.now(tz)
             today_str = now.strftime('%Y-%m-%d')
             
-            headers = {"Authorization": f"Bearer {token}", "Accept-Encoding": "gzip"}
+            # 🔴 修正：移除 "Accept-Encoding": "gzip"，避免 Vercel 無法解碼
+            headers = {"Authorization": f"Bearer {token}"}
 
             # API 1: 時刻表 (OD)
-            # 抓取該區間今日所有班次
             url_schedule = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{today_str}?%24format=JSON"
             
-            # API 2: 即時動態 (Live Board) - 用於取得誤點資訊
-            # 針對「起點站」查詢電子看板，效率較高
+            # API 2: 即時動態 (Live Board)
             url_live = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/TrainLiveBoard/Station/{start_id}?%24format=JSON"
 
-            # 4. 抓取資料 (平行處理概念，但 Python http.server 是同步的，依序抓取)
+            # 4. 抓取資料
             schedule_data = []
             delay_map = {} # {車次號: 誤點分鐘}
             delay_failed = False
@@ -186,12 +185,11 @@ class handler(BaseHTTPRequestHandler):
                         for item in live_data['TrainLiveBoards']:
                             delay_map[item['TrainNo']] = item.get('DelayTime', 0)
             except Exception:
-                delay_failed = True # 誤點抓失敗不應卡死，顯示時刻表即可
+                delay_failed = True 
 
             # 5. 資料整合與過濾
             final_trains = []
             
-            # 定義車種顏色
             def get_color(train_type_name):
                 t = train_type_name
                 if '普悠瑪' in t: return '#FF4081' # 粉紅
@@ -205,8 +203,6 @@ class handler(BaseHTTPRequestHandler):
                 info = train['TrainInfo']
                 stop_times = train['StopTimes']
                 
-                # 找出起點與終點時間
-                # API 回傳的 StopTimes[0] 通常就是起點，但為了保險起見還是對應一下 StationID
                 dep_time_str = ""
                 arr_time_str = ""
                 
@@ -223,29 +219,22 @@ class handler(BaseHTTPRequestHandler):
                 delay = int(delay_map.get(train_no, 0))
                 
                 # 計算實際時間
-                # 處理跨日 (雖少見但預防萬一)
                 dep_dt = datetime.strptime(f"{today_str} {dep_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=tz)
                 arr_dt = datetime.strptime(f"{today_str} {arr_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=tz)
                 
-                # 如果終點時間比起點早，代表跨日，終點加一天
                 if arr_dt < dep_dt:
                     arr_dt += timedelta(days=1)
 
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
 
-                # === 核心邏輯：過濾過期車次 ===
-                # 規則：只保留「現在時間 - 10分鐘」之後的車
-                # 例如現在 10:00，只顯示 09:50 之後發車的 (09:50 算是剛走)
+                # 過濾邏輯：只保留「現在時間 - 10分鐘」之後的車
                 cutoff_time = now - timedelta(minutes=10)
                 
                 if real_dep < cutoff_time:
-                    continue # 太舊了，跳過
+                    continue 
 
-                # 標記是否已駛離 (但還在10分鐘緩衝期內)
                 is_past = real_dep < now
-
-                # 簡化車種名稱 (去掉 (3000) 之類的雜訊)
                 t_type = info['TrainTypeName']['Zh_tw'].split('(')[0]
 
                 final_trains.append({
@@ -258,10 +247,10 @@ class handler(BaseHTTPRequestHandler):
                     "act_dep": real_dep.strftime("%H:%M"),
                     "act_arr": real_arr.strftime("%H:%M"),
                     "is_past": is_past,
-                    "sort_ts": real_dep.timestamp() # 用於排序
+                    "sort_ts": real_dep.timestamp()
                 })
 
-            # 6. 排序 (依實際發車時間)
+            # 6. 排序
             final_trains.sort(key=lambda x: x['sort_ts'])
 
             # 7. 回傳結果
@@ -281,7 +270,7 @@ class handler(BaseHTTPRequestHandler):
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Cache-Control', 's-maxage=10, stale-while-revalidate=59') # Vercel 快取設定
+            self.send_header('Cache-Control', 's-maxage=10, stale-while-revalidate=59')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps(response_data).encode('utf-8'))
