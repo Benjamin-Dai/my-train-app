@@ -131,6 +131,7 @@ class handler(BaseHTTPRequestHandler):
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
     # === 核心處理邏輯 ===
+    # 移除了所有對 dep_time 字串的過濾，全部保留，最後由時間戳記決定去留
     def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=False):
         processed = []
         for item in raw_list:
@@ -147,10 +148,6 @@ class handler(BaseHTTPRequestHandler):
             
             if not dep_time or not arr_time: continue 
 
-            # 明天的資料只抓到中午12:00，避免顯示過多
-            if is_tomorrow and dep_time > "12:00":
-                continue
-
             display_type = raw_type
             type_color = "#ffffff"
             if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
@@ -161,7 +158,9 @@ class handler(BaseHTTPRequestHandler):
             elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
             elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
 
-            # 【修正點】如果是明天的車，強制誤點為 0，避免繼承到今天的誤點資料
+            # 誤點處理邏輯：
+            # 如果資料來源是明天 (is_tomorrow=True)，誤點歸零 (因為還沒發車)
+            # 如果是今天或昨天，則顯示即時誤點
             if is_tomorrow:
                 delay = 0
             else:
@@ -170,15 +169,18 @@ class handler(BaseHTTPRequestHandler):
             dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
             arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
             
+            # 處理昨天跨日車 (例如昨天班表裡的 00:30)
             if fix_crossing_night:
                 if dep_time < "12:00": dep_dt += timedelta(days=1)
                 if arr_time < "12:00": arr_dt += timedelta(days=1)
 
+            # 處理一般的跨日抵達
             if arr_dt < dep_dt: arr_dt += timedelta(days=1)
 
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
 
+            # 這裡計算 is_past，但暫時不過濾，留到最後統一過濾
             is_past = real_dep < (now - timedelta(minutes=10))
 
             real_dep_aware = real_dep.replace(tzinfo=tz_tw)
@@ -215,12 +217,11 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            # 1. 今天
+            # 抓取今天與明天
             raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
-            # 2. 明天
             raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
             
-            # 3. 昨天 (凌晨補救)
+            # 抓取昨天 (凌晨補救跨夜車)
             raw_yest = []
             status_yest = "Skipped"
             if now.hour < 4:
@@ -240,7 +241,7 @@ class handler(BaseHTTPRequestHandler):
 
             processed = []
             
-            # 合併處理
+            # 合併處理所有資料
             if raw_yest:
                 yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
                 processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=True))
@@ -248,9 +249,25 @@ class handler(BaseHTTPRequestHandler):
             processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
             processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=True))
 
-            # 去重與排序
+            # 去重：使用 sort_key + no 確保唯一
             unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
-            result = sorted(unique_dict.values(), key=lambda x: x['sort_key'])
+            
+            # === 最終過濾：滑動視窗 (Sliding Window) ===
+            # 只保留：現在時間前 10 分鐘 ~ 未來 22 小時內的車
+            # 這樣就能實現「看到隔天同一班車」的效果，又不會無限延伸
+            final_result = []
+            now_ts = now.timestamp()
+            
+            # 設定未來視窗：22小時 (涵蓋幾乎整天，但避免顯示到後天的車)
+            future_limit = now_ts + (22 * 3600) 
+            past_limit = now_ts - 600 # 過去 10 分鐘
+
+            for p in unique_dict.values():
+                ts = p['sort_key']
+                if ts >= past_limit and ts <= future_limit:
+                    final_result.append(p)
+
+            result = sorted(final_result, key=lambda x: x['sort_key'])
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
