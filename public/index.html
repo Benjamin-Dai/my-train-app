@@ -16,8 +16,6 @@
     <meta property="og:description" content="誤點自動計算，顯示實際到站時間。掌握通勤節奏，不再焦慮等待。">
     <meta property="og:url" content="https://benjamindai-train-app.vercel.app/">
     <meta property="og:image" content="https://benjamindai-train-app.vercel.app/icon.png">
-    <meta property="og:image:width" content="512">
-    <meta property="og:image:height" content="512">
     <meta name="twitter:card" content="summary">
 
     <style>
@@ -87,7 +85,7 @@
         .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
-        .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
         .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; padding: 6px 0; }
         .arrow { margin: 0 6px; color: #666; font-size: 0.8rem; }
@@ -164,6 +162,25 @@
         #btnStar { font-size: 1.1rem; padding: 2px 8px; }
         /* 啟用狀態的星星 (綠色主題，使用現有的 active tool-btn 樣式組合) */
         #btnStar.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); text-shadow: 0 0 5px rgba(77, 127, 94, 0.5); }
+
+        /* === 狀態標籤與電子看板動畫 === */
+        .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
+        
+        .status-tag.arriving { color: #4d7f5e; border: 1px solid #4d7f5e; background: rgba(77, 127, 94, 0.1); padding-left: 6px; }
+        .led-group { display: flex; flex-direction: column; gap: 3px; margin-right: 6px; }
+        .led-dot { width: 5px; height: 5px; background-color: #4d7f5e; border-radius: 50%; }
+        .led-dot.top { animation: blink-primary 1s infinite step-end; }
+        .led-dot.bottom { animation: blink-secondary 1s infinite step-end; }
+        @keyframes blink-primary { 0%, 49% { opacity: 1; box-shadow: 0 0 4px #4d7f5e; } 50%, 100% { opacity: 0.2; box-shadow: none; } }
+        @keyframes blink-secondary { 0%, 49% { opacity: 0.2; box-shadow: none; } 50%, 100% { opacity: 1; box-shadow: 0 0 4px #4d7f5e; } }
+
+        .status-tag.departed { color: #888; border: 1px solid #555; background: #222; }
+        .status-tag.delay { color: hsl(40, 100%, 50%); border: 1px solid hsl(40, 100%, 50%); }
+
+        .card.departed-card { opacity: 0.5; filter: grayscale(1); border-left-color: #555 !important; }
+        .card.departed-card:active { transform: none; background-color: #151517; }
+        .delay-badge { display: none; }
     </style>
 </head>
 <body>
@@ -405,7 +422,7 @@
                 statusMsg.innerText="等待輸入...";
                 checkLocksOnLoad();
             }
-            // 【新增】初始化渲染快速路線與星星狀態
+            // 初始化渲染快速路線與星星狀態
             renderQuickRoutes();
             updateStarState();
         }
@@ -448,7 +465,7 @@
             localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
             localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
             attemptLoadCache(false);
-            // 【新增】車站變更時，更新星星按鈕狀態
+            // 車站變更時，更新星星按鈕狀態
             updateStarState();
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
@@ -495,7 +512,7 @@
                 const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60;
                 setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit","Search Limit"); return;
             }
-            // 【新增】在查詢前加入歷史紀錄
+            // 在查詢前加入歷史紀錄
             addToHistory();
             cnt++; setSearchCount(cnt); 
             logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN}) ${sS}→${eS}`); 
@@ -645,24 +662,92 @@
         }
 
         function renderCards(data) {
-            if(data.trains&&data.trains.length>0) {
-                let html=`<div class="click-hint">👆 點擊卡片查看「列車即時位置」與「完整停靠站」</div>`;
+            if(data.trains && data.trains.length > 0) {
+                let html = `<div class="click-hint">👆 點擊卡片查看「列車即時位置」與「完整停靠站」</div>`;
                 let has = false;
-                data.trains.forEach(t=>{
-                    if (!isShowAll && t.is_past) return; has = true;
-                    let delayTag=!data.delay_failed && t.delay>0 ? `<div class="delay-badge">誤點 ${t.delay} 分</div>` : "";
-                    const url=`https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                    html+=`<a href="${url}" target="_blank"><div class="card ${t.is_past?'past':''}" style="border-left-color:${t.color};">
-                        ${delayTag}<div class="train-info" style="color:${t.color};">${t.type} ${t.no} 次</div>
-                        <div class="main-time"><span>${formatTime(t.act_dep)}</span><span class="arrow">➔</span><span>${formatTime(t.act_arr)}</span></div>
-                        <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
-                    </div></a>`;
+
+                // 取得使用者當下的時間 (秒)，用於前端即時判斷
+                const nowSec = Math.floor(Date.now() / 1000);
+
+                data.trains.forEach(t => {
+                    // 計算與「實際發車時間」的時間差 (秒)
+                    const diffSec = t.sort_key - nowSec;
+                    const diffMin = Math.floor(diffSec / 60);
+
+                    // 1. 已駛離: 時間差 < 0
+                    let isDeparted = diffSec < 0; 
+                    
+                    // 2. 進站中: 還沒駛離，且時間在 10 分鐘內
+                    let isArriving = !isDeparted && diffMin <= 10;
+
+                    // 過濾邏輯：如果沒開啟「顯示全部」，且車子已經駛離超過 10 分鐘，就不顯示
+                    if (!isShowAll && diffMin < -10) return;
+                    
+                    has = true;
+
+                    // 產生右上角標籤 HTML
+                    let badgesHtml = '';
+
+                    if (isDeparted) {
+                        badgesHtml = `<div class="status-tag departed">已駛離</div>`;
+                    } else {
+                        // 進站中 (顯示雙點交替閃爍)
+                        if (isArriving) {
+                            badgesHtml += `
+                            <div class="status-tag arriving">
+                                <div class="led-group">
+                                    <div class="led-dot top"></div>
+                                    <div class="led-dot bottom"></div>
+                                </div>
+                                進站中
+                            </div>`;
+                        }
+
+                        // 誤點資訊
+                        if (!data.delay_failed && t.delay > 0) {
+                            badgesHtml += `<div class="status-tag delay">誤點 ${t.delay} 分</div>`;
+                        }
+                    }
+
+                    const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
+                    
+                    // 設定卡片樣式 (已駛離要變灰)
+                    let cardClass = "card";
+                    if (isDeparted) cardClass += " departed-card";
+
+                    html += `<a href="${url}" target="_blank">
+                        <div class="${cardClass}" style="border-left-color:${t.color};">
+                            
+                            <div class="status-badge-container">
+                                ${badgesHtml}
+                            </div>
+
+                            <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">
+                                ${t.type} ${t.no} 次
+                            </div>
+                            
+                            <div class="main-time">
+                                <span>${formatTime(t.act_dep)}</span>
+                                <span class="arrow">➔</span>
+                                <span>${formatTime(t.act_arr)}</span>
+                            </div>
+                            
+                            <div class="sub-time">
+                                原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}
+                            </div>
+                        </div>
+                    </a>`;
                 });
-                list.innerHTML = (!has && !isShowAll) ? `<div class="message">後續已無班次 👋<br><span style="font-size:0.8rem;color:#666">點擊上方「全部」查看整日班表</span></div>` : html;
+
+                list.innerHTML = (!has && !isShowAll) ? 
+                    `<div class="message">後續已無班次 👋<br><span style="font-size:0.8rem;color:#666">點擊上方「全部」查看整日班表</span></div>` : html;
                 return;
             }
-            const orig=data.stats?data.stats.original_count:0;
-            list.innerHTML=orig>0 ? `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : `<div class="message">查無此區間直達列車 ⚠️</div>`;
+            
+            const orig = data.stats ? data.stats.original_count : 0;
+            list.innerHTML = orig > 0 ? 
+                `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : 
+                `<div class="message">查無此區間直達列車 ⚠️</div>`;
         }
 
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
@@ -722,7 +807,7 @@
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
         }
 
-        // === 新增功能：常用路線與歷史紀錄邏輯 ===
+        // === 常用路線與歷史紀錄邏輯 ===
         const LS_FAV = "tl_favorites";
         const LS_HIST = "tl_history";
         const MAX_HIST = 3;
