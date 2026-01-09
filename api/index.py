@@ -3,7 +3,7 @@ import json
 import requests
 import os
 import time
-from datetime import datetime, timedelta, timezone # 【修正 1】引入 timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
 import redis
 
@@ -72,7 +72,7 @@ class handler(BaseHTTPRequestHandler):
         if val: return f"API {res.status_code} (剩: {val})"
         return f"API {res.status_code}"
 
-    # === 使用 Redis 存取誤點資訊 ===
+    # === 使用 Redis 存取誤點資訊 (V2) - 維持 60 秒 ===
     def get_cached_delays(self, headers):
         cache_key = "tra_delay_data"
         
@@ -121,6 +121,8 @@ class handler(BaseHTTPRequestHandler):
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
             
+            # 【修改點】改回 12 小時 (43200秒)
+            # 這是一個兼顧「資料準確度」與「API 省流」的最佳平衡點
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
@@ -129,6 +131,58 @@ class handler(BaseHTTPRequestHandler):
             return (raw_list, status_str)
         else: 
             raise Exception(f"TDX Timetable Error: {res.status_code}")
+
+    def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False):
+        processed = []
+        for item in raw_list:
+            info = item.get('TrainInfo', {})
+            no = info.get('TrainNo')
+            raw_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
+            stop_times = item.get('StopTimes', [])
+            
+            dep_time, arr_time = None, None
+            for stop in stop_times:
+                s_id = stop.get('StationID')
+                if s_id == start_id: dep_time = stop.get('DepartureTime')
+                elif s_id == end_id: arr_time = stop.get('ArrivalTime')
+            
+            if not dep_time or not arr_time: continue 
+
+            if is_tomorrow and dep_time > "06:00":
+                continue
+
+            display_type = raw_type
+            type_color = "#ffffff"
+            if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
+            elif "區間" in raw_type: display_type, type_color = "區間車", "#0076B2"
+            elif "普悠瑪" in raw_type: display_type, type_color = "普悠瑪", "#9C1637"
+            elif "3000" in raw_type: display_type, type_color = "自強3000", "#85a38f"
+            elif "自強" in raw_type: display_type, type_color = "自強號", "#DF3F1F"
+            elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
+            elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
+
+            delay = int(delays.get(no, 0))
+            
+            dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
+            arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
+            
+            if arr_dt < dep_dt: arr_dt += timedelta(days=1)
+
+            real_dep = dep_dt + timedelta(minutes=delay)
+            real_arr = arr_dt + timedelta(minutes=delay)
+
+            is_past = real_dep < (now - timedelta(minutes=10))
+
+            real_dep_aware = real_dep.replace(tzinfo=tz_tw)
+
+            processed.append({
+                "no": no, "type": display_type, "delay": delay, "color": type_color,
+                "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
+                "sch_dep": dep_time, "sch_arr": arr_time,
+                "sort_key": real_dep_aware.timestamp(),
+                "is_past": is_past
+            })
+        return processed
 
     def do_GET(self):
         parsed_path = urlparse(self.path)
@@ -144,16 +198,17 @@ class handler(BaseHTTPRequestHandler):
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
-        # 【修正 2】定義台灣時區
         tz_tw = timezone(timedelta(hours=8))
-        
-        # 這裡的 now 還是保持 naive (不帶時區)，用來跟 TDX 原始字串做比較與顯示
         now = datetime.now() + timedelta(hours=8)
+        
         today_str = now.strftime('%Y-%m-%d')
+        tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+        
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            raw_list, route_status = self.get_route_timetable(start_id, end_id, today_str, headers)
+            raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
+            raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
 
             delays = {}
             delay_failed = False
@@ -167,51 +222,12 @@ class handler(BaseHTTPRequestHandler):
                 delay_status = "Failed"
 
             processed = []
-            for item in raw_list:
-                info = item.get('TrainInfo', {})
-                no = info.get('TrainNo')
-                raw_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
-                stop_times = item.get('StopTimes', [])
-                dep_time, arr_time = None, None
-                for stop in stop_times:
-                    s_id = stop.get('StationID')
-                    if s_id == start_id: dep_time = stop.get('DepartureTime')
-                    elif s_id == end_id: arr_time = stop.get('ArrivalTime')
-                if not dep_time or not arr_time: continue 
-
-                display_type = raw_type
-                type_color = "#ffffff"
-                if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
-                elif "區間" in raw_type: display_type, type_color = "區間車", "#0076B2"
-                elif "普悠瑪" in raw_type: display_type, type_color = "普悠瑪", "#9C1637"
-                elif "3000" in raw_type: display_type, type_color = "自強3000", "#85a38f"
-                elif "自強" in raw_type: display_type, type_color = "自強號", "#DF3F1F"
-                elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
-                elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
-
-                delay = int(delays.get(no, 0))
-                dep_dt = datetime.strptime(f"{today_str} {dep_time}", "%Y-%m-%d %H:%M")
-                arr_dt = datetime.strptime(f"{today_str} {arr_time}", "%Y-%m-%d %H:%M")
-                if arr_dt < dep_dt: arr_dt += timedelta(days=1)
-
-                real_dep = dep_dt + timedelta(minutes=delay)
-                real_arr = arr_dt + timedelta(minutes=delay)
-
-                is_past = real_dep < (now - timedelta(minutes=10))
-
-                # 【修正 3】計算 sort_key 時，強制加上時區，讓 .timestamp() 算出正確的 UTC 時間戳記
-                # 這樣前端 (JavaScript) 收到後，跟瀏覽器的 Date.now() 比較才會正確
-                real_dep_aware = real_dep.replace(tzinfo=tz_tw)
-
-                processed.append({
-                    "no": no, "type": display_type, "delay": delay, "color": type_color,
-                    "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
-                    "sch_dep": dep_time, "sch_arr": arr_time,
-                    "sort_key": real_dep_aware.timestamp(), # 使用帶時區的時間戳記
-                    "is_past": is_past
-                })
+            
+            processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
+            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=True))
 
             result = sorted(processed, key=lambda x: x['sort_key'])
+            
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -225,7 +241,7 @@ class handler(BaseHTTPRequestHandler):
                 "delay_failed": delay_failed,
                 "trains": result,
                 "diagnostics": {
-                    "route_status": route_status,
+                    "route_status": f"{status_today} / {status_tmrw}",
                     "delay_status": delay_status
                 }
             }).encode())
