@@ -10,7 +10,6 @@ import ssl
 
 # === 1. 車站代碼對照表 (完整版) ===
 STATION_MAP = {
-    # === 縱貫線北段 ===
     "基隆": "0900", "三坑": "0910", "八堵": "0920", "七堵": "0930", "百福": "0940",
     "五堵": "0950", "汐止": "0960", "汐科": "0970", "南港": "0980", "松山": "0990",
     "臺北": "1000", "萬華": "1010", "板橋": "1020", "浮洲": "1030", "樹林": "1040",
@@ -19,21 +18,15 @@ STATION_MAP = {
     "新富": "1140", "北湖": "1150", "湖口": "1160", "新豐": "1170", "竹北": "1180", 
     "北新竹": "1190", "新竹": "1210", "三姓橋": "1220", "香山": "1230", "崎頂": "1240", 
     "竹南": "1250",
-
-    # === 海線 ===
     "談文": "2110", "大山": "2120", "後龍": "2130", "龍港": "2140", "白沙屯": "2150",
     "新埔": "2160", "通霄": "2170", "苑裡": "2180", "日南": "2190", "大甲": "2200",
     "臺中港": "2210", "清水": "2220", "沙鹿": "2230", "龍井": "2240", "大肚": "2250",
     "追分": "2260",
-
-    # === 山線 ===
     "造橋": "3140", "豐富": "3150", "苗栗": "3160", "南勢": "3170", "銅鑼": "3180",
     "三義": "3190", "泰安": "3210", "后里": "3220", "豐原": "3230", "栗林": "3240",
     "潭子": "3250", "頭家厝": "3260", "松竹": "3270", "太原": "3280", "精武": "3290",
     "臺中": "3300", "五權": "3310", "大慶": "3320", "烏日": "3330", "新烏日": "3340",
     "成功": "3350",
-
-    # === 縱貫線南段 ===
     "彰化": "3360", "花壇": "3370", "大村": "3380", "員林": "3390", "永靖": "3400",
     "社頭": "3410", "田中": "3420", "二水": "3430", "林內": "3450", "石榴": "3460",
     "斗六": "3470", "斗南": "3480", "石龜": "3490", "大林": "4050", "民雄": "4060",
@@ -44,25 +37,17 @@ STATION_MAP = {
     "大湖": "4280", "路竹": "4290", "岡山": "4300", "橋頭": "4310", "楠梓": "4320", 
     "新左營": "4330", "左營": "4340", "內惟": "4350", "美術館": "4360", "鼓山": "4370", 
     "三塊厝": "4380", "高雄": "4400",
-
-    # === 屏東線 ===
     "民族": "4410", "科工館": "4420", "正義": "4430", "鳳山": "4440", "後庄": "4450", 
     "九曲堂": "4460", "六塊厝": "4470", "屏東": "5000", "歸來": "5010", "麟洛": "5020", 
     "西勢": "5030", "竹田": "5040", "潮州": "5050", "崁頂": "5060", "南州": "5070", 
     "鎮安": "5080", "林邊": "5090", "佳冬": "5100", "東海": "5110", "枋寮": "5120",
-
-    # === 南迴線 ===
     "加祿": "5130", "內獅": "5140", "枋山": "5160", "大武": "5190", "瀧溪": "5200",
     "金崙": "5210", "太麻里": "5220", "知本": "5230", "康樂": "5240", "臺東": "6000",
-
-    # === 臺東線 ===
     "山里": "6010", "鹿野": "6020", "瑞源": "6030", "瑞和": "6040", "關山": "6050",
     "海端": "6060", "池上": "6070", "富里": "6080", "東竹": "6090", "東里": "6100",
     "玉里": "6110", "三民": "6120", "瑞穗": "6130", "富源": "6140", "大富": "6150",
     "光復": "6160", "萬榮": "6170", "鳳林": "6180", "南平": "6190", "林榮新光": "6200",
     "豐田": "6210", "壽豐": "6220", "平和": "6230", "志學": "6240", "吉安": "6250",
-
-    # === 北迴線/宜蘭線 ===
     "花蓮": "7000", "北埔": "7010", "景美": "7020", "新城": "7030", "崇德": "7040",
     "和仁": "7050", "和平": "7060", "漢本": "7070", "武塔": "7080", "南澳": "7090",
     "東澳": "7100", "永樂": "7110", "蘇澳": "7120", "蘇澳新": "7130", "冬山": "7140",
@@ -70,10 +55,7 @@ STATION_MAP = {
     "礁溪": "7200", "頂埔": "7210", "頭城": "7220", "外澳": "7230", "龜山": "7240",
     "大溪": "7250", "大里": "7260", "石城": "7270", "福隆": "7280", "貢寮": "7290",
     "雙溪": "7300", "牡丹": "7310", "三貂嶺": "7320", 
-    "暖暖": "7390", "四腳亭": "7380", 
-    "侯硐": "7350", "瑞芳": "7360", 
-
-    # === 支線 ===
+    "暖暖": "7390", "四腳亭": "7380", "侯硐": "7350", "瑞芳": "7360", 
     "大華": "7331", "十分": "7332", "望古": "7333", "嶺腳": "7334", "平溪": "7335",
     "菁桐": "7336", "海科館": "7361", "八斗子": "7362",
     "千甲": "1191", "新莊": "1192", "六家": "1193", "竹中": "1194", 
@@ -160,10 +142,10 @@ class handler(BaseHTTPRequestHandler):
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
 
-            # API 1: 時刻表 (DailyTrainTimetable)
+            # API 1: 時刻表
             url_schedule = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{today_str}?%24format=JSON"
             
-            # API 2: 車站電子看板 (StationLiveBoard) - 修正後的正確網址
+            # API 2: 車站電子看板 (使用正確的 StationLiveBoard)
             url_live = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/StationLiveBoard/Station/{start_id}?%24format=JSON"
 
             schedule_data = []
@@ -178,18 +160,16 @@ class handler(BaseHTTPRequestHandler):
                     schedule_data = json.loads(res.read().decode())
                     if 'TrainTimetables' in schedule_data:
                         schedule_data = schedule_data['TrainTimetables']
-            except Exception as e:
-                raise ConnectionError(f"Schedule Error: {e}")
+            except Exception:
+                raise ConnectionError("Schedule API Error")
 
-            # (B) 抓誤點資訊 (使用 StationLiveBoard)
+            # (B) 抓誤點資訊
             try:
                 req = urllib.request.Request(url_live, headers=headers)
                 with urllib.request.urlopen(req, context=ctx) as res:
                     live_data = json.loads(res.read().decode())
-                    # StationLiveBoard 回傳格式: {"StationLiveBoards": [...]}
                     if 'StationLiveBoards' in live_data:
                         for item in live_data['StationLiveBoards']:
-                            # 建立對照表: 車次 -> 誤點時間
                             delay_map[item['TrainNo']] = item.get('DelayTime', 0)
             except Exception as e:
                 delay_failed = True
@@ -214,7 +194,6 @@ class handler(BaseHTTPRequestHandler):
                 dep_time_str = ""
                 arr_time_str = ""
                 
-                # 找出起點與終點時間
                 for st in stop_times:
                     if st['StationID'] == start_id:
                         dep_time_str = st['DepartureTime']
@@ -225,8 +204,6 @@ class handler(BaseHTTPRequestHandler):
                     continue
 
                 train_no = info['TrainNo']
-                
-                # 從電子看板 Map 取得誤點 (若找不到則預設 0)
                 delay = int(delay_map.get(train_no, 0))
                 
                 dep_dt = datetime.strptime(f"{today_str} {dep_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=tz)
@@ -238,13 +215,10 @@ class handler(BaseHTTPRequestHandler):
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
 
-                # 過濾邏輯：只保留「現在時間 - 10分鐘」之後的車
-                cutoff_time = now - timedelta(minutes=10)
-                if real_dep < cutoff_time:
+                # 回復到最單純邏輯：已經駛離的車就不顯示
+                if real_dep < now:
                     continue 
 
-                # 標記是否剛駛離
-                is_past = real_dep < now
                 t_type = info['TrainTypeName']['Zh_tw'].split('(')[0]
 
                 final_trains.append({
@@ -256,13 +230,11 @@ class handler(BaseHTTPRequestHandler):
                     "sch_arr": arr_time_str,
                     "act_dep": real_dep.strftime("%H:%M"),
                     "act_arr": real_arr.strftime("%H:%M"),
-                    "is_past": is_past,
                     "sort_ts": real_dep.timestamp()
                 })
 
             final_trains.sort(key=lambda x: x['sort_ts'])
 
-            # 準備回傳
             final_update_time = now.strftime("%H:%M:%S")
             if delay_failed:
                 final_update_time = f"誤點資料錯誤: {delay_error_msg}"
@@ -277,7 +249,6 @@ class handler(BaseHTTPRequestHandler):
                 },
                 "diagnostics": {
                     "route_status": "API OK",
-                    # 若失敗，會顯示具體錯誤訊息
                     "delay_status": f"ERR: {delay_error_msg}" if delay_failed else "API OK"
                 }
             }
