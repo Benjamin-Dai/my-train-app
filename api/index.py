@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timedelta, timezone
 import urllib.request
 import urllib.error
+import ssl # 新增 SSL 處理
 
 # === 1. 車站代碼對照表 ===
 STATION_MAP = {
@@ -87,8 +88,7 @@ class TDXToken:
     def __init__(self):
         self.access_token = None
         self.expires_at = 0
-        # 讀取 Vercel 設定的環境變數 (TDX_ID / TDX_SECRET)
-        self.client_id = os.environ.get("TDX_ID")
+        self.client_id = os.environ.get("TDX_ID") # 已確認是這個名稱
         self.client_secret = os.environ.get("TDX_SECRET")
 
     def get_token(self):
@@ -104,8 +104,13 @@ class TDXToken:
         }).encode()
 
         try:
+            # 略過 SSL 驗證，避免 Vercel 環境憑證問題
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            
             req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/x-www-form-urlencoded"})
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, context=ctx) as response:
                 resp_json = json.loads(response.read().decode())
                 self.access_token = resp_json.get("access_token")
                 self.expires_at = now + resp_json.get("expires_in", 86400)
@@ -126,7 +131,6 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        # 1. 處理參數
         try:
             query = parse.urlparse(self.path).query
             params = parse.parse_qs(query)
@@ -142,62 +146,64 @@ class handler(BaseHTTPRequestHandler):
             if not start_id or not end_id:
                 raise ValueError("Invalid Station Name")
 
-            # 2. 取得 Token
             token = token_manager.get_token()
             if not token:
                 raise ConnectionError("TDX Token Failed")
 
-            # 3. 準備時間與 API
             tz = timezone(timedelta(hours=8))
             now = datetime.now(tz)
             today_str = now.strftime('%Y-%m-%d')
             
-            # 🔴 修正：移除 "Accept-Encoding": "gzip"，避免 Vercel 無法解碼
             headers = {"Authorization": f"Bearer {token}"}
+            # 建立 SSL Context (略過驗證)
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
 
-            # API 1: 時刻表 (OD)
+            # API 1: 時刻表
             url_schedule = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{today_str}?%24format=JSON"
             
-            # API 2: 即時動態 (Live Board)
+            # API 2: 即時動態
             url_live = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/TrainLiveBoard/Station/{start_id}?%24format=JSON"
 
-            # 4. 抓取資料
             schedule_data = []
-            delay_map = {} # {車次號: 誤點分鐘}
+            delay_map = {} 
             delay_failed = False
+            delay_error_msg = "" # 用來抓錯誤訊息
 
             # (A) 抓時刻表
             try:
                 req = urllib.request.Request(url_schedule, headers=headers)
-                with urllib.request.urlopen(req) as res:
+                with urllib.request.urlopen(req, context=ctx) as res:
                     schedule_data = json.loads(res.read().decode())
                     if 'TrainTimetables' in schedule_data:
                         schedule_data = schedule_data['TrainTimetables']
             except Exception as e:
-                raise ConnectionError(f"Schedule API Error: {e}")
+                raise ConnectionError(f"Schedule Error: {e}")
 
             # (B) 抓誤點資訊
             try:
                 req = urllib.request.Request(url_live, headers=headers)
-                with urllib.request.urlopen(req) as res:
+                with urllib.request.urlopen(req, context=ctx) as res:
                     live_data = json.loads(res.read().decode())
                     if 'TrainLiveBoards' in live_data:
                         for item in live_data['TrainLiveBoards']:
                             delay_map[item['TrainNo']] = item.get('DelayTime', 0)
-            except Exception:
-                delay_failed = True 
+            except Exception as e:
+                delay_failed = True
+                delay_error_msg = str(e) # 抓取具體錯誤
 
-            # 5. 資料整合與過濾
+            # 資料整合
             final_trains = []
             
             def get_color(train_type_name):
                 t = train_type_name
-                if '普悠瑪' in t: return '#FF4081' # 粉紅
-                if '太魯閣' in t: return '#FF9800' # 橘
-                if '自強' in t or 'EMU3000' in t: return '#FF5722' # 深橘紅
-                if '莒光' in t: return '#FFC107' # 黃
-                if '區間快' in t: return '#4CAF50' # 綠
-                return '#2196F3' # 區間車藍
+                if '普悠瑪' in t: return '#FF4081'
+                if '太魯閣' in t: return '#FF9800'
+                if '自強' in t or 'EMU3000' in t: return '#FF5722'
+                if '莒光' in t: return '#FFC107'
+                if '區間快' in t: return '#4CAF50'
+                return '#2196F3'
 
             for train in schedule_data:
                 info = train['TrainInfo']
@@ -218,7 +224,6 @@ class handler(BaseHTTPRequestHandler):
                 train_no = info['TrainNo']
                 delay = int(delay_map.get(train_no, 0))
                 
-                # 計算實際時間
                 dep_dt = datetime.strptime(f"{today_str} {dep_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=tz)
                 arr_dt = datetime.strptime(f"{today_str} {arr_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=tz)
                 
@@ -228,9 +233,7 @@ class handler(BaseHTTPRequestHandler):
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
 
-                # 過濾邏輯：只保留「現在時間 - 10分鐘」之後的車
                 cutoff_time = now - timedelta(minutes=10)
-                
                 if real_dep < cutoff_time:
                     continue 
 
@@ -250,12 +253,16 @@ class handler(BaseHTTPRequestHandler):
                     "sort_ts": real_dep.timestamp()
                 })
 
-            # 6. 排序
             final_trains.sort(key=lambda x: x['sort_ts'])
 
-            # 7. 回傳結果
+            # 準備回傳
+            # 技巧：如果失敗，把錯誤訊息偷渡到 update_time 欄位，方便前端直接顯示
+            final_update_time = now.strftime("%H:%M:%S")
+            if delay_failed:
+                final_update_time = f"誤點資料錯誤: {delay_error_msg}"
+
             response_data = {
-                "update_time": now.strftime("%H:%M:%S"),
+                "update_time": final_update_time,
                 "trains": final_trains,
                 "delay_failed": delay_failed,
                 "stats": {
@@ -264,7 +271,8 @@ class handler(BaseHTTPRequestHandler):
                 },
                 "diagnostics": {
                     "route_status": "API OK",
-                    "delay_status": "API OK" if not delay_failed else "API Failed"
+                    # 這裡故意去掉 'API' 字樣，讓前端診斷顯示為紅色 Unknown，並能在 Log 看到內容
+                    "delay_status": f"ERR: {delay_error_msg}" if delay_failed else "API OK"
                 }
             }
 
