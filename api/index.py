@@ -87,8 +87,9 @@ class TDXToken:
     def __init__(self):
         self.access_token = None
         self.expires_at = 0
-        self.client_id = os.environ.get("TDX_CLIENT_ID")
-        self.client_secret = os.environ.get("TDX_CLIENT_SECRET")
+        # 🔴 這裡修正了：改成讀取您 Vercel 設定的環境變數名稱
+        self.client_id = os.environ.get("TDX_ID")
+        self.client_secret = os.environ.get("TDX_SECRET")
 
     def get_token(self):
         now = time.time()
