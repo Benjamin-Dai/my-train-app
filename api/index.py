@@ -1,4 +1,3 @@
-
 from http.server import BaseHTTPRequestHandler
 import json
 import requests
@@ -17,8 +16,7 @@ except ImportError:
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 
-# 自動抓取資料庫連線字串 (修正版)
-# 優先抓取你截圖中的 UPSTASH_REDIS_KV_URL，如果沒有則嘗試其他可能的名稱
+# 自動抓取資料庫連線字串
 KV_URL = os.environ.get('UPSTASH_REDIS_KV_URL') or os.environ.get('UPSTASH_REDIS_URL') or os.environ.get('KV_URL')
 
 DEFAULT_START = '屏東'
@@ -32,7 +30,6 @@ redis_client = None
 if KV_URL:
     try:
         redis_client = redis.from_url(KV_URL)
-        # 測試連線，如果失敗會直接跳到 except
         redis_client.ping()
         print("Redis Connected Successfully")
     except Exception as e:
@@ -44,7 +41,7 @@ else:
 class handler(BaseHTTPRequestHandler):
 
     def get_token(self, cid, csecret):
-        # 1. 嘗試從 Redis 拿 Token (可省下很多次請求)
+        # 1. 嘗試從 Redis 拿 Token
         if redis_client:
             try:
                 cached_token = redis_client.get("tdx_token")
@@ -61,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
                 token = data.get('access_token')
                 expires = data.get('expires_in', 86400)
                 
-                # 3. 存入 Redis (設定過期時間比官方少一點，例如少 10 分鐘)
+                # 3. 存入 Redis
                 if redis_client and token:
                     try:
                         redis_client.set("tdx_token", token, ex=expires - 600)
@@ -102,7 +99,7 @@ class handler(BaseHTTPRequestHandler):
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             
-            # 3. 寫入 Redis (設定 60 秒過期)
+            # 3. 寫入 Redis (60秒過期)
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(new_delays), ex=60)
@@ -115,7 +112,6 @@ class handler(BaseHTTPRequestHandler):
 
     # === 使用 Redis 存取時刻表 (V3) ===
     def get_route_timetable(self, start_id, end_id, date_str, headers):
-        # Cache Key 包含起點、終點和日期
         cache_key = f"route_{start_id}_{end_id}_{date_str}"
 
         # 1. 嘗試從 Redis 讀取
@@ -134,7 +130,7 @@ class handler(BaseHTTPRequestHandler):
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
             
-            # 3. 寫入 Redis (時刻表一天變一次，存 12 小時 = 43200 秒)
+            # 3. 寫入 Redis (12小時過期)
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
@@ -155,7 +151,6 @@ class handler(BaseHTTPRequestHandler):
         end_id = STATION_MAP.get(end_station)
         if not start_id or not end_id: return self.send_error_response(f"找不到車站 ID")
 
-        # 取得 Token (現在會優先查 Redis)
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
@@ -164,7 +159,6 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            # 取得時刻表 (支援 Redis 快取)
             raw_list, route_status = self.get_route_timetable(start_id, end_id, today_str, headers)
 
             delays = {}
@@ -172,7 +166,6 @@ class handler(BaseHTTPRequestHandler):
             delay_status = "Unknown"
 
             try: 
-                # 取得誤點資訊 (支援 Redis 快取)
                 delays, delay_status = self.get_cached_delays(headers)
             except Exception as e: 
                 print(f"Delay Fetch Error: {e}")
