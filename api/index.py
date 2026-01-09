@@ -72,10 +72,8 @@ class handler(BaseHTTPRequestHandler):
         if val: return f"API {res.status_code} (剩: {val})"
         return f"API {res.status_code}"
 
-    # === 使用 Redis 存取誤點資訊 (V2) ===
     def get_cached_delays(self, headers):
         cache_key = "tra_delay_data"
-        
         if redis_client:
             try:
                 cached_data = redis_client.get(cache_key)
@@ -98,15 +96,13 @@ class handler(BaseHTTPRequestHandler):
                     redis_client.set(cache_key, json.dumps(new_delays), ex=60)
                 except Exception as e:
                     print(f"Redis Write Error: {e}")
-            
             return (new_delays, status_str)
         else: 
             raise Exception(f"Delay API Error: {res.status_code}")
 
-    # === 使用 Redis 存取時刻表 (V3) - 12小時快取 ===
+    # 維持 12 小時快取 (平衡點)
     def get_route_timetable(self, start_id, end_id, date_str, headers):
         cache_key = f"route_{start_id}_{end_id}_{date_str}"
-
         if redis_client:
             try:
                 cached_route = redis_client.get(cache_key)
@@ -120,18 +116,14 @@ class handler(BaseHTTPRequestHandler):
         if res.status_code == 200:
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
-            
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
                 except: pass
-
             return (raw_list, status_str)
         else: 
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
-    # === 核心處理邏輯 ===
-    # 移除了所有對 dep_time 字串的過濾，全部保留，最後由時間戳記決定去留
     def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=False):
         processed = []
         for item in raw_list:
@@ -158,9 +150,7 @@ class handler(BaseHTTPRequestHandler):
             elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
             elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
 
-            # 誤點處理邏輯：
-            # 如果資料來源是明天 (is_tomorrow=True)，誤點歸零 (因為還沒發車)
-            # 如果是今天或昨天，則顯示即時誤點
+            # 誤點處理
             if is_tomorrow:
                 delay = 0
             else:
@@ -169,20 +159,20 @@ class handler(BaseHTTPRequestHandler):
             dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
             arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
             
-            # 處理昨天跨日車 (例如昨天班表裡的 00:30)
+            # 處理昨天跨日車
             if fix_crossing_night:
                 if dep_time < "12:00": dep_dt += timedelta(days=1)
                 if arr_time < "12:00": arr_dt += timedelta(days=1)
 
-            # 處理一般的跨日抵達
+            # 處理一般跨日抵達
             if arr_dt < dep_dt: arr_dt += timedelta(days=1)
 
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
 
-            # 這裡計算 is_past，但暫時不過濾，留到最後統一過濾
             is_past = real_dep < (now - timedelta(minutes=10))
 
+            # 強制加上時區
             real_dep_aware = real_dep.replace(tzinfo=tz_tw)
 
             processed.append({
@@ -208,11 +198,17 @@ class handler(BaseHTTPRequestHandler):
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
+        # 【關鍵修正】正確的時區設定
         tz_tw = timezone(timedelta(hours=8))
+        
+        # 1. 取得帶時區的現在時間 (Aware Datetime) -> 用於計算 Timestamp
+        now_aware = datetime.now(tz_tw)
+        
+        # 2. 取得不帶時區的現在時間 (Naive Datetime) -> 用於跟 TDX 時間字串做加減運算
         now = datetime.now() + timedelta(hours=8)
         
-        today_str = now.strftime('%Y-%m-%d')
-        tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+        today_str = now_aware.strftime('%Y-%m-%d')
+        tomorrow_str = (now_aware + timedelta(days=1)).strftime('%Y-%m-%d')
         
         headers = {'authorization': f'Bearer {token}'}
 
@@ -224,8 +220,8 @@ class handler(BaseHTTPRequestHandler):
             # 抓取昨天 (凌晨補救跨夜車)
             raw_yest = []
             status_yest = "Skipped"
-            if now.hour < 4:
-                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+            if now_aware.hour < 4:
+                yesterday_str = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
                 raw_yest, status_yest = self.get_route_timetable(start_id, end_id, yesterday_str, headers)
 
             delays = {}
@@ -241,26 +237,25 @@ class handler(BaseHTTPRequestHandler):
 
             processed = []
             
-            # 合併處理所有資料
+            # 合併處理
             if raw_yest:
-                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+                yesterday_str = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
                 processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=True))
 
             processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
             processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=True))
 
-            # 去重：使用 sort_key + no 確保唯一
             unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
             
-            # === 最終過濾：滑動視窗 (Sliding Window) ===
-            # 只保留：現在時間前 10 分鐘 ~ 未來 22 小時內的車
-            # 這樣就能實現「看到隔天同一班車」的效果，又不會無限延伸
+            # === 滑動視窗 (Sliding Window) ===
             final_result = []
-            now_ts = now.timestamp()
             
-            # 設定未來視窗：22小時 (涵蓋幾乎整天，但避免顯示到後天的車)
+            # 【關鍵修正】使用帶時區的 timestamp 來做基準
+            now_ts = now_aware.timestamp()
+            
+            # 視窗：過去 10 分鐘 ~ 未來 22 小時
             future_limit = now_ts + (22 * 3600) 
-            past_limit = now_ts - 600 # 過去 10 分鐘
+            past_limit = now_ts - 600
 
             for p in unique_dict.values():
                 ts = p['sort_key']
@@ -276,11 +271,11 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
 
             diag_route_status = f"{status_today} / {status_tmrw}"
-            if now.hour < 4:
+            if now_aware.hour < 4:
                 diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
 
             self.wfile.write(json.dumps({
-                "update_time": now.strftime("%H:%M:%S"),
+                "update_time": now.strftime("%H:%M:%S"), # 顯示用
                 "start": start_station,
                 "end": end_station,
                 "delay_failed": delay_failed,
