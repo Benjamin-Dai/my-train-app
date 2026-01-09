@@ -122,6 +122,9 @@
         .menu-btn:active { background: #3a3a3c; }
         .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
         .menu-btn.special { animation: pulse-gold 3s infinite ease-in-out; }
+        /* 分享按鈕的特殊顏色 */
+        .menu-btn.share { border-color: #007AFF; color: #007AFF; background: rgba(0, 122, 255, 0.1); }
+        
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .modal-page { display: none; }
@@ -223,6 +226,9 @@
                 <button class="menu-btn special" onclick="goToPage('Why')">設計理念</button>
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
+                
+                <button class="menu-btn share" onclick="shareApp()">📤 分享給朋友</button>
+                
                 <div style="height:10px"></div>
                 <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
@@ -383,6 +389,33 @@
             }
         }
         // ====================================
+
+        // === 新增：分享功能 ===
+        async function shareApp() {
+            const shareData = {
+                title: 'TRAIN LIVE 列車時刻',
+                text: '台鐵即時時刻表，誤點自動計算！',
+                url: window.location.href
+            };
+
+            // 優先使用原生分享
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                } catch (err) {
+                    console.log('Share canceled', err);
+                }
+            } else {
+                // 不支援時，改為複製連結
+                try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    alert('已複製連結！傳送給朋友吧！');
+                } catch (err) {
+                    alert('無法使用分享功能');
+                }
+            }
+        }
+        // ======================
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
