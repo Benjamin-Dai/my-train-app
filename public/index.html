@@ -388,7 +388,7 @@
         let lastDiagnostics = { route_status: "--", delay_status: "--" };
 
         let deferredPrompt;
-        const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
         
         // 偵測是否在 In-App Browser (Line/IG/FB)
