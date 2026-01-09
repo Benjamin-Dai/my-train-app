@@ -136,7 +136,6 @@
         .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
         .stat-card.danger .stat-val { color: #ff4d4d; }
 
-        /* === 優化後的診斷頁面樣式 === */
         .diag-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
         .diag-section:last-child { border-bottom: none; }
         .diag-title { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
@@ -146,13 +145,11 @@
         .info-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
         .info-value { font-size: 0.9rem; color: #fff; font-family: monospace; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* 狀態標籤 */
         .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .badge.green { background: rgba(77, 127, 94, 0.2); color: #4d7f5e; border: 1px solid #4d7f5e; }
         .badge.yellow { background: rgba(230, 184, 0, 0.2); color: #e6b800; border: 1px solid #e6b800; }
         .badge.red { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
 
-        /* 終端機風格 Log */
         .terminal-box {
             background: #0d0d0d; border: 1px solid #333; border-radius: 8px;
             color: #0f0; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.7rem;
@@ -162,13 +159,73 @@
         .terminal-box::-webkit-scrollbar { width: 6px; }
         .terminal-box::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
-        /* === iOS 教學視窗樣式 === */
         .ios-instruction { text-align: center; margin-top: 20px; }
         .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.95rem; }
         .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
+
+        /* === In-App Browser 引導遮罩 === */
+        #inAppOverlay {
+            display: none; /* 預設隱藏 */
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 10000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            cursor: pointer; /* 讓整個遮罩看起來可點擊 */
+        }
+        .guide-arrow {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 3rem;
+            color: #4d7f5e;
+            animation: bounce-right 1.5s infinite;
+        }
+        @keyframes bounce-right {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(10px, -10px); }
+        }
+        .guide-text {
+            color: #fff;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            max-width: 80%;
+        }
+        .guide-highlight {
+            color: #e6b800;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin: 10px 0;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 8px;
+            background: #222;
+        }
     </style>
 </head>
 <body>
+    <div id="inAppOverlay" onclick="this.style.display='none'">
+        <div class="guide-arrow">⤴</div>
+        <div class="guide-text">
+            您正在使用社交軟體瀏覽<br><br>
+            為了正常安裝與定位<br>
+            請點擊右上角/右下角選單<br><br>
+            選擇<br>
+        </div>
+        <div class="guide-highlight">
+            🌐 在瀏覽器開啟<br>
+            (Open in Browser)
+        </div>
+        <div class="guide-text" style="font-size:0.8rem; color:#888; margin-top:20px;">
+            (點擊畫面可關閉提示)
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
             <div class="header-top">
@@ -224,9 +281,7 @@
                 <button class="menu-btn special" onclick="goToPage('Why')">設計理念</button>
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
-                
                 <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
-                
                 <div style="height:10px"></div>
                 <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
@@ -234,7 +289,6 @@
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
                 <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
             </div>
-            
             <div id="pageHow" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
                 <div class="modal-text">
@@ -248,75 +302,42 @@
                     錯誤或系統忙碌都會自動重試，請耐心等候。
                 </div>
             </div>
-            
             <div id="pageReport" class="modal-page">
-                <div class="modal-header-row">
-                    <button class="back-btn" onclick="goToPage('Menu')">‹</button>
-                    <div class="modal-title">系統診斷</div>
-                </div>
-
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
                 <div class="diag-section">
                     <div class="diag-title">API 連線狀態</div>
                     <div class="info-grid">
-                        <div class="info-item">
-                            <div class="info-label">時刻表 (V3)</div>
-                            <div id="diagRoute" class="badge">--</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">誤點資訊 (V2)</div>
-                            <div id="diagDelay" class="badge">--</div>
-                        </div>
+                        <div class="info-item"><div class="info-label">時刻表 (V3)</div><div id="diagRoute" class="badge">--</div></div>
+                        <div class="info-item"><div class="info-label">誤點資訊 (V2)</div><div id="diagDelay" class="badge">--</div></div>
                     </div>
                 </div>
-
                 <div class="diag-section">
                     <div class="diag-title">流量監控</div>
                     <div class="stats-dashboard">
-                        <div class="stat-card" id="cardRpm">
-                            <div class="stat-val" id="statRpm">0</div>
-                            <div class="stat-label">1分內請求</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-val" id="statTotal">0</div>
-                            <div class="stat-label">本次總數</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-val" id="statLast">--</div>
-                            <div class="stat-label">距上次(秒)</div>
-                        </div>
+                        <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分內請求</div></div>
+                        <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
+                        <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(秒)</div></div>
                     </div>
                 </div>
-
                 <div class="diag-section">
                     <div class="diag-title">裝置資訊</div>
                     <div class="info-grid">
-                        <div class="info-item">
-                            <div class="info-label">PWA 模式</div>
-                            <div class="info-value" id="diagPwa">--</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">視窗尺寸</div>
-                            <div class="info-value" id="diagRes">--</div>
-                        </div>
+                        <div class="info-item"><div class="info-label">PWA 模式</div><div class="info-value" id="diagPwa">--</div></div>
+                        <div class="info-item"><div class="info-label">視窗尺寸</div><div class="info-value" id="diagRes">--</div></div>
                     </div>
                 </div>
-
                 <div class="diag-section" style="border:none;">
                     <div class="diag-title">系統紀錄 (Log)</div>
                     <div class="report-hint">若遇到問題，請先「複製報告」，再點擊寄信。</div>
-                    
                     <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
-                    
                     <textarea id="reportContent" style="display:none;"></textarea>
                     <div id="terminalView" class="terminal-box"></div>
-
                     <div class="action-area" style="margin-top:10px;">
                         <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
                         <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
                     </div>
                 </div>
             </div>
-
             <div id="pageIOS" class="modal-page">
                 <div class="modal-header-row"><div class="modal-title">安裝到 iPhone</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
                 <div class="ios-instruction">
@@ -357,27 +378,42 @@
 
         let lastDiagnostics = { route_status: "--", delay_status: "--" };
 
-        // === PWA 安裝邏輯 (iOS + Android) ===
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
         const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
+        
+        // 偵測是否在 In-App Browser (Line/IG/FB)
+        const ua = navigator.userAgent || navigator.vendor || window.opera;
+        const isInApp = /Line|Instagram|FBAN|FBAV/i.test(ua);
 
-        if (isIos && !isInStandaloneMode) {
+        // 如果是 iOS 或 In-App Browser，強制顯示按鈕
+        if ((isIos && !isInStandaloneMode) || isInApp) {
             btnInstall.style.display = 'block';
-            btnInstall.innerText = "📲 新增到主畫面"; // iOS 專屬文字
+            if (isIos) btnInstall.innerText = "📲 新增到主畫面";
+            else btnInstall.innerText = "📲 安裝 App";
         }
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             btnInstall.style.display = 'block';
+            btnInstall.innerText = "📲 安裝 App";
         });
 
         function handleInstall() {
+            // 1. 如果在 In-App Browser，跳出引導
+            if (isInApp) {
+                document.getElementById('inAppOverlay').style.display = 'flex';
+                return;
+            }
+            // 2. 如果是 iOS，跳出 iOS 引導
             if (isIos) {
                 document.getElementById('aboutModal').style.display = 'flex';
                 goToPage('IOS');
-            } else if (deferredPrompt) {
+                return;
+            }
+            // 3. 標準 Android 安裝
+            if (deferredPrompt) {
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
@@ -385,34 +421,26 @@
                     }
                     deferredPrompt = null;
                 });
+            } else {
+                // 如果在一般瀏覽器但沒有安裝觸發 (例如 Desktop Chrome 已安裝，或不支援)
+                // 這裡可以選擇不動作，或者跳出 iOS 模態框當作通用說明
+                // document.getElementById('aboutModal').style.display = 'flex';
+                // goToPage('IOS');
             }
         }
-        // ====================================
 
-        // === 分享功能 ===
         async function shareApp() {
             const shareData = {
                 title: 'TRAIN LIVE 列車時刻',
                 text: '台鐵即時時刻表，誤點自動計算！',
                 url: window.location.href
             };
-
             if (navigator.share) {
-                try {
-                    await navigator.share(shareData);
-                } catch (err) {
-                    console.log('Share canceled', err);
-                }
+                try { await navigator.share(shareData); } catch (err) { console.log('Share canceled', err); }
             } else {
-                try {
-                    await navigator.clipboard.writeText(window.location.href);
-                    alert('已複製連結！傳送給朋友吧！');
-                } catch (err) {
-                    alert('無法使用分享功能');
-                }
+                try { await navigator.clipboard.writeText(window.location.href); alert('已複製連結！傳送給朋友吧！'); } catch (err) { alert('無法使用分享功能'); }
             }
         }
-        // ===============
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
@@ -728,7 +756,6 @@
             else list.innerHTML=`<div class="message">查無此區間直達列車 ⚠️</div>`;
         }
 
-        // System
         let systemLogs=[]; let requestHistory=[];
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
         function recordRequest(){requestHistory.push(Date.now());}
