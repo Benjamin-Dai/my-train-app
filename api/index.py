@@ -72,7 +72,7 @@ class handler(BaseHTTPRequestHandler):
         if val: return f"API {res.status_code} (剩: {val})"
         return f"API {res.status_code}"
 
-    # === 使用 Redis 存取誤點資訊 (V2) - 維持 60 秒 ===
+    # === 使用 Redis 存取誤點資訊 (V2) ===
     def get_cached_delays(self, headers):
         cache_key = "tra_delay_data"
         
@@ -121,8 +121,7 @@ class handler(BaseHTTPRequestHandler):
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
             
-            # 【修改點】改回 12 小時 (43200秒)
-            # 這是一個兼顧「資料準確度」與「API 省流」的最佳平衡點
+            # 維持 12 小時快取 (平衡點)
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
@@ -148,6 +147,7 @@ class handler(BaseHTTPRequestHandler):
             
             if not dep_time or not arr_time: continue 
 
+            # 如果是明天的資料，只保留 06:00 以前的車
             if is_tomorrow and dep_time > "06:00":
                 continue
 
@@ -171,6 +171,8 @@ class handler(BaseHTTPRequestHandler):
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
 
+            # 判斷是否已駛離 (保留最近 10 分鐘)
+            # 這行非常重要：它會自動濾掉「昨天」那些已經開走的車，只留下跨夜還沒到的
             is_past = real_dep < (now - timedelta(minutes=10))
 
             real_dep_aware = real_dep.replace(tzinfo=tz_tw)
@@ -207,8 +209,18 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
+            # 1. 抓取今天
             raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
+            # 2. 抓取明天
             raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
+            
+            # 【新功能】如果現在是凌晨 (00:00 ~ 04:00)，多抓「昨天」的資料
+            # 這是為了補救那些歸屬在昨天，但跨夜開到今天的幽靈列車
+            raw_yest = []
+            status_yest = "Skipped"
+            if now.hour < 4:
+                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+                raw_yest, status_yest = self.get_route_timetable(start_id, end_id, yesterday_str, headers)
 
             delays = {}
             delay_failed = False
@@ -223,9 +235,20 @@ class handler(BaseHTTPRequestHandler):
 
             processed = []
             
+            # 3. 合併資料 (昨天 + 今天 + 明天)
+            
+            # 處理昨天 (如果有抓的話)
+            if raw_yest:
+                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+                processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
+
+            # 處理今天
             processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
+            
+            # 處理明天 (只取 06:00 前)
             processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=True))
 
+            # 4. 依照時間排序
             result = sorted(processed, key=lambda x: x['sort_key'])
             
             self.send_response(200)
@@ -234,6 +257,11 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
+            # 診斷資訊加入昨天狀態
+            diag_route_status = f"{status_today} / {status_tmrw}"
+            if now.hour < 4:
+                diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
+
             self.wfile.write(json.dumps({
                 "update_time": now.strftime("%H:%M:%S"),
                 "start": start_station,
@@ -241,7 +269,7 @@ class handler(BaseHTTPRequestHandler):
                 "delay_failed": delay_failed,
                 "trains": result,
                 "diagnostics": {
-                    "route_status": f"{status_today} / {status_tmrw}",
+                    "route_status": diag_route_status,
                     "delay_status": delay_status
                 }
             }).encode())
