@@ -215,7 +215,7 @@
                     切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
                     若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
                     2. <strong>🔄 更新 (右)：</strong><br>
-                    刷新當前狀態。每次點擊後需等待 60 秒冷卻。<br><br>
+                    刷新當前狀態。每次點擊後需等待 30 秒冷卻。<br><br>
                     <strong>自動重試機制：</strong><br>
                     錯誤或系統忙碌都會自動重試，請耐心等候。
                 </div>
@@ -491,30 +491,46 @@
                 logSystem("Status", `狀態: ${rInfo.source} / ${dInfo.source} (剩: ${displayQuota})`);
 
                 if(json.delay_failed) {
-                    statusMsg.innerText="誤點資訊無法取得 (60s 後重試)"; statusMsg.className="status-msg warning";
-                    scheduleRetry(); setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
+                    scheduleRetry("誤點資訊無法取得", "status-msg warning");
+                    setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
                 } else {
                     statusMsg.innerText="更新完成"; statusMsg.className="status-msg";
                     setTimeout(()=>{if(statusMsg.innerText==="更新完成")statusMsg.innerText="";},2000);
                     setUpdateText(`更新於: ${json.update_time}`);
                 }
                 const now=Date.now();
-                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+60000); lockRefreshButton(60); }
-                if(mode==="refresh"){ setRefreshLockedUntil(now+60000); lockRefreshButton(60); }
+                if(mode==="search"){ 
+                    setTimeout(()=>btnSearch.disabled=false,500); 
+                    setRefreshLockedUntil(now+30000); // 30s
+                    lockRefreshButton(30); 
+                }
+                if(mode==="refresh"){ 
+                    setRefreshLockedUntil(now+30000); // 30s
+                    lockRefreshButton(30); 
+                }
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
-                statusMsg.innerText="連線發生問題"; statusMsg.className="status-msg alert";
+                scheduleRetry("連線發生問題", "status-msg alert");
                 list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`;
-                if(mode==="search") setTimeout(()=>btnSearch.disabled=false,2000);
-                if(mode==="refresh") setTimeout(()=>btnRefresh.disabled=false,2000);
             }
         }
 
         function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
-        function scheduleRetry() {
-            let c=60; retryTimer=setInterval(()=>{
-                c--; statusMsg.innerText=`誤點資訊無法取得 (${c}s 後自動重試)`;
-                if(c<=0){clearInterval(retryTimer);retryTimer=null;doRefresh(true);}
+        
+        function scheduleRetry(msg="誤點資訊無法取得", cls="status-msg warning") {
+            let c=30; 
+            if(retryTimer) clearInterval(retryTimer);
+            statusMsg.className = cls; 
+            statusMsg.innerText = `${msg} (30s 後重試)`;
+            
+            retryTimer=setInterval(()=>{
+                c--; 
+                statusMsg.innerText=`${msg} (${c}s 後重試)`;
+                if(c<=0){
+                    clearInterval(retryTimer);
+                    retryTimer=null;
+                    doRefresh(true);
+                }
             },1000);
         }
 
