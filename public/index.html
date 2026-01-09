@@ -115,17 +115,14 @@
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         
-        /* === 修改：模態視窗樣式優化 === */
+        /* === 模態視窗優化：標題固定 === */
         .modal-content { 
             background: #1c1c1e; width: 85%; max-width: 400px; 
             border-radius: 16px; padding: 25px; 
             border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
             text-align: left; position: relative; 
-            max-height: 80vh; /* 稍微縮小高度，避免頂到瀏覽器邊緣 */
-            overflow-y: auto; 
+            max-height: 80vh; overflow-y: auto; 
         }
-        
-        /* === 修改：標題列固定 (Sticky) === */
         .modal-header-row { 
             display: flex; align-items: center; margin-bottom: 15px;
             /* 讓標題列固定在頂端 */
@@ -133,7 +130,6 @@
             background: #1c1c1e; z-index: 10;
             padding: 10px 0; border-bottom: 1px solid #333;
         }
-        /* ============================ */
 
         .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
         .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
@@ -381,7 +377,7 @@
         const STATION_DATA={"基隆/新北":["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],"臺北市":["南港","松山","臺北","萬華"],"桃園市":["桃園","內壢","中壢","埔心","楊梅","富岡","新富"],"新竹縣市":["北湖","湖口","新豐","竹北","北新竹","新竹","三姓橋","香山","六家","竹中","上員","榮華","竹東","橫山","九讚頭","合興","富貴","內灣"],"苗栗縣":["崎頂","竹南","造橋","豐富","苗栗","南勢","銅鑼","三義","談文","大山","後龍","龍港","白沙屯","新埔","通霄","苑裡"],"臺中市":["泰安","后里","豐原","栗林","潭子","頭家厝","松竹","太原","精武","臺中","五權","大慶","烏日","新烏日","成功","日南","大甲","臺中港","清水","沙鹿","龍井","大肚","追分"],"彰化縣":["彰化","花壇","大村","員林","永靖","社頭","田中","二水","源泉","濁水","龍泉","集集","水里","車埕"],"雲林縣":["林內","石榴","斗六","斗南","石龜"],"嘉義縣市":["大林","民雄","嘉北","嘉義","水上","南靖"],"臺南市":["後壁","新營","柳營","林鳳營","隆田","拔林","善化","南科","新市","永康","大橋","臺南","保安","仁德","中洲","大湖","沙崙"],"高雄市":["路竹","岡山","橋頭","楠梓","新左營","左營","內惟","美術館","鼓山","三塊厝","高雄","民族","科工館","正義","鳳山","後庄","九曲堂"],"屏東縣":["六塊厝","屏東","歸來","麟洛","西勢","竹田","潮州","崁頂","南州","鎮安","林邊","佳冬","東海","枋寮","加祿","內獅","枋山"],"宜蘭縣":["漢本","武塔","南澳","東澳","永樂","蘇澳","蘇澳新","冬山","羅東","中里","二結","宜蘭","四城","礁溪","頂埔","頭城","外澳","龜山","大溪","大里","石城"],"花蓮縣":["和平","和仁","崇德","新城","景美","北埔","花蓮","吉安","志學","平和","壽豐","豐田","林榮新光","南平","鳳林","萬榮","光復","大富","富源","瑞穗","三民","玉里","東里","東竹","富里"],"臺東縣":["池上","海端","關山","瑞和","瑞源","鹿野","山里","臺東","康樂","知本","太麻里","金崙","瀧溪","大武"]};
         const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
 
-        // === 新增：各縣市預設大站 ===
+        // === 各縣市預設大站 ===
         const DEFAULT_STATIONS = {
             "基隆/新北": "板橋",
             "臺北市": "臺北",
@@ -563,14 +559,13 @@
             if (!rVal) return;
             sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join('');
             
-            // === 修改：嘗試選取預設大站 ===
+            // === 預設大站邏輯 ===
             const defStation = DEFAULT_STATIONS[rVal];
             if (defStation && STATION_DATA[rVal].includes(defStation)) {
                 sSel.value = defStation;
             } else {
                 sSel.selectedIndex = 0;
             }
-            // ============================
 
             if (startStation.value && endStation.value) markAsChanged();
         }
@@ -689,6 +684,7 @@
             logSystem("Action","Refresh"); fetchData("refresh");
         }
 
+        // === 核心修改：加入 Vercel CDN Cache 偵測與 Log 修正 ===
         async function fetchData(mode) {
             statusMsg.innerText="連線中..."; statusMsg.className="status-msg"; list.style.opacity="1";
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
@@ -696,6 +692,11 @@
             const s=startStation.value; const e=endStation.value; recordRequest();
             try {
                 const res=await fetch(`/api/index?start=${s}&end=${e}`);
+                
+                // 1. 偵測是否為 Vercel Edge Cache (影印本)
+                const age = res.headers.get('Age');
+                const isVercelCache = age && parseInt(age) > 0;
+                
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
                 lastFetchedPair={start:s,end:e};
@@ -705,11 +706,15 @@
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
                 
+                // 2. 修正診斷顯示邏輯
                 const extVal = (str) => {
+                    if (isVercelCache) return "Vercel Cache"; // 強制顯示
+                    
                     if(!str) return "--";
                     const match = str.match(/\(剩:\s*(\d+)\)/);
-                    return match ? match[1] : (str.includes("Cache") ? "Cache" : "API");
+                    return match ? match[1] : (str.includes("Cache") || str.includes("Hit") ? "Cache" : "API");
                 };
+                
                 const rVal = extVal(json.diagnostics.route_status);
                 const dVal = extVal(json.diagnostics.delay_status);
                 logSystem("API", `額度 V3:${rVal}, V2:${dVal}`);
@@ -825,13 +830,13 @@
 
                 const dRoute = document.getElementById('diagRoute');
                 dRoute.innerText = lastDiagnostics.route_status;
-                if(lastDiagnostics.route_status.includes("Cache")) dRoute.className = "badge green";
+                if(lastDiagnostics.route_status.includes("Cache") || lastDiagnostics.route_status.includes("Hit")) dRoute.className = "badge green";
                 else if(lastDiagnostics.route_status.includes("API")) dRoute.className = "badge yellow";
                 else dRoute.className = "badge red";
 
                 const dDelay = document.getElementById('diagDelay');
                 dDelay.innerText = lastDiagnostics.delay_status;
-                if(lastDiagnostics.delay_status.includes("Cache") || lastDiagnostics.delay_status.includes("0點")) dDelay.className = "badge green";
+                if(lastDiagnostics.delay_status.includes("Cache") || lastDiagnostics.delay_status.includes("Hit") || lastDiagnostics.delay_status.includes("0點")) dDelay.className = "badge green";
                 else if(lastDiagnostics.delay_status.includes("Fallback")) dDelay.className = "badge yellow"; 
                 else if(lastDiagnostics.delay_status.includes("Failed")) dDelay.className = "badge red";
                 else dDelay.className = "badge yellow";
