@@ -159,8 +159,8 @@
         .terminal-box::-webkit-scrollbar { width: 6px; }
         .terminal-box::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
-        .ios-instruction { text-align: center; margin-top: 20px; }
-        .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.95rem; }
+        .ios-instruction { text-align: center; margin-top: 10px; }
+        .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
         .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
 
         /* === In-App Browser 引導遮罩 (修正版) === */
@@ -338,11 +338,20 @@
                     </div>
                 </div>
             </div>
+            
             <div id="pageIOS" class="modal-page">
-                <div class="modal-header-row"><div class="modal-title">安裝到 iPhone</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
+                <div class="modal-header-row"><div class="modal-title">安裝教學 (iOS)</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
                 <div class="ios-instruction">
-                    <div class="ios-step">1. 點擊下方工具列的 <span class="ios-icon">⎋</span> 分享按鈕</div>
-                    <div class="ios-step">2. 往下滑找到 <span class="ios-icon">⊞</span> 加入主畫面</div>
+                    <div style="margin-bottom: 20px; padding: 10px; background: rgba(255, 166, 0, 0.15); border-radius: 8px; font-size: 0.9rem; color: #ffcc00; text-align: left;">
+                        ⚠️ <strong>注意：</strong><br>
+                        部分瀏覽器 (如 Brave/Firefox) 可能不支援此功能。<br>
+                        建議使用 <strong>Safari</strong> 開啟。
+                    </div>
+                    <div class="ios-step">1. 點擊 <span class="ios-icon">⎋</span> <strong>分享</strong> 按鈕</div>
+                    <div style="font-size: 0.8rem; color: #888; margin-top: -10px; margin-bottom: 15px;">(按鈕通常在螢幕 上方 或 下方)</div>
+                    
+                    <div class="ios-step">2. 往下滑找到 <span class="ios-icon">⊞</span> <strong>加入主畫面</strong></div>
+                    
                     <div class="ios-step">3. 點擊右上角的「加入」即可！</div>
                 </div>
             </div>
