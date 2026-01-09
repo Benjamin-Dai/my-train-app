@@ -5,6 +5,7 @@ import os
 import time
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlparse
+import redis  # 匯入 redis
 
 try:
     from .stations import STATION_MAP
@@ -15,45 +16,82 @@ except ImportError:
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 
+# 自動抓取資料庫連線字串
+# 優先抓取你設定的 UPSTASH_REDIS_URL，如果沒有則嘗試預設的 KV_URL
+KV_URL = os.environ.get('UPSTASH_REDIS_URL') or os.environ.get('KV_URL')
+
 DEFAULT_START = '屏東'
 DEFAULT_END = '潮州'
 
 API_BASE_V3 = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA"
 API_BASE_V2 = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA"
 
-_DELAY_CACHE = { "data": {}, "timestamp": 0 }
-_ROUTE_CACHE = {} 
+# 初始化 Redis 連線
+redis_client = None
+if KV_URL:
+    try:
+        redis_client = redis.from_url(KV_URL)
+        # 測試連線，如果失敗會直接跳到 except
+        redis_client.ping()
+        print("Redis Connected Successfully")
+    except Exception as e:
+        print(f"Redis Connection Error: {e}")
+        redis_client = None
+else:
+    print("Warning: No Redis URL found.")
 
 class handler(BaseHTTPRequestHandler):
 
     def get_token(self, cid, csecret):
+        # 1. 嘗試從 Redis 拿 Token (可省下很多次請求)
+        if redis_client:
+            try:
+                cached_token = redis_client.get("tdx_token")
+                if cached_token:
+                    return cached_token.decode('utf-8')
+            except: pass
+
+        # 2. Redis 沒資料，向 TDX 申請
         auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
         try:
             res = requests.post(auth_url, data={'grant_type': 'client_credentials','client_id': cid,'client_secret': csecret})
-            if res.status_code == 200: return res.json().get('access_token')
+            if res.status_code == 200: 
+                data = res.json()
+                token = data.get('access_token')
+                expires = data.get('expires_in', 86400)
+                
+                # 3. 存入 Redis (設定過期時間比官方少一點，例如少 10 分鐘)
+                if redis_client and token:
+                    try:
+                        redis_client.set("tdx_token", token, ex=expires - 600)
+                    except: pass
+                return token
             return None
         except: return None
 
-    # === 修改：更暴力的 Header 搜尋 ===
     def get_header_info(self, res):
-        # 搜尋所有 Header，只要 Key 裡面包含 'remaining' (忽略大小寫) 就抓出來
         val = None
         for k, v in res.headers.items():
             if 'remaining' in k.lower():
                 val = v
                 break
-        
-        if val:
-            return f"API {res.status_code} (剩: {val})"
-        
+        if val: return f"API {res.status_code} (剩: {val})"
         return f"API {res.status_code}"
 
+    # === 使用 Redis 存取誤點資訊 (關鍵修改) ===
     def get_cached_delays(self, headers):
-        global _DELAY_CACHE
-        now_ts = time.time()
-        if _DELAY_CACHE["data"] and (now_ts - _DELAY_CACHE["timestamp"] < 50): 
-            return (_DELAY_CACHE["data"], "Cache Hit")
+        cache_key = "tra_delay_data"
+        
+        # 1. 嘗試從 Redis 讀取
+        if redis_client:
+            try:
+                cached_data = redis_client.get(cache_key)
+                if cached_data:
+                    return (json.loads(cached_data), "Redis Hit")
+            except Exception as e:
+                print(f"Redis Read Error: {e}")
 
+        # 2. Redis 沒資料，從 TDX 抓取
         delay_url = f"{API_BASE_V2}/LiveTrainDelay"
         res = requests.get(delay_url, headers=headers)
 
@@ -62,25 +100,45 @@ class handler(BaseHTTPRequestHandler):
             d_data = res.json()
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
-            _DELAY_CACHE["data"] = new_delays
-            _DELAY_CACHE["timestamp"] = now_ts
+            
+            # 3. 寫入 Redis (設定 60 秒過期)
+            if redis_client:
+                try:
+                    redis_client.set(cache_key, json.dumps(new_delays), ex=60)
+                except Exception as e:
+                    print(f"Redis Write Error: {e}")
+            
             return (new_delays, status_str)
         else: 
             raise Exception(f"Delay API Error: {res.status_code}")
 
+    # === 使用 Redis 存取時刻表 (V3) ===
     def get_route_timetable(self, start_id, end_id, date_str, headers):
-        global _ROUTE_CACHE
-        cache_key = f"{start_id}_{end_id}"
-        if cache_key in _ROUTE_CACHE and _ROUTE_CACHE[cache_key]["date"] == date_str: 
-            return (_ROUTE_CACHE[cache_key]["trains"], "Cache Hit")
+        # Cache Key 包含起點、終點和日期
+        cache_key = f"route_{start_id}_{end_id}_{date_str}"
 
+        # 1. 嘗試從 Redis 讀取
+        if redis_client:
+            try:
+                cached_route = redis_client.get(cache_key)
+                if cached_route:
+                    return (json.loads(cached_route), "Redis Hit")
+            except: pass
+
+        # 2. 沒資料，從 TDX 抓取
         timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
         res = requests.get(timetable_url, headers=headers)
 
         if res.status_code == 200:
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
-            _ROUTE_CACHE[cache_key] = {"date": date_str, "trains": raw_list}
+            
+            # 3. 寫入 Redis (時刻表一天變一次，存 12 小時 = 43200 秒)
+            if redis_client:
+                try:
+                    redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
+                except: pass
+
             return (raw_list, status_str)
         else: 
             raise Exception(f"TDX Timetable Error: {res.status_code}")
@@ -96,6 +154,7 @@ class handler(BaseHTTPRequestHandler):
         end_id = STATION_MAP.get(end_station)
         if not start_id or not end_id: return self.send_error_response(f"找不到車站 ID")
 
+        # 取得 Token (現在會優先查 Redis)
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
@@ -104,6 +163,7 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
+            # 取得時刻表 (支援 Redis 快取)
             raw_list, route_status = self.get_route_timetable(start_id, end_id, today_str, headers)
 
             delays = {}
@@ -111,15 +171,12 @@ class handler(BaseHTTPRequestHandler):
             delay_status = "Unknown"
 
             try: 
+                # 取得誤點資訊 (支援 Redis 快取)
                 delays, delay_status = self.get_cached_delays(headers)
-            except: 
-                if _DELAY_CACHE["data"]: 
-                    delays = _DELAY_CACHE["data"]
-                    delay_failed = True
-                    delay_status = "Fallback Cache (Error)"
-                else: 
-                    delay_failed = True
-                    delay_status = "Failed"
+            except Exception as e: 
+                print(f"Delay Fetch Error: {e}")
+                delay_failed = True
+                delay_status = "Failed"
 
             processed = []
             for item in raw_list:
@@ -166,6 +223,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
+            # Vercel Serverless Function 的快取設定
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
