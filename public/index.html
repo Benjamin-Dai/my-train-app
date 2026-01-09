@@ -89,8 +89,14 @@
         .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; position: sticky; top: -25px; background: #1c1c1e; z-index: 10; padding: 10px 0; border-bottom: 1px solid #333; }
         .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
         .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
+        
+        /* === 修復選單按鈕樣式 === */
         .menu-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; }
-        .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
+        .menu-btn:active { background: #3a3a3c; }
+        .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; } /* 箭頭由 CSS 產生，解決跑版問題 */
+        .menu-btn.special { animation: pulse-gold 3s infinite ease-in-out; }
+        /* ====================== */
+
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .modal-page { display: none; }
@@ -186,27 +192,33 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="pageMenu" class="modal-page active">
                 <div class="modal-header-row"><div class="modal-title">選單</div></div>
-                <button class="menu-btn" onclick="goToPage('Why')">設計理念 <span>›</span></button>
-                <button class="menu-btn" onclick="goToPage('How')">操作說明 <span>›</span></button>
-                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 <span>›</span></button>
-                <button class="menu-btn" onclick="shareApp()">分享給朋友 <span>›</span></button>
+                <button class="menu-btn special" onclick="goToPage('Why')">設計理念</button>
+                <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
+                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
+                <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
                 <div style="height:10px"></div>
                 <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
+            
             <div id="pageWhy" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
-                <div class="modal-text">TRAIN LIVE 的目標是解決「誤點後的計算」問題。<br><br>1. 直接顯示<strong>「預計抵達時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列。<br>3. 一眼看出該搭哪班車。<br><br>希望這能緩解你的通勤焦慮。</div>
+                <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
             </div>
+            
             <div id="pageHow" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
                 <div class="modal-text">
-                    <strong>🔍 查詢路線 (左)：</strong><br>切換路線專用。若車站沒變，視為更新。<br>每分鐘限查詢 3 次。<br><br>
-                    <strong>🔄 更新 (右)：</strong><br>刷新當前狀態。每次點擊需冷卻 60 秒。<br><br>
-                    <strong>狀態說明：</strong><br>
-                    <span style="color:#4d7f5e">Vercel/Redis</span>：快取資料 (不扣額度)<br>
-                    <span style="color:#e6b800">API</span>：即時資料 (扣額度)
+                    <strong>雙按鈕機制：</strong><br><br>
+                    1. <strong>🔍 查詢路線 (左)：</strong><br>
+                    切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
+                    若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
+                    2. <strong>🔄 更新 (右)：</strong><br>
+                    刷新當前狀態。每次點擊後需等待 60 秒冷卻。<br><br>
+                    <strong>自動重試機制：</strong><br>
+                    錯誤或系統忙碌都會自動重試，請耐心等候。
                 </div>
             </div>
+
             <div id="pageReport" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
                 <div class="diag-section">
@@ -226,12 +238,13 @@
                 </div>
                 <div class="diag-section" style="border:none;">
                     <div class="diag-title">系統紀錄 (Log)</div>
-                    <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="問題描述..."></textarea>
+                    <div class="report-hint" style="color:#888; font-size:0.8rem; margin-bottom:10px;">若遇到問題，請先「複製報告」，再點擊寄信。</div>
+                    <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）問題描述..."></textarea>
                     <textarea id="reportContent" style="display:none;"></textarea>
                     <div id="terminalView" class="terminal-box"></div>
                     <div class="action-area" style="margin-top:10px;">
-                        <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製</button>
-                        <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 寄信</button>
+                        <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
+                        <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
                     </div>
                 </div>
             </div>
@@ -433,34 +446,21 @@
             logSystem("Action","Refresh"); fetchData("refresh");
         }
 
-        // === 核心解析邏輯 ===
         function parseDiag(str, isCdn) {
-            let source = "TDX API";
-            let quota = "--";
-
-            // 1. 判斷來源
+            let source = "TDX API"; let quota = "--";
             if (isCdn) source = "Vercel CDN";
             else if (str.includes("Hit") || str.includes("Cache")) source = "Redis DB";
             else if (str.includes("API")) source = "TDX API";
             else source = "Unknown";
-
-            // 2. 判斷剩餘次數 (如果字串裡有，就挖出來)
             const match = str.match(/\(剩:\s*(\d+)\)/);
             if (match) quota = match[1];
-
             return { source, quota };
         }
 
         function parseDiagnostics(diag, isCdn) {
             const rInfo = parseDiag(diag.route_status, isCdn);
             const dInfo = parseDiag(diag.delay_status, isCdn);
-            
-            lastDiagnostics = {
-                route_source: rInfo.source,
-                route_quota: rInfo.quota,
-                delay_source: dInfo.source,
-                delay_quota: dInfo.quota
-            };
+            lastDiagnostics = { route_source: rInfo.source, route_quota: rInfo.quota, delay_source: dInfo.source, delay_quota: dInfo.quota };
             return { rInfo, dInfo };
         }
 
@@ -471,8 +471,6 @@
             const s=startStation.value; const e=endStation.value; recordRequest();
             try {
                 const res=await fetch(`/api/index?start=${s}&end=${e}`);
-                
-                // 1. 偵測 Vercel Cache
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
                 
@@ -480,14 +478,11 @@
                 if(json.error) throw new Error(json.error);
                 lastFetchedPair={start:s,end:e};
 
-                // 2. 解析並分流顯示 (來源 vs 額度)
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
-
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
-                // 3. 寫入清晰的 Log
-                const logStr = `[V3] ${rInfo.source} (剩:${rInfo.quota}) | [V2] ${dInfo.source} (剩:${dInfo.quota})`;
+                const logStr = `V3:[${rInfo.source}] 剩${rInfo.quota} | V2:[${dInfo.source}] 剩${dInfo.quota}`;
                 logSystem("Status", logStr);
 
                 if(json.delay_failed) {
@@ -581,15 +576,12 @@
                 const last=requestHistory[requestHistory.length-1];
                 document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
 
-                // === 更新診斷顯示 (分流) ===
                 const updateItem = (prefix, source, quota) => {
                     const el = document.getElementById(prefix);
                     let colorClass = "badge";
                     if(source.includes("Vercel") || source.includes("Redis")) colorClass += " green";
                     else if(source.includes("API")) colorClass += " yellow";
                     else colorClass += " red";
-                    
-                    // 顯示格式：[來源] 剩: X
                     el.innerHTML = `<span class="${colorClass}">${source}</span> <span style="font-size:0.8rem; color:#888;">剩: ${quota}</span>`;
                 };
 
