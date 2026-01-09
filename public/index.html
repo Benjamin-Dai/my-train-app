@@ -150,6 +150,20 @@
         .guide-icon { font-size: 3rem; color: #4d7f5e; margin-bottom: 20px; animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
         .guide-highlight { color: #e6b800; font-weight: bold; font-size: 1.3rem; margin: 20px 0; border: 2px dashed #444; padding: 15px; border-radius: 12px; background: #222; }
+
+        /* === 新增功能：常用路線與歷史紀錄樣式 (綠色風格) === */
+        .quick-route-area { margin: 10px 0 15px 0; display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; }
+        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; }
+        .route-chip:active { transform: scale(0.95); background: #333; }
+        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
+        /* 收藏的路線樣式 (綠色主題) */
+        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
+        /* 歷史紀錄樣式 (虛線) */
+        .route-chip.hist { border-style: dashed; }
+        /* 星星按鈕樣式 */
+        #btnStar { font-size: 1.1rem; padding: 2px 8px; }
+        /* 啟用狀態的星星 (綠色主題，使用現有的 active tool-btn 樣式組合) */
+        #btnStar.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); text-shadow: 0 0 5px rgba(77, 127, 94, 0.5); }
     </style>
 </head>
 <body>
@@ -168,6 +182,7 @@
                     <button id="btnInstall" onclick="handleInstall()">📲 安裝 App</button>
                     <button id="btnShowAll" class="tool-btn" onclick="toggleShowAll()">全部</button>
                     <button id="btnTimeFormat" class="tool-btn" onclick="toggleTimeFormat()">24H</button>
+                    <button id="btnStar" class="tool-btn" onclick="toggleFavorite()">☆</button>
                     <button class="menu-btn-trigger" onclick="openModal()">☰</button>
                 </div>
             </div>
@@ -192,6 +207,8 @@
                     <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
                 </div>
             </div>
+
+            <div id="quickRouteArea" class="quick-route-area"></div>
 
             <div class="action-area">
                 <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
@@ -388,6 +405,9 @@
                 statusMsg.innerText="等待輸入...";
                 checkLocksOnLoad();
             }
+            // 【新增】初始化渲染快速路線與星星狀態
+            renderQuickRoutes();
+            updateStarState();
         }
         function checkLocksOnLoad() {
             const now=Date.now();
@@ -428,6 +448,8 @@
             localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
             localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
             attemptLoadCache(false);
+            // 【新增】車站變更時，更新星星按鈕狀態
+            updateStarState();
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
         function reRenderLocal() {
@@ -473,6 +495,8 @@
                 const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60;
                 setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit","Search Limit"); return;
             }
+            // 【新增】在查詢前加入歷史紀錄
+            addToHistory();
             cnt++; setSearchCount(cnt); 
             logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN}) ${sS}→${eS}`); 
             fetchData("search");
@@ -696,6 +720,119 @@
             const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
             const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
+        }
+
+        // === 新增功能：常用路線與歷史紀錄邏輯 ===
+        const LS_FAV = "tl_favorites";
+        const LS_HIST = "tl_history";
+        const MAX_HIST = 3;
+        const MAX_FAV = 6;
+        const btnStar = document.getElementById('btnStar');
+        const quickArea = document.getElementById('quickRouteArea');
+
+        // 取得目前的起訖站物件
+        function getCurrentPair() {
+            return { start: startStation.value, end: endStation.value };
+        }
+
+        // 檢查是否已收藏
+        function isFavorite(s, e) {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            return favs.some(f => f.start === s && f.end === e);
+        }
+
+        // 切換收藏狀態 (星星按鈕)
+        function toggleFavorite() {
+            const cur = getCurrentPair();
+            if (!cur.start || !cur.end) return;
+            
+            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
+
+            if (idx >= 0) {
+                favs.splice(idx, 1); // 移除
+                logSystem("Fav", "Removed");
+            } else {
+                if (favs.length >= MAX_FAV) { alert(`常用路線最多儲存 ${MAX_FAV} 組`); return; }
+                favs.unshift(cur); // 加入最前面
+                logSystem("Fav", "Added");
+            }
+            localStorage.setItem(LS_FAV, JSON.stringify(favs));
+            updateStarState();
+            renderQuickRoutes();
+        }
+
+        // 加入歷史紀錄 (在搜尋時呼叫)
+        function addToHistory() {
+            const cur = getCurrentPair();
+            if (!cur.start || !cur.end) return;
+
+            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+            // 移除重複 (若已存在，先刪除舊的)
+            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
+            
+            // 加入最前面
+            hist.unshift(cur);
+            
+            // 限制數量
+            if (hist.length > MAX_HIST) hist.pop();
+            
+            localStorage.setItem(LS_HIST, JSON.stringify(hist));
+            renderQuickRoutes();
+        }
+
+        // 更新星星按鈕的顯示狀態
+        function updateStarState() {
+            const cur = getCurrentPair();
+            if (isFavorite(cur.start, cur.end)) {
+                btnStar.innerHTML = "★";
+                btnStar.classList.add('active');
+            } else {
+                btnStar.innerHTML = "☆";
+                btnStar.classList.remove('active');
+            }
+        }
+
+        // 點擊 Chip 後載入路線
+        function loadRoute(s, e) {
+            const sR = STATION_INDEX[s];
+            const eR = STATION_INDEX[e];
+            if (sR && eR) {
+                setMenu('start', sR, s);
+                setMenu('end', eR, e);
+                markAsChanged(); // 觸發儲存與 UI 更新
+            }
+        }
+
+        // 渲染快速路線區塊
+        function renderQuickRoutes() {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+            
+            let html = '';
+
+            // 先顯示收藏 (綠色實線)
+            favs.forEach(r => {
+                html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">
+                    ${r.start}<span class="chip-arrow">➔</span>${r.end}
+                </div>`;
+            });
+
+            // 再顯示歷史紀錄 (灰色虛線)，需排除已經在收藏裡的
+            hist.forEach(r => {
+                if (!isFavorite(r.start, r.end)) {
+                    html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">
+                        ${r.start}<span class="chip-arrow">➔</span>${r.end}
+                    </div>`;
+                }
+            });
+
+            if (html === '') {
+                quickArea.style.display = 'none';
+            } else {
+                quickArea.style.display = 'flex';
+                quickArea.innerHTML = html;
+            }
         }
 
         init();
