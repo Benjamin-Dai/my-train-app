@@ -114,8 +114,27 @@
         .loading { color: #4d7f5e; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
-        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 85vh; overflow-y: auto;}
-        .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; }
+        
+        /* === 修改：模態視窗樣式優化 === */
+        .modal-content { 
+            background: #1c1c1e; width: 85%; max-width: 400px; 
+            border-radius: 16px; padding: 25px; 
+            border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            text-align: left; position: relative; 
+            max-height: 80vh; /* 稍微縮小高度，避免頂到瀏覽器邊緣 */
+            overflow-y: auto; 
+        }
+        
+        /* === 修改：標題列固定 (Sticky) === */
+        .modal-header-row { 
+            display: flex; align-items: center; margin-bottom: 15px;
+            /* 讓標題列固定在頂端 */
+            position: sticky; top: -25px; 
+            background: #1c1c1e; z-index: 10;
+            padding: 10px 0; border-bottom: 1px solid #333;
+        }
+        /* ============================ */
+
         .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
         .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
         .menu-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
