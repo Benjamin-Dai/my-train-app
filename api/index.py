@@ -3,9 +3,9 @@ import json
 import requests
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone # 【修正 1】引入 timezone
 from urllib.parse import parse_qs, urlparse
-import redis  # 匯入 redis
+import redis
 
 try:
     from .stations import STATION_MAP
@@ -16,7 +16,6 @@ except ImportError:
 CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 
-# 自動抓取資料庫連線字串
 KV_URL = os.environ.get('UPSTASH_REDIS_KV_URL') or os.environ.get('UPSTASH_REDIS_URL') or os.environ.get('KV_URL')
 
 DEFAULT_START = '屏東'
@@ -41,7 +40,6 @@ else:
 class handler(BaseHTTPRequestHandler):
 
     def get_token(self, cid, csecret):
-        # 1. 嘗試從 Redis 拿 Token
         if redis_client:
             try:
                 cached_token = redis_client.get("tdx_token")
@@ -49,7 +47,6 @@ class handler(BaseHTTPRequestHandler):
                     return cached_token.decode('utf-8')
             except: pass
 
-        # 2. Redis 沒資料，向 TDX 申請
         auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
         try:
             res = requests.post(auth_url, data={'grant_type': 'client_credentials','client_id': cid,'client_secret': csecret})
@@ -58,7 +55,6 @@ class handler(BaseHTTPRequestHandler):
                 token = data.get('access_token')
                 expires = data.get('expires_in', 86400)
                 
-                # 3. 存入 Redis
                 if redis_client and token:
                     try:
                         redis_client.set("tdx_token", token, ex=expires - 600)
@@ -80,7 +76,6 @@ class handler(BaseHTTPRequestHandler):
     def get_cached_delays(self, headers):
         cache_key = "tra_delay_data"
         
-        # 1. 嘗試從 Redis 讀取
         if redis_client:
             try:
                 cached_data = redis_client.get(cache_key)
@@ -89,7 +84,6 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print(f"Redis Read Error: {e}")
 
-        # 2. Redis 沒資料，從 TDX 抓取
         delay_url = f"{API_BASE_V2}/LiveTrainDelay"
         res = requests.get(delay_url, headers=headers)
 
@@ -99,7 +93,6 @@ class handler(BaseHTTPRequestHandler):
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             
-            # 3. 寫入 Redis (60秒過期)
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(new_delays), ex=60)
@@ -114,7 +107,6 @@ class handler(BaseHTTPRequestHandler):
     def get_route_timetable(self, start_id, end_id, date_str, headers):
         cache_key = f"route_{start_id}_{end_id}_{date_str}"
 
-        # 1. 嘗試從 Redis 讀取
         if redis_client:
             try:
                 cached_route = redis_client.get(cache_key)
@@ -122,7 +114,6 @@ class handler(BaseHTTPRequestHandler):
                     return (json.loads(cached_route), "Redis Hit")
             except: pass
 
-        # 2. 沒資料，從 TDX 抓取
         timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
         res = requests.get(timetable_url, headers=headers)
 
@@ -130,7 +121,6 @@ class handler(BaseHTTPRequestHandler):
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
             
-            # 3. 寫入 Redis (12小時過期)
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
@@ -154,6 +144,10 @@ class handler(BaseHTTPRequestHandler):
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
+        # 【修正 2】定義台灣時區
+        tz_tw = timezone(timedelta(hours=8))
+        
+        # 這裡的 now 還是保持 naive (不帶時區)，用來跟 TDX 原始字串做比較與顯示
         now = datetime.now() + timedelta(hours=8)
         today_str = now.strftime('%Y-%m-%d')
         headers = {'authorization': f'Bearer {token}'}
@@ -205,11 +199,15 @@ class handler(BaseHTTPRequestHandler):
 
                 is_past = real_dep < (now - timedelta(minutes=10))
 
+                # 【修正 3】計算 sort_key 時，強制加上時區，讓 .timestamp() 算出正確的 UTC 時間戳記
+                # 這樣前端 (JavaScript) 收到後，跟瀏覽器的 Date.now() 比較才會正確
+                real_dep_aware = real_dep.replace(tzinfo=tz_tw)
+
                 processed.append({
                     "no": no, "type": display_type, "delay": delay, "color": type_color,
                     "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
                     "sch_dep": dep_time, "sch_arr": arr_time,
-                    "sort_key": real_dep.timestamp(),
+                    "sort_key": real_dep_aware.timestamp(), # 使用帶時區的時間戳記
                     "is_past": is_past
                 })
 
