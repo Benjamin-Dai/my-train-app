@@ -1,22 +1,22 @@
 {
-  "name": "列車時刻 Live",
-  "short_name": "TrainLive",
-  "start_url": ".",
+  "name": "TRAIN LIVE",
+  "short_name": "TRAIN LIVE",
+  "description": "台鐵即時時刻表與誤點資訊",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
+  "background_color": "#151517",
   "theme_color": "#151517",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "Vectorink-49fm9kavo_1767889721111119561.svg",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
     },
     {
-      "src": "Vectorink-49fm9kavo_1767889721111119561.svg",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }
