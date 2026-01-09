@@ -1,39 +1,300 @@
-// 修改前端 renderCards 函式
-function renderCards(data) {
-    if (data.trains && data.trains.length > 0) {
-        let html = `<div class="click-hint">👆 點擊卡片查看「列車即時位置」與「完整停靠站」</div>`;
-        let has = false;
-        let hasShownNextDayDivider = false; // 新增標記
+from http.server import BaseHTTPRequestHandler
+import json
+import requests
+import os
+import time
+from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qs, urlparse
+import redis
 
-        const nowSec = Math.floor(Date.now() / 1000);
+try:
+    from .stations import STATION_MAP
+except ImportError:
+    from stations import STATION_MAP
 
-        // 取得台灣時間的「明天凌晨 00:00」的時間戳記，用來畫分隔線
-        // 這裡簡單用本地時間估算，或是比較相鄰兩班車的時間差
-        let lastTrainTs = 0;
+# ================= 設定區 =================
+CLIENT_ID = os.environ.get('TDX_ID')
+CLIENT_SECRET = os.environ.get('TDX_SECRET')
 
-        data.trains.forEach(t => {
-            const diffSec = t.sort_key - nowSec;
-            const diffMin = Math.floor(diffSec / 60);
+KV_URL = os.environ.get('UPSTASH_REDIS_KV_URL') or os.environ.get('UPSTASH_REDIS_URL') or os.environ.get('KV_URL')
 
-            let isDeparted = diffSec < 0; 
-            let isArriving = !isDeparted && diffMin <= 10;
+DEFAULT_START = '屏東'
+DEFAULT_END = '潮州'
 
-            if (!isShowAll && diffMin < -10) return;
+API_BASE_V3 = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA"
+API_BASE_V2 = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA"
+
+# 初始化 Redis 連線
+redis_client = None
+if KV_URL:
+    try:
+        redis_client = redis.from_url(KV_URL)
+        redis_client.ping()
+        print("Redis Connected Successfully")
+    except Exception as e:
+        print(f"Redis Connection Error: {e}")
+        redis_client = None
+else:
+    print("Warning: No Redis URL found.")
+
+class handler(BaseHTTPRequestHandler):
+
+    def get_token(self, cid, csecret):
+        if redis_client:
+            try:
+                cached_token = redis_client.get("tdx_token")
+                if cached_token:
+                    return cached_token.decode('utf-8')
+            except: pass
+
+        auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
+        try:
+            res = requests.post(auth_url, data={'grant_type': 'client_credentials','client_id': cid,'client_secret': csecret})
+            if res.status_code == 200: 
+                data = res.json()
+                token = data.get('access_token')
+                expires = data.get('expires_in', 86400)
+                
+                if redis_client and token:
+                    try:
+                        redis_client.set("tdx_token", token, ex=expires - 600)
+                    except: pass
+                return token
+            return None
+        except: return None
+
+    def get_header_info(self, res):
+        val = None
+        for k, v in res.headers.items():
+            if 'remaining' in k.lower():
+                val = v
+                break
+        if val: return f"API {res.status_code} (剩: {val})"
+        return f"API {res.status_code}"
+
+    # === 使用 Redis 存取誤點資訊 (V2) ===
+    def get_cached_delays(self, headers):
+        cache_key = "tra_delay_data"
+        
+        if redis_client:
+            try:
+                cached_data = redis_client.get(cache_key)
+                if cached_data:
+                    return (json.loads(cached_data), "Redis Hit")
+            except Exception as e:
+                print(f"Redis Read Error: {e}")
+
+        delay_url = f"{API_BASE_V2}/LiveTrainDelay"
+        res = requests.get(delay_url, headers=headers)
+
+        if res.status_code == 200:
+            status_str = self.get_header_info(res)
+            d_data = res.json()
+            d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
+            new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             
-            // === 新增：跨日分隔線 ===
-            // 如果這班車的時間 比 上一班車 晚了超過 4 小時 (且不是第一筆)，視為隔日
-            // 或者簡單點：如果上一班是 23:xx，這班是 00:xx ~ 06:xx
-            if (has && !hasShownNextDayDivider) {
-                const thisDate = new Date(t.sort_key * 1000);
-                const lastDate = new Date(lastTrainTs * 1000);
-                if (thisDate.getDate() !== lastDate.getDate()) {
-                     html += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:10px;">⬇ 次日班次 ⬇</div>`;
-                     hasShownNextDayDivider = true;
+            if redis_client:
+                try:
+                    redis_client.set(cache_key, json.dumps(new_delays), ex=60)
+                except Exception as e:
+                    print(f"Redis Write Error: {e}")
+            
+            return (new_delays, status_str)
+        else: 
+            raise Exception(f"Delay API Error: {res.status_code}")
+
+    # === 使用 Redis 存取時刻表 (V3) - 12小時快取 ===
+    def get_route_timetable(self, start_id, end_id, date_str, headers):
+        cache_key = f"route_{start_id}_{end_id}_{date_str}"
+
+        if redis_client:
+            try:
+                cached_route = redis_client.get(cache_key)
+                if cached_route:
+                    return (json.loads(cached_route), "Redis Hit")
+            except: pass
+
+        timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
+        res = requests.get(timetable_url, headers=headers)
+
+        if res.status_code == 200:
+            status_str = self.get_header_info(res)
+            raw_list = res.json().get('TrainTimetables', [])
+            
+            if redis_client:
+                try:
+                    redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
+                except: pass
+
+            return (raw_list, status_str)
+        else: 
+            raise Exception(f"TDX Timetable Error: {res.status_code}")
+
+    # === 核心處理邏輯 ===
+    # 移除了所有對 dep_time 字串的過濾，全部保留，最後由時間戳記決定去留
+    def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=False):
+        processed = []
+        for item in raw_list:
+            info = item.get('TrainInfo', {})
+            no = info.get('TrainNo')
+            raw_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
+            stop_times = item.get('StopTimes', [])
+            
+            dep_time, arr_time = None, None
+            for stop in stop_times:
+                s_id = stop.get('StationID')
+                if s_id == start_id: dep_time = stop.get('DepartureTime')
+                elif s_id == end_id: arr_time = stop.get('ArrivalTime')
+            
+            if not dep_time or not arr_time: continue 
+
+            display_type = raw_type
+            type_color = "#ffffff"
+            if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
+            elif "區間" in raw_type: display_type, type_color = "區間車", "#0076B2"
+            elif "普悠瑪" in raw_type: display_type, type_color = "普悠瑪", "#9C1637"
+            elif "3000" in raw_type: display_type, type_color = "自強3000", "#85a38f"
+            elif "自強" in raw_type: display_type, type_color = "自強號", "#DF3F1F"
+            elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
+            elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
+
+            # 誤點處理邏輯：
+            # 如果資料來源是明天 (is_tomorrow=True)，誤點歸零 (因為還沒發車)
+            # 如果是今天或昨天，則顯示即時誤點
+            if is_tomorrow:
+                delay = 0
+            else:
+                delay = int(delays.get(no, 0))
+            
+            dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
+            arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
+            
+            # 處理昨天跨日車 (例如昨天班表裡的 00:30)
+            if fix_crossing_night:
+                if dep_time < "12:00": dep_dt += timedelta(days=1)
+                if arr_time < "12:00": arr_dt += timedelta(days=1)
+
+            # 處理一般的跨日抵達
+            if arr_dt < dep_dt: arr_dt += timedelta(days=1)
+
+            real_dep = dep_dt + timedelta(minutes=delay)
+            real_arr = arr_dt + timedelta(minutes=delay)
+
+            # 這裡計算 is_past，但暫時不過濾，留到最後統一過濾
+            is_past = real_dep < (now - timedelta(minutes=10))
+
+            real_dep_aware = real_dep.replace(tzinfo=tz_tw)
+
+            processed.append({
+                "no": no, "type": display_type, "delay": delay, "color": type_color,
+                "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
+                "sch_dep": dep_time, "sch_arr": arr_time,
+                "sort_key": real_dep_aware.timestamp(),
+                "is_past": is_past
+            })
+        return processed
+
+    def do_GET(self):
+        parsed_path = urlparse(self.path)
+        params = parse_qs(parsed_path.query)
+        start_station = params.get('start', [DEFAULT_START])[0]
+        end_station = params.get('end', [DEFAULT_END])[0]
+
+        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Environment Variables")
+        start_id = STATION_MAP.get(start_station)
+        end_id = STATION_MAP.get(end_station)
+        if not start_id or not end_id: return self.send_error_response(f"找不到車站 ID")
+
+        token = self.get_token(CLIENT_ID, CLIENT_SECRET)
+        if not token: return self.send_error_response("Auth Failed")
+
+        tz_tw = timezone(timedelta(hours=8))
+        now = datetime.now() + timedelta(hours=8)
+        
+        today_str = now.strftime('%Y-%m-%d')
+        tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        headers = {'authorization': f'Bearer {token}'}
+
+        try:
+            # 抓取今天與明天
+            raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
+            raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
+            
+            # 抓取昨天 (凌晨補救跨夜車)
+            raw_yest = []
+            status_yest = "Skipped"
+            if now.hour < 4:
+                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+                raw_yest, status_yest = self.get_route_timetable(start_id, end_id, yesterday_str, headers)
+
+            delays = {}
+            delay_failed = False
+            delay_status = "Unknown"
+
+            try: 
+                delays, delay_status = self.get_cached_delays(headers)
+            except Exception as e: 
+                print(f"Delay Fetch Error: {e}")
+                delay_failed = True
+                delay_status = "Failed"
+
+            processed = []
+            
+            # 合併處理所有資料
+            if raw_yest:
+                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+                processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=True))
+
+            processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
+            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=True))
+
+            # 去重：使用 sort_key + no 確保唯一
+            unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
+            
+            # === 最終過濾：滑動視窗 (Sliding Window) ===
+            # 只保留：現在時間前 10 分鐘 ~ 未來 22 小時內的車
+            # 這樣就能實現「看到隔天同一班車」的效果，又不會無限延伸
+            final_result = []
+            now_ts = now.timestamp()
+            
+            # 設定未來視窗：22小時 (涵蓋幾乎整天，但避免顯示到後天的車)
+            future_limit = now_ts + (22 * 3600) 
+            past_limit = now_ts - 600 # 過去 10 分鐘
+
+            for p in unique_dict.values():
+                ts = p['sort_key']
+                if ts >= past_limit and ts <= future_limit:
+                    final_result.append(p)
+
+            result = sorted(final_result, key=lambda x: x['sort_key'])
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
+            self.end_headers()
+
+            diag_route_status = f"{status_today} / {status_tmrw}"
+            if now.hour < 4:
+                diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
+
+            self.wfile.write(json.dumps({
+                "update_time": now.strftime("%H:%M:%S"),
+                "start": start_station,
+                "end": end_station,
+                "delay_failed": delay_failed,
+                "trains": result,
+                "diagnostics": {
+                    "route_status": diag_route_status,
+                    "delay_status": delay_status
                 }
-            }
-            lastTrainTs = t.sort_key;
-            // ======================
+            }).encode())
+        except Exception as e: self.send_error_response(str(e))
 
-            has = true;
-
-            // ... (後面產生卡片的程式碼維持不變) ...
+    def send_error_response(self, msg):
+        self.send_response(500)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": msg}).encode())
