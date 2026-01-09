@@ -163,7 +163,7 @@
         .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.95rem; }
         .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
 
-        /* === In-App Browser 引導遮罩 === */
+        /* === In-App Browser 引導遮罩 (修正版) === */
         #inAppOverlay {
             display: none; /* 預設隱藏 */
             position: fixed;
@@ -174,55 +174,55 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 20px;
+            padding: 40px 20px;
             box-sizing: border-box;
-            cursor: pointer; /* 讓整個遮罩看起來可點擊 */
+            cursor: pointer;
+            backdrop-filter: blur(5px);
         }
-        .guide-arrow {
-            position: absolute;
-            top: 10px;
-            right: 20px;
+        /* 拿掉原本的箭頭，改用這個通用圖示 */
+        .guide-icon {
             font-size: 3rem;
             color: #4d7f5e;
-            animation: bounce-right 1.5s infinite;
+            margin-bottom: 20px;
+            animation: pulse-icon 2s infinite;
         }
-        @keyframes bounce-right {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(10px, -10px); }
+        @keyframes pulse-icon {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
         }
         .guide-text {
             color: #fff;
             font-size: 1.1rem;
             line-height: 1.6;
-            max-width: 80%;
+            max-width: 90%;
         }
         .guide-highlight {
             color: #e6b800;
             font-weight: bold;
-            font-size: 1.2rem;
-            margin: 10px 0;
-            border: 1px solid #444;
-            padding: 10px;
-            border-radius: 8px;
+            font-size: 1.3rem;
+            margin: 20px 0;
+            border: 2px dashed #444; 
+            padding: 15px;
+            border-radius: 12px;
             background: #222;
         }
     </style>
 </head>
 <body>
     <div id="inAppOverlay" onclick="this.style.display='none'">
-        <div class="guide-arrow">⤴</div>
+        <div class="guide-icon">🌏</div>
         <div class="guide-text">
-            您正在使用社交軟體瀏覽<br><br>
-            為了正常安裝與定位<br>
-            請點擊右上角/右下角選單<br><br>
-            選擇<br>
+            為了正常安裝 App 與定位<br>
+            請切換至瀏覽器開啟
         </div>
         <div class="guide-highlight">
-            🌐 在瀏覽器開啟<br>
-            (Open in Browser)
+            1. 點擊角落的 <strong>選單</strong> (⋮ 或 ⋯)<br>
+            <span style="font-size:0.9rem; color:#888;">(通常在 右上角 或 右下角)</span><br><br>
+            2. 選擇 <strong>在瀏覽器開啟</strong><br>
+            <span style="font-size:0.9rem; color:#888;">(Open in Browser / Safari)</span>
         </div>
-        <div class="guide-text" style="font-size:0.8rem; color:#888; margin-top:20px;">
-            (點擊畫面可關閉提示)
+        <div class="guide-text" style="font-size:0.8rem; color:#aaa; margin-top:20px;">
+            (點擊畫面任意處可關閉提示)
         </div>
     </div>
 
@@ -422,10 +422,8 @@
                     deferredPrompt = null;
                 });
             } else {
-                // 如果在一般瀏覽器但沒有安裝觸發 (例如 Desktop Chrome 已安裝，或不支援)
-                // 這裡可以選擇不動作，或者跳出 iOS 模態框當作通用說明
-                // document.getElementById('aboutModal').style.display = 'flex';
-                // goToPage('IOS');
+                // 如果在一般瀏覽器但沒有安裝觸發
+                // 這邊可以視情況加入其他提示
             }
         }
 
