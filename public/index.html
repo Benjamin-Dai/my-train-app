@@ -14,7 +14,8 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="TRAIN LIVE | 列車時刻即時看板">
     <meta property="og:description" content="誤點自動計算，顯示實際到站時間。掌握通勤節奏，不再焦慮等待。">
-    <meta property="og:image" content="/icon.png">
+    <meta property="og:url" content="https://benjamindai-train-app.vercel.app/">
+    <meta property="og:image" content="https://benjamindai-train-app.vercel.app/icon.png">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
     <meta name="twitter:card" content="summary">
@@ -95,7 +96,7 @@
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
 
-        /* 骨架屏樣式 (優化項目 4) */
+        /* 骨架屏動畫樣式 */
         .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
         @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .sk-line { background: #333; border-radius: 4px; }
@@ -438,7 +439,7 @@
             const c=localStorage.getItem(getCacheKey()); let hit=false;
             if(c) {
                 const d=JSON.parse(c);
-                if(Date.now()-d.timestamp<60000) {
+                if(Date.now()-d.timestamp < 60000) {
                     if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
                     renderCards(d.payload); setUpdateText(`更新於(快取): ${d.payload.update_time}`);
                     statusMsg.innerText=""; statusMsg.className="status-msg"; list.style.opacity="1"; 
@@ -514,13 +515,35 @@
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
             
-            // 顯示骨架屏
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
-            statusMsg.innerText=""; // 清空文字狀態
+            statusMsg.innerText=""; 
 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
-            const s=startStation.value; const e=endStation.value; recordRequest();
+            const s=startStation.value; const e=endStation.value; 
+            
+            // 檢查快取 (60秒)
+            const cacheKey = getCacheKey();
+            const cached = localStorage.getItem(cacheKey);
+
+            if (cached) {
+                const d = JSON.parse(cached);
+                if (Date.now() - d.timestamp < 60000) { 
+                    await new Promise(r => setTimeout(r, 200)); 
+                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false);
+                    renderCards(d.payload);
+                    setUpdateText(`更新於: ${d.payload.update_time} (資料未過期)`);
+                    lastFetchedPair={start:s,end:e};
+                    logSystem("Cache", "Hit local (Age < 60s)");
+                    
+                    const now = Date.now();
+                    if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false, 500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                    if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                    return;
+                }
+            }
+
+            recordRequest();
             try {
                 const res=await fetch(`/api/index?start=${s}&end=${e}`);
                 const age = res.headers.get('Age');
@@ -541,19 +564,11 @@
                     scheduleRetry("誤點資訊無法取得", "status-msg warning");
                     setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
                 } else {
-                    // statusMsg.innerText="更新完成"; statusMsg.className="status-msg"; // 移除文字提示，讓畫面更乾淨
                     setUpdateText(`更新於: ${json.update_time}`);
                 }
                 const now=Date.now();
-                if(mode==="search"){ 
-                    setTimeout(()=>btnSearch.disabled=false,500); 
-                    setRefreshLockedUntil(now+30000); // 30s
-                    lockRefreshButton(30); 
-                }
-                if(mode==="refresh"){ 
-                    setRefreshLockedUntil(now+30000); // 30s
-                    lockRefreshButton(30); 
-                }
+                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
                 scheduleRetry("連線發生問題", "status-msg alert");
