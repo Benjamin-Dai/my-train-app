@@ -1,296 +1,248 @@
+
 from http.server import BaseHTTPRequestHandler
-from urllib import parse
 import json
+import requests
 import os
 import time
-from datetime import datetime, timedelta, timezone
-import urllib.request
-import urllib.error
-import ssl
+from datetime import datetime, timedelta
+from urllib.parse import parse_qs, urlparse
+import redis  # 匯入 redis
 
-# === 1. 車站代碼對照表 (完整版) ===
-STATION_MAP = {
-    # === 縱貫線北段 ===
-    "基隆": "0900", "三坑": "0910", "八堵": "0920", "七堵": "0930", "百福": "0940",
-    "五堵": "0950", "汐止": "0960", "汐科": "0970", "南港": "0980", "松山": "0990",
-    "臺北": "1000", "萬華": "1010", "板橋": "1020", "浮洲": "1030", "樹林": "1040",
-    "南樹林": "1050", "山佳": "1060", "鶯歌": "1070", "鳳鳴": "1075", "桃園": "1080", 
-    "內壢": "1090", "中壢": "1100", "埔心": "1110", "楊梅": "1120", "富岡": "1130", 
-    "新富": "1140", "北湖": "1150", "湖口": "1160", "新豐": "1170", "竹北": "1180", 
-    "北新竹": "1190", "新竹": "1210", "三姓橋": "1220", "香山": "1230", "崎頂": "1240", 
-    "竹南": "1250",
+try:
+    from .stations import STATION_MAP
+except ImportError:
+    from stations import STATION_MAP
 
-    # === 海線 ===
-    "談文": "2110", "大山": "2120", "後龍": "2130", "龍港": "2140", "白沙屯": "2150",
-    "新埔": "2160", "通霄": "2170", "苑裡": "2180", "日南": "2190", "大甲": "2200",
-    "臺中港": "2210", "清水": "2220", "沙鹿": "2230", "龍井": "2240", "大肚": "2250",
-    "追分": "2260",
+# ================= 設定區 =================
+CLIENT_ID = os.environ.get('TDX_ID')
+CLIENT_SECRET = os.environ.get('TDX_SECRET')
 
-    # === 山線 ===
-    "造橋": "3140", "豐富": "3150", "苗栗": "3160", "南勢": "3170", "銅鑼": "3180",
-    "三義": "3190", "泰安": "3210", "后里": "3220", "豐原": "3230", "栗林": "3240",
-    "潭子": "3250", "頭家厝": "3260", "松竹": "3270", "太原": "3280", "精武": "3290",
-    "臺中": "3300", "五權": "3310", "大慶": "3320", "烏日": "3330", "新烏日": "3340",
-    "成功": "3350",
+# 自動抓取資料庫連線字串 (修正版)
+# 優先抓取你截圖中的 UPSTASH_REDIS_KV_URL，如果沒有則嘗試其他可能的名稱
+KV_URL = os.environ.get('UPSTASH_REDIS_KV_URL') or os.environ.get('UPSTASH_REDIS_URL') or os.environ.get('KV_URL')
 
-    # === 縱貫線南段 ===
-    "彰化": "3360", "花壇": "3370", "大村": "3380", "員林": "3390", "永靖": "3400",
-    "社頭": "3410", "田中": "3420", "二水": "3430", "林內": "3450", "石榴": "3460",
-    "斗六": "3470", "斗南": "3480", "石龜": "3490", "大林": "4050", "民雄": "4060",
-    "嘉北": "4070", "嘉義": "4080", "水上": "4090", "南靖": "4100", "後壁": "4110",
-    "新營": "4120", "柳營": "4130", "林鳳營": "4140", "隆田": "4150", "拔林": "4160",
-    "善化": "4170", "南科": "4180", "新市": "4190", "永康": "4200", "大橋": "4210",
-    "臺南": "4220", "保安": "4250", "仁德": "4260", "中洲": "4270", 
-    "大湖": "4280", "路竹": "4290", "岡山": "4300", "橋頭": "4310", "楠梓": "4320", 
-    "新左營": "4330", "左營": "4340", "內惟": "4350", "美術館": "4360", "鼓山": "4370", 
-    "三塊厝": "4380", "高雄": "4400",
+DEFAULT_START = '屏東'
+DEFAULT_END = '潮州'
 
-    # === 屏東線 ===
-    "民族": "4410", "科工館": "4420", "正義": "4430", "鳳山": "4440", "後庄": "4450", 
-    "九曲堂": "4460", "六塊厝": "4470", "屏東": "5000", "歸來": "5010", "麟洛": "5020", 
-    "西勢": "5030", "竹田": "5040", "潮州": "5050", "崁頂": "5060", "南州": "5070", 
-    "鎮安": "5080", "林邊": "5090", "佳冬": "5100", "東海": "5110", "枋寮": "5120",
+API_BASE_V3 = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA"
+API_BASE_V2 = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA"
 
-    # === 南迴線 ===
-    "加祿": "5130", "內獅": "5140", "枋山": "5160", "大武": "5190", "瀧溪": "5200",
-    "金崙": "5210", "太麻里": "5220", "知本": "5230", "康樂": "5240", "臺東": "6000",
+# 初始化 Redis 連線
+redis_client = None
+if KV_URL:
+    try:
+        redis_client = redis.from_url(KV_URL)
+        # 測試連線，如果失敗會直接跳到 except
+        redis_client.ping()
+        print("Redis Connected Successfully")
+    except Exception as e:
+        print(f"Redis Connection Error: {e}")
+        redis_client = None
+else:
+    print("Warning: No Redis URL found.")
 
-    # === 臺東線 ===
-    "山里": "6010", "鹿野": "6020", "瑞源": "6030", "瑞和": "6040", "關山": "6050",
-    "海端": "6060", "池上": "6070", "富里": "6080", "東竹": "6090", "東里": "6100",
-    "玉里": "6110", "三民": "6120", "瑞穗": "6130", "富源": "6140", "大富": "6150",
-    "光復": "6160", "萬榮": "6170", "鳳林": "6180", "南平": "6190", "林榮新光": "6200",
-    "豐田": "6210", "壽豐": "6220", "平和": "6230", "志學": "6240", "吉安": "6250",
-
-    # === 北迴線/宜蘭線 ===
-    "花蓮": "7000", "北埔": "7010", "景美": "7020", "新城": "7030", "崇德": "7040",
-    "和仁": "7050", "和平": "7060", "漢本": "7070", "武塔": "7080", "南澳": "7090",
-    "東澳": "7100", "永樂": "7110", "蘇澳": "7120", "蘇澳新": "7130", "冬山": "7140",
-    "羅東": "7150", "中里": "7160", "二結": "7170", "宜蘭": "7180", "四城": "7190",
-    "礁溪": "7200", "頂埔": "7210", "頭城": "7220", "外澳": "7230", "龜山": "7240",
-    "大溪": "7250", "大里": "7260", "石城": "7270", "福隆": "7280", "貢寮": "7290",
-    "雙溪": "7300", "牡丹": "7310", "三貂嶺": "7320", 
-    "暖暖": "7390", "四腳亭": "7380", 
-    "侯硐": "7350", "瑞芳": "7360", 
-
-    # === 支線 ===
-    "大華": "7331", "十分": "7332", "望古": "7333", "嶺腳": "7334", "平溪": "7335",
-    "菁桐": "7336", "海科館": "7361", "八斗子": "7362",
-    "千甲": "1191", "新莊": "1192", "六家": "1193", "竹中": "1194", 
-    "上員": "1203", "榮華": "1204", "竹東": "1205", "橫山": "1206", "九讚頭": "1207", 
-    "合興": "1208", "富貴": "1209", "內灣": "1210",
-    "源泉": "3431", "濁水": "3432", "龍泉": "3433", "集集": "3434", "水里": "3435", "車埕": "3436",
-    "長榮大學": "4271", "沙崙": "4272"
-}
-
-# === 2. TDX Token 管理 ===
-class TDXToken:
-    def __init__(self):
-        self.access_token = None
-        self.expires_at = 0
-        self.client_id = os.environ.get("TDX_ID")
-        self.client_secret = os.environ.get("TDX_SECRET")
-
-    def get_token(self):
-        now = time.time()
-        if self.access_token and now < self.expires_at - 60:
-            return self.access_token
-
-        url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
-        data = parse.urlencode({
-            "grant_type": "client_credentials",
-            "client_id": self.client_id,
-            "client_secret": self.client_secret
-        }).encode()
-
-        try:
-            # 建立不驗證 SSL 的 Context
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            
-            req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/x-www-form-urlencoded"})
-            with urllib.request.urlopen(req, context=ctx) as response:
-                resp_json = json.loads(response.read().decode())
-                self.access_token = resp_json.get("access_token")
-                self.expires_at = now + resp_json.get("expires_in", 86400)
-                return self.access_token
-        except Exception as e:
-            print(f"Token Error: {e}")
-            return None
-
-token_manager = TDXToken()
-
-# === 3. Vercel Serverless Handler ===
 class handler(BaseHTTPRequestHandler):
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
+
+    def get_token(self, cid, csecret):
+        # 1. 嘗試從 Redis 拿 Token (可省下很多次請求)
+        if redis_client:
+            try:
+                cached_token = redis_client.get("tdx_token")
+                if cached_token:
+                    return cached_token.decode('utf-8')
+            except: pass
+
+        # 2. Redis 沒資料，向 TDX 申請
+        auth_url = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token"
+        try:
+            res = requests.post(auth_url, data={'grant_type': 'client_credentials','client_id': cid,'client_secret': csecret})
+            if res.status_code == 200: 
+                data = res.json()
+                token = data.get('access_token')
+                expires = data.get('expires_in', 86400)
+                
+                # 3. 存入 Redis (設定過期時間比官方少一點，例如少 10 分鐘)
+                if redis_client and token:
+                    try:
+                        redis_client.set("tdx_token", token, ex=expires - 600)
+                    except: pass
+                return token
+            return None
+        except: return None
+
+    def get_header_info(self, res):
+        val = None
+        for k, v in res.headers.items():
+            if 'remaining' in k.lower():
+                val = v
+                break
+        if val: return f"API {res.status_code} (剩: {val})"
+        return f"API {res.status_code}"
+
+    # === 使用 Redis 存取誤點資訊 ===
+    def get_cached_delays(self, headers):
+        cache_key = "tra_delay_data"
+        
+        # 1. 嘗試從 Redis 讀取
+        if redis_client:
+            try:
+                cached_data = redis_client.get(cache_key)
+                if cached_data:
+                    return (json.loads(cached_data), "Redis Hit")
+            except Exception as e:
+                print(f"Redis Read Error: {e}")
+
+        # 2. Redis 沒資料，從 TDX 抓取
+        delay_url = f"{API_BASE_V2}/LiveTrainDelay"
+        res = requests.get(delay_url, headers=headers)
+
+        if res.status_code == 200:
+            status_str = self.get_header_info(res)
+            d_data = res.json()
+            d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
+            new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
+            
+            # 3. 寫入 Redis (設定 60 秒過期)
+            if redis_client:
+                try:
+                    redis_client.set(cache_key, json.dumps(new_delays), ex=60)
+                except Exception as e:
+                    print(f"Redis Write Error: {e}")
+            
+            return (new_delays, status_str)
+        else: 
+            raise Exception(f"Delay API Error: {res.status_code}")
+
+    # === 使用 Redis 存取時刻表 (V3) ===
+    def get_route_timetable(self, start_id, end_id, date_str, headers):
+        # Cache Key 包含起點、終點和日期
+        cache_key = f"route_{start_id}_{end_id}_{date_str}"
+
+        # 1. 嘗試從 Redis 讀取
+        if redis_client:
+            try:
+                cached_route = redis_client.get(cache_key)
+                if cached_route:
+                    return (json.loads(cached_route), "Redis Hit")
+            except: pass
+
+        # 2. 沒資料，從 TDX 抓取
+        timetable_url = f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}"
+        res = requests.get(timetable_url, headers=headers)
+
+        if res.status_code == 200:
+            status_str = self.get_header_info(res)
+            raw_list = res.json().get('TrainTimetables', [])
+            
+            # 3. 寫入 Redis (時刻表一天變一次，存 12 小時 = 43200 秒)
+            if redis_client:
+                try:
+                    redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
+                except: pass
+
+            return (raw_list, status_str)
+        else: 
+            raise Exception(f"TDX Timetable Error: {res.status_code}")
 
     def do_GET(self):
+        parsed_path = urlparse(self.path)
+        params = parse_qs(parsed_path.query)
+        start_station = params.get('start', [DEFAULT_START])[0]
+        end_station = params.get('end', [DEFAULT_END])[0]
+
+        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Environment Variables")
+        start_id = STATION_MAP.get(start_station)
+        end_id = STATION_MAP.get(end_station)
+        if not start_id or not end_id: return self.send_error_response(f"找不到車站 ID")
+
+        # 取得 Token (現在會優先查 Redis)
+        token = self.get_token(CLIENT_ID, CLIENT_SECRET)
+        if not token: return self.send_error_response("Auth Failed")
+
+        now = datetime.now() + timedelta(hours=8)
+        today_str = now.strftime('%Y-%m-%d')
+        headers = {'authorization': f'Bearer {token}'}
+
         try:
-            query = parse.urlparse(self.path).query
-            params = parse.parse_qs(query)
-            start_name = params.get('start', [''])[0]
-            end_name = params.get('end', [''])[0]
+            # 取得時刻表 (支援 Redis 快取)
+            raw_list, route_status = self.get_route_timetable(start_id, end_id, today_str, headers)
 
-            if not start_name or not end_name:
-                raise ValueError("Missing start/end station")
-
-            start_id = STATION_MAP.get(start_name)
-            end_id = STATION_MAP.get(end_name)
-
-            if not start_id or not end_id:
-                raise ValueError("Invalid Station Name")
-
-            token = token_manager.get_token()
-            if not token:
-                raise ConnectionError("TDX Token Failed")
-
-            tz = timezone(timedelta(hours=8))
-            now = datetime.now(tz)
-            today_str = now.strftime('%Y-%m-%d')
-            
-            headers = {"Authorization": f"Bearer {token}"}
-            # 建立不驗證 SSL 的 Context
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-
-            # API 1: 時刻表 (DailyTrainTimetable)
-            url_schedule = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{today_str}?%24format=JSON"
-            
-            # API 2: 車站電子看板 (StationLiveBoard) - 修正後的正確網址
-            url_live = f"https://tdx.transportdata.tw/api/basic/v3/Rail/TRA/StationLiveBoard/Station/{start_id}?%24format=JSON"
-
-            schedule_data = []
-            delay_map = {} 
+            delays = {}
             delay_failed = False
-            delay_error_msg = ""
+            delay_status = "Unknown"
 
-            # (A) 抓時刻表
-            try:
-                req = urllib.request.Request(url_schedule, headers=headers)
-                with urllib.request.urlopen(req, context=ctx) as res:
-                    schedule_data = json.loads(res.read().decode())
-                    if 'TrainTimetables' in schedule_data:
-                        schedule_data = schedule_data['TrainTimetables']
-            except Exception as e:
-                raise ConnectionError(f"Schedule Error: {e}")
-
-            # (B) 抓誤點資訊 (使用 StationLiveBoard)
-            try:
-                req = urllib.request.Request(url_live, headers=headers)
-                with urllib.request.urlopen(req, context=ctx) as res:
-                    live_data = json.loads(res.read().decode())
-                    # StationLiveBoard 回傳格式: {"StationLiveBoards": [...]}
-                    if 'StationLiveBoards' in live_data:
-                        for item in live_data['StationLiveBoards']:
-                            # 建立對照表: 車次 -> 誤點時間
-                            delay_map[item['TrainNo']] = item.get('DelayTime', 0)
-            except Exception as e:
+            try: 
+                # 取得誤點資訊 (支援 Redis 快取)
+                delays, delay_status = self.get_cached_delays(headers)
+            except Exception as e: 
+                print(f"Delay Fetch Error: {e}")
                 delay_failed = True
-                delay_error_msg = str(e)
+                delay_status = "Failed"
 
-            # 資料整合
-            final_trains = []
-            
-            def get_color(train_type_name):
-                t = train_type_name
-                if '普悠瑪' in t: return '#FF4081'
-                if '太魯閣' in t: return '#FF9800'
-                if '自強' in t or 'EMU3000' in t: return '#FF5722'
-                if '莒光' in t: return '#FFC107'
-                if '區間快' in t: return '#4CAF50'
-                return '#2196F3'
+            processed = []
+            for item in raw_list:
+                info = item.get('TrainInfo', {})
+                no = info.get('TrainNo')
+                raw_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
+                stop_times = item.get('StopTimes', [])
+                dep_time, arr_time = None, None
+                for stop in stop_times:
+                    s_id = stop.get('StationID')
+                    if s_id == start_id: dep_time = stop.get('DepartureTime')
+                    elif s_id == end_id: arr_time = stop.get('ArrivalTime')
+                if not dep_time or not arr_time: continue 
 
-            for train in schedule_data:
-                info = train['TrainInfo']
-                stop_times = train['StopTimes']
-                
-                dep_time_str = ""
-                arr_time_str = ""
-                
-                # 找出起點與終點時間
-                for st in stop_times:
-                    if st['StationID'] == start_id:
-                        dep_time_str = st['DepartureTime']
-                    elif st['StationID'] == end_id:
-                        arr_time_str = st['ArrivalTime']
-                
-                if not dep_time_str or not arr_time_str:
-                    continue
+                display_type = raw_type
+                type_color = "#ffffff"
+                if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
+                elif "區間" in raw_type: display_type, type_color = "區間車", "#0076B2"
+                elif "普悠瑪" in raw_type: display_type, type_color = "普悠瑪", "#9C1637"
+                elif "3000" in raw_type: display_type, type_color = "自強3000", "#85a38f"
+                elif "自強" in raw_type: display_type, type_color = "自強號", "#DF3F1F"
+                elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
+                elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
 
-                train_no = info['TrainNo']
-                
-                # 從電子看板 Map 取得誤點 (若找不到則預設 0)
-                delay = int(delay_map.get(train_no, 0))
-                
-                dep_dt = datetime.strptime(f"{today_str} {dep_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=tz)
-                arr_dt = datetime.strptime(f"{today_str} {arr_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=tz)
-                
-                if arr_dt < dep_dt:
-                    arr_dt += timedelta(days=1)
+                delay = int(delays.get(no, 0))
+                dep_dt = datetime.strptime(f"{today_str} {dep_time}", "%Y-%m-%d %H:%M")
+                arr_dt = datetime.strptime(f"{today_str} {arr_time}", "%Y-%m-%d %H:%M")
+                if arr_dt < dep_dt: arr_dt += timedelta(days=1)
 
                 real_dep = dep_dt + timedelta(minutes=delay)
                 real_arr = arr_dt + timedelta(minutes=delay)
 
-                # 過濾邏輯：只保留「現在時間 - 10分鐘」之後的車
-                cutoff_time = now - timedelta(minutes=10)
-                if real_dep < cutoff_time:
-                    continue 
+                is_past = real_dep < (now - timedelta(minutes=10))
 
-                # 標記是否剛駛離
-                is_past = real_dep < now
-                t_type = info['TrainTypeName']['Zh_tw'].split('(')[0]
-
-                final_trains.append({
-                    "no": train_no,
-                    "type": t_type,
-                    "color": get_color(t_type),
-                    "delay": delay,
-                    "sch_dep": dep_time_str,
-                    "sch_arr": arr_time_str,
-                    "act_dep": real_dep.strftime("%H:%M"),
-                    "act_arr": real_arr.strftime("%H:%M"),
-                    "is_past": is_past,
-                    "sort_ts": real_dep.timestamp()
+                processed.append({
+                    "no": no, "type": display_type, "delay": delay, "color": type_color,
+                    "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
+                    "sch_dep": dep_time, "sch_arr": arr_time,
+                    "sort_key": real_dep.timestamp(),
+                    "is_past": is_past
                 })
 
-            final_trains.sort(key=lambda x: x['sort_ts'])
-
-            # 準備回傳
-            final_update_time = now.strftime("%H:%M:%S")
-            if delay_failed:
-                final_update_time = f"誤點資料錯誤: {delay_error_msg}"
-
-            response_data = {
-                "update_time": final_update_time,
-                "trains": final_trains,
-                "delay_failed": delay_failed,
-                "stats": {
-                    "original_count": len(schedule_data),
-                    "display_count": len(final_trains)
-                },
-                "diagnostics": {
-                    "route_status": "API OK",
-                    # 若失敗，會顯示具體錯誤訊息
-                    "delay_status": f"ERR: {delay_error_msg}" if delay_failed else "API OK"
-                }
-            }
-
+            result = sorted(processed, key=lambda x: x['sort_key'])
             self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Cache-Control', 's-maxage=10, stale-while-revalidate=59')
+            self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
-            self.wfile.write(json.dumps(response_data).encode('utf-8'))
 
-        except Exception as e:
-            self.send_response(500)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+            self.wfile.write(json.dumps({
+                "update_time": now.strftime("%H:%M:%S"),
+                "start": start_station,
+                "end": end_station,
+                "delay_failed": delay_failed,
+                "trains": result,
+                "diagnostics": {
+                    "route_status": route_status,
+                    "delay_status": delay_status
+                }
+            }).encode())
+        except Exception as e: self.send_error_response(str(e))
+
+    def send_error_response(self, msg):
+        self.send_response(500)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": msg}).encode())
