@@ -7,7 +7,6 @@
 
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#151517">
-
     <link rel="apple-touch-icon" href="/icon.png">
     <link rel="icon" type="image/png" href="/icon.png">
 
@@ -29,54 +28,36 @@
         .tool-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); }
         .tool-btn:active { transform: scale(0.95); }
 
-        /* === 安裝按鈕樣式 === */
+        /* 安裝按鈕 */
         #btnInstall {
-            display: none; /* 預設隱藏 */
-            background: #4d7f5e; 
-            color: white; 
-            border: none;
-            border-radius: 8px;
-            padding: 3px 8px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(77, 127, 94, 0.5);
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: none; background: #4d7f5e; color: white; border: none; border-radius: 8px;
+            padding: 3px 8px; font-size: 0.75rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 0 10px rgba(77, 127, 94, 0.5); animation: popIn 0.5s;
         }
         @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
-
-        @keyframes pulse-gold {
-            0%, 100% { color: #ccc; border-color: #555; box-shadow: 0 0 0 rgba(0,0,0,0); }
-            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); box-shadow: 0 0 8px rgba(255, 166, 0, 0.3); }
-        }
+        @keyframes pulse-gold { 0%, 100% { color: #ccc; border-color: #555; } 50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); } }
 
         .menu-btn-trigger { 
-            background: #333; border: 1px solid #555; color: #fff; 
-            width: 32px; height: 32px; border-radius: 8px; 
-            font-size: 1.1rem; cursor: pointer; display: flex; 
-            align-items: center; justify-content: center; font-weight: bold;
-            transition: transform 0.2s;
-            animation: pulse-gold 3s infinite ease-in-out;
+            background: #333; border: 1px solid #555; color: #fff; width: 32px; height: 32px; 
+            border-radius: 8px; font-size: 1.1rem; cursor: pointer; display: flex; 
+            align-items: center; justify-content: center; font-weight: bold; animation: pulse-gold 3s infinite;
         }
-        .menu-btn-trigger:active { transform: scale(0.95); background: #444; }
 
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
-        .search-target { flex: 1; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; min-width: 0; }
-        .search-box { flex: 3; box-sizing: border-box; background: #222; border: 1px solid #444; color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; text-align: left; min-width: 0; }
+        .search-target { flex: 1; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
+        .search-box { flex: 3; background: #222; border: 1px solid #444; color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; }
         .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
 
         .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
-        .select-group { flex: 1; display: flex; gap: 5px; min-width: 0; }
-        .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; appearance: none; -webkit-appearance: none; text-align: center; min-width: 0; }
-        .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; appearance: none; -webkit-appearance: none; text-align: center; min-width: 0; }
+        .select-group { flex: 1; display: flex; gap: 5px; }
+        .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; text-align: center; }
+        .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        .action-area { margin-top: 15px; display: flex; gap: 10px; align-items: stretch; }
-        .btn { border: none; padding: 12px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
-        .btn:active { transform: scale(0.98); }
-        .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
+        .action-area { margin-top: 15px; display: flex; gap: 10px; }
+        .btn { border: none; padding: 12px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
         .btn-search { flex: 2; background: #fff; color: #000; }
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; font-size: 0.9rem; }
         .btn-half { flex: 1; font-size: 0.9rem; }
@@ -88,63 +69,34 @@
         .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
         .status-msg.alert { color: #ff4d4d; font-weight: bold; } 
         .status-msg.warning { color: #e6b800; } 
-        .status-msg.unsync { color: #4d7f5e; } 
         .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
 
-        .click-hint { text-align: center; color: #666; font-size: 0.75rem; margin-bottom: 8px; margin-top: -5px; animation: fadeIn 0.5s; }
-
-        .card { 
-            background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; 
-            transition: transform 0.1s ease, background-color 0.1s ease;
-        }
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
-
         .delay-badge { position: absolute; top: 12px; right: 16px; border: 1px solid hsl(40, 100%, 50%); color: hsl(40, 100%, 50%); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
         .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; padding: 6px 0; }
-        .main-time span { white-space: nowrap; }
         .arrow { margin: 0 6px; color: #666; font-size: 0.8rem; }
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
-
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
-
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
-        .loading { color: #4d7f5e; }
 
+        /* Modal & Diagnostics */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
-        
-        /* === 模態視窗優化：標題固定 === */
-        .modal-content { 
-            background: #1c1c1e; width: 85%; max-width: 400px; 
-            border-radius: 16px; padding: 25px; 
-            border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-            text-align: left; position: relative; 
-            max-height: 80vh; overflow-y: auto; 
-        }
-        .modal-header-row { 
-            display: flex; align-items: center; margin-bottom: 15px;
-            /* 讓標題列固定在頂端 */
-            position: sticky; top: -25px; 
-            background: #1c1c1e; z-index: 10;
-            padding: 10px 0; border-bottom: 1px solid #333;
-        }
-
+        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 80vh; overflow-y: auto; }
+        .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; position: sticky; top: -25px; background: #1c1c1e; z-index: 10; padding: 10px 0; border-bottom: 1px solid #333; }
         .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
         .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
-        .menu-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
-        .menu-btn:active { background: #3a3a3c; }
+        .menu-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; }
         .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
-        .menu-btn.special { animation: pulse-gold 3s infinite ease-in-out; }
-        
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .modal-page { display: none; }
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        .report-hint { font-size: 0.8rem; color: #888; margin-bottom: 15px; }
         .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
         .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
@@ -158,87 +110,30 @@
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .info-item { background: #222; padding: 10px; border-radius: 8px; border: 1px solid #333; }
         .info-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
-        .info-value { font-size: 0.9rem; color: #fff; font-family: monospace; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .info-value { font-size: 0.85rem; color: #fff; font-family: monospace; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .badge.green { background: rgba(77, 127, 94, 0.2); color: #4d7f5e; border: 1px solid #4d7f5e; }
         .badge.yellow { background: rgba(230, 184, 0, 0.2); color: #e6b800; border: 1px solid #e6b800; }
         .badge.red { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
 
-        .terminal-box {
-            background: #0d0d0d; border: 1px solid #333; border-radius: 8px;
-            color: #0f0; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.7rem;
-            padding: 10px; height: 120px; overflow-y: auto; white-space: pre-wrap;
-            box-shadow: inset 0 0 10px #000;
-        }
-        .terminal-box::-webkit-scrollbar { width: 6px; }
-        .terminal-box::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-
+        .terminal-box { background: #0d0d0d; border: 1px solid #333; border-radius: 8px; color: #0f0; font-family: 'Consolas', monospace; font-size: 0.7rem; padding: 10px; height: 120px; overflow-y: auto; white-space: pre-wrap; box-shadow: inset 0 0 10px #000; }
         .ios-instruction { text-align: center; margin-top: 10px; }
         .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
         .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
 
-        /* === In-App Browser 引導遮罩 (修正版) === */
-        #inAppOverlay {
-            display: none; /* 預設隱藏 */
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.92);
-            z-index: 10000;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 40px 20px;
-            box-sizing: border-box;
-            cursor: pointer;
-            backdrop-filter: blur(5px);
-        }
-        /* 拿掉原本的箭頭，改用這個通用圖示 */
-        .guide-icon {
-            font-size: 3rem;
-            color: #4d7f5e;
-            margin-bottom: 20px;
-            animation: pulse-icon 2s infinite;
-        }
-        @keyframes pulse-icon {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-        }
-        .guide-text {
-            color: #fff;
-            font-size: 1.1rem;
-            line-height: 1.6;
-            max-width: 90%;
-        }
-        .guide-highlight {
-            color: #e6b800;
-            font-weight: bold;
-            font-size: 1.3rem;
-            margin: 20px 0;
-            border: 2px dashed #444; 
-            padding: 15px;
-            border-radius: 12px;
-            background: #222;
-        }
+        #inAppOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.92); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
+        .guide-icon { font-size: 3rem; color: #4d7f5e; margin-bottom: 20px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
+        .guide-highlight { color: #e6b800; font-weight: bold; font-size: 1.3rem; margin: 20px 0; border: 2px dashed #444; padding: 15px; border-radius: 12px; background: #222; }
     </style>
 </head>
 <body>
     <div id="inAppOverlay" onclick="this.style.display='none'">
         <div class="guide-icon">🌏</div>
-        <div class="guide-text">
-            為了正常安裝 App 與定位<br>
-            請切換至瀏覽器開啟
-        </div>
-        <div class="guide-highlight">
-            1. 點擊角落的 <strong>選單</strong> (⋮ 或 ⋯)<br>
-            <span style="font-size:0.9rem; color:#888;">(通常在 右上角 或 右下角)</span><br><br>
-            2. 選擇 <strong>在瀏覽器開啟</strong><br>
-            <span style="font-size:0.9rem; color:#888;">(Open in Browser / Safari)</span>
-        </div>
-        <div class="guide-text" style="font-size:0.8rem; color:#aaa; margin-top:20px;">
-            (點擊畫面任意處可關閉提示)
-        </div>
+        <div style="color:#fff; font-size:1.1rem; line-height:1.6;">請切換至瀏覽器開啟</div>
+        <div class="guide-highlight">1. 點擊選單 (⋮ / ⋯)<br><br>2. 選擇「在瀏覽器開啟」</div>
+        <div style="font-size:0.8rem; color:#aaa; margin-top:20px;">(點擊任意處關閉)</div>
     </div>
 
     <div class="container">
@@ -247,7 +142,6 @@
                 <div class="app-title">TRAIN LIVE</div>
                 <div class="header-actions">
                     <button id="btnInstall" onclick="handleInstall()">📲 安裝 App</button>
-
                     <button id="btnShowAll" class="tool-btn" onclick="toggleShowAll()">全部</button>
                     <button id="btnTimeFormat" class="tool-btn" onclick="toggleTimeFormat()">24H</button>
                     <button class="menu-btn-trigger" onclick="openModal()">☰</button>
@@ -255,23 +149,23 @@
             </div>
 
             <div class="search-row">
-                <select id="searchTarget" class="search-target" onchange="handleSearch()" autocomplete="off"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站" oninput="handleSearch()" autocomplete="off">
+                <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站" oninput="handleSearch()">
             </div>
 
             <div class="selector-row">
                 <div class="selector-label">起點</div>
                 <div class="select-group">
-                    <select id="startRegion" class="region-select" onchange="updateStationList('start')" autocomplete="off"></select>
-                    <select id="startStation" class="station-select" onchange="markAsChanged()" autocomplete="off"></select>
+                    <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
+                    <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
                 </div>
             </div>
             <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
             <div class="selector-row">
                 <div class="selector-label">終點</div>
                 <div class="select-group">
-                    <select id="endRegion" class="region-select" onchange="updateStationList('end')" autocomplete="off"></select>
-                    <select id="endStation" class="station-select" onchange="markAsChanged()" autocomplete="off"></select>
+                    <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
+                    <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
                 </div>
             </div>
 
@@ -285,7 +179,6 @@
                 <div id="updateTime" class="update-time"></div>
             </div>
         </div>
-
         <div id="cardList"></div>
     </div>
 
@@ -293,37 +186,34 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="pageMenu" class="modal-page active">
                 <div class="modal-header-row"><div class="modal-title">選單</div></div>
-                <button class="menu-btn special" onclick="goToPage('Why')">設計理念</button>
-                <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
-                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
-                <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
+                <button class="menu-btn" onclick="goToPage('Why')">設計理念 <span>›</span></button>
+                <button class="menu-btn" onclick="goToPage('How')">操作說明 <span>›</span></button>
+                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 <span>›</span></button>
+                <button class="menu-btn" onclick="shareApp()">分享給朋友 <span>›</span></button>
                 <div style="height:10px"></div>
                 <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
             <div id="pageWhy" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
-                <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
+                <div class="modal-text">TRAIN LIVE 的目標是解決「誤點後的計算」問題。<br><br>1. 直接顯示<strong>「預計抵達時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列。<br>3. 一眼看出該搭哪班車。<br><br>希望這能緩解你的通勤焦慮。</div>
             </div>
             <div id="pageHow" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
                 <div class="modal-text">
-                    <strong>雙按鈕機制：</strong><br><br>
-                    1. <strong>🔍 查詢路線 (左)：</strong><br>
-                    切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
-                    若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
-                    2. <strong>🔄 更新 (右)：</strong><br>
-                    刷新當前狀態。每次點擊後需等待 60 秒冷卻。<br><br>
-                    <strong>自動重試機制：</strong><br>
-                    錯誤或系統忙碌都會自動重試，請耐心等候。
+                    <strong>🔍 查詢路線 (左)：</strong><br>切換路線專用。若車站沒變，視為更新。<br>每分鐘限查詢 3 次。<br><br>
+                    <strong>🔄 更新 (右)：</strong><br>刷新當前狀態。每次點擊需冷卻 60 秒。<br><br>
+                    <strong>狀態說明：</strong><br>
+                    <span style="color:#4d7f5e">Vercel/Redis</span>：快取資料 (不扣額度)<br>
+                    <span style="color:#e6b800">API</span>：即時資料 (扣額度)
                 </div>
             </div>
             <div id="pageReport" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
                 <div class="diag-section">
-                    <div class="diag-title">API 連線狀態</div>
+                    <div class="diag-title">資料來源 / 剩餘額度</div>
                     <div class="info-grid">
-                        <div class="info-item"><div class="info-label">時刻表 (V3)</div><div id="diagRoute" class="badge">--</div></div>
-                        <div class="info-item"><div class="info-label">誤點資訊 (V2)</div><div id="diagDelay" class="badge">--</div></div>
+                        <div class="info-item"><div class="info-label">時刻表 (V3)</div><div id="diagRoute" class="info-value">--</div></div>
+                        <div class="info-item"><div class="info-label">誤點 (V2)</div><div id="diagDelay" class="info-value">--</div></div>
                     </div>
                 </div>
                 <div class="diag-section">
@@ -331,43 +221,26 @@
                     <div class="stats-dashboard">
                         <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分內請求</div></div>
                         <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
-                        <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(秒)</div></div>
-                    </div>
-                </div>
-                <div class="diag-section">
-                    <div class="diag-title">裝置資訊</div>
-                    <div class="info-grid">
-                        <div class="info-item"><div class="info-label">PWA 模式</div><div class="info-value" id="diagPwa">--</div></div>
-                        <div class="info-item"><div class="info-label">視窗尺寸</div><div class="info-value" id="diagRes">--</div></div>
+                        <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(s)</div></div>
                     </div>
                 </div>
                 <div class="diag-section" style="border:none;">
                     <div class="diag-title">系統紀錄 (Log)</div>
-                    <div class="report-hint">若遇到問題，請先「複製報告」，再點擊寄信。</div>
-                    <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）請簡述您遇到的問題..."></textarea>
+                    <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="問題描述..."></textarea>
                     <textarea id="reportContent" style="display:none;"></textarea>
                     <div id="terminalView" class="terminal-box"></div>
                     <div class="action-area" style="margin-top:10px;">
-                        <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
-                        <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
+                        <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製</button>
+                        <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 寄信</button>
                     </div>
                 </div>
             </div>
-            
             <div id="pageIOS" class="modal-page">
                 <div class="modal-header-row"><div class="modal-title">安裝教學 (iOS)</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
                 <div class="ios-instruction">
-                    <div style="margin-bottom: 20px; padding: 10px; background: rgba(255, 166, 0, 0.15); border-radius: 8px; font-size: 0.9rem; color: #ffcc00; text-align: left;">
-                        ⚠️ <strong>注意：</strong><br>
-                        部分瀏覽器 (如 Brave/Firefox) 可能不支援此功能。<br>
-                        建議使用 <strong>Safari</strong> 開啟。
-                    </div>
                     <div class="ios-step">1. 點擊 <span class="ios-icon">⎋</span> <strong>分享</strong> 按鈕</div>
-                    <div style="font-size: 0.8rem; color: #888; margin-top: -10px; margin-bottom: 15px;">(按鈕通常在螢幕 上方 或 下方)</div>
-                    
-                    <div class="ios-step">2. 往下滑找到 <span class="ios-icon">⊞</span> <strong>加入主畫面</strong></div>
-                    
-                    <div class="ios-step">3. 點擊右上角的「加入」即可！</div>
+                    <div class="ios-step">2. 選擇 <span class="ios-icon">⊞</span> <strong>加入主畫面</strong></div>
+                    <div class="ios-step">3. 點擊右上角的「加入」</div>
                 </div>
             </div>
         </div>
@@ -376,25 +249,7 @@
     <script>
         const STATION_DATA={"基隆/新北":["基隆","三坑","八堵","七堵","百福","五堵","汐止","汐科","板橋","浮洲","樹林","南樹林","山佳","鶯歌","福隆","貢寮","雙溪","牡丹","三貂嶺","大華","十分","望古","嶺腳","平溪","菁桐","侯硐","瑞芳","海科館","八斗子","暖暖"],"臺北市":["南港","松山","臺北","萬華"],"桃園市":["桃園","內壢","中壢","埔心","楊梅","富岡","新富"],"新竹縣市":["北湖","湖口","新豐","竹北","北新竹","新竹","三姓橋","香山","六家","竹中","上員","榮華","竹東","橫山","九讚頭","合興","富貴","內灣"],"苗栗縣":["崎頂","竹南","造橋","豐富","苗栗","南勢","銅鑼","三義","談文","大山","後龍","龍港","白沙屯","新埔","通霄","苑裡"],"臺中市":["泰安","后里","豐原","栗林","潭子","頭家厝","松竹","太原","精武","臺中","五權","大慶","烏日","新烏日","成功","日南","大甲","臺中港","清水","沙鹿","龍井","大肚","追分"],"彰化縣":["彰化","花壇","大村","員林","永靖","社頭","田中","二水","源泉","濁水","龍泉","集集","水里","車埕"],"雲林縣":["林內","石榴","斗六","斗南","石龜"],"嘉義縣市":["大林","民雄","嘉北","嘉義","水上","南靖"],"臺南市":["後壁","新營","柳營","林鳳營","隆田","拔林","善化","南科","新市","永康","大橋","臺南","保安","仁德","中洲","大湖","沙崙"],"高雄市":["路竹","岡山","橋頭","楠梓","新左營","左營","內惟","美術館","鼓山","三塊厝","高雄","民族","科工館","正義","鳳山","後庄","九曲堂"],"屏東縣":["六塊厝","屏東","歸來","麟洛","西勢","竹田","潮州","崁頂","南州","鎮安","林邊","佳冬","東海","枋寮","加祿","內獅","枋山"],"宜蘭縣":["漢本","武塔","南澳","東澳","永樂","蘇澳","蘇澳新","冬山","羅東","中里","二結","宜蘭","四城","礁溪","頂埔","頭城","外澳","龜山","大溪","大里","石城"],"花蓮縣":["和平","和仁","崇德","新城","景美","北埔","花蓮","吉安","志學","平和","壽豐","豐田","林榮新光","南平","鳳林","萬榮","光復","大富","富源","瑞穗","三民","玉里","東里","東竹","富里"],"臺東縣":["池上","海端","關山","瑞和","瑞源","鹿野","山里","臺東","康樂","知本","太麻里","金崙","瀧溪","大武"]};
         const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
-
-        // === 各縣市預設大站 ===
-        const DEFAULT_STATIONS = {
-            "基隆/新北": "板橋",
-            "臺北市": "臺北",
-            "桃園市": "桃園",
-            "新竹縣市": "新竹",
-            "苗栗縣": "苗栗",
-            "臺中市": "臺中",
-            "彰化縣": "彰化",
-            "雲林縣": "斗六",
-            "嘉義縣市": "嘉義",
-            "臺南市": "臺南",
-            "高雄市": "高雄",
-            "屏東縣": "屏東",
-            "宜蘭縣": "羅東",
-            "花蓮縣": "花蓮",
-            "臺東縣": "臺東"
-        };
+        const DEFAULT_STATIONS = {"基隆/新北": "板橋","臺北市": "臺北","桃園市": "桃園","新竹縣市": "新竹","苗栗縣": "苗栗","臺中市": "臺中","彰化縣": "彰化","雲林縣": "斗六","嘉義縣市": "嘉義","臺南市": "臺南","高雄市": "高雄","屏東縣": "屏東","宜蘭縣": "羅東","花蓮縣": "花蓮","臺東縣": "臺東"};
 
         const CACHE_PREFIX="train_data_v2_";
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
@@ -406,8 +261,7 @@
         const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
         const btnTimeFormat=document.getElementById('btnTimeFormat'); const btnShowAll=document.getElementById('btnShowAll');
         const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
-        const list=document.getElementById('cardList');const modal=document.getElementById('aboutModal');
-        const btnInstall = document.getElementById('btnInstall');
+        const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
@@ -418,61 +272,30 @@
         let lastFetchedPair={start:"",end:""};
         let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
         let isShowAll = false;
-
-        let lastDiagnostics = { route_status: "--", delay_status: "--" };
-
+        let lastDiagnostics = { route_source: "--", route_quota: "--", delay_source: "--", delay_quota: "--" };
+        let systemLogs=[]; let requestHistory=[];
+        
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
-        
-        const ua = navigator.userAgent || navigator.vendor || window.opera;
-        const isInApp = /Line|Instagram|FBAN|FBAV/i.test(ua);
+        const isInApp = /Line|Instagram|FBAN|FBAV/i.test(navigator.userAgent);
 
         if ((isIos && !isInStandaloneMode) || isInApp) {
             btnInstall.style.display = 'block';
-            if (isIos) btnInstall.innerText = "📲 新增到主畫面";
-            else btnInstall.innerText = "📲 安裝 App";
+            btnInstall.innerText = isIos ? "📲 新增到主畫面" : "📲 安裝 App";
         }
-
         window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            btnInstall.style.display = 'block';
-            btnInstall.innerText = "📲 安裝 App";
+            e.preventDefault(); deferredPrompt = e;
+            btnInstall.style.display = 'block'; btnInstall.innerText = "📲 安裝 App";
         });
-
         function handleInstall() {
-            if (isInApp) {
-                document.getElementById('inAppOverlay').style.display = 'flex';
-                return;
-            }
-            if (isIos) {
-                document.getElementById('aboutModal').style.display = 'flex';
-                goToPage('IOS');
-                return;
-            }
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        btnInstall.style.display = 'none';
-                    }
-                    deferredPrompt = null;
-                });
-            }
+            if (isInApp) { document.getElementById('inAppOverlay').style.display = 'flex'; return; }
+            if (isIos) { document.getElementById('aboutModal').style.display = 'flex'; goToPage('IOS'); return; }
+            if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((c) => { if(c.outcome==='accepted') btnInstall.style.display='none'; deferredPrompt=null; }); }
         }
-
         async function shareApp() {
-            const shareData = {
-                title: 'TRAIN LIVE 列車時刻',
-                text: '台鐵即時時刻表，誤點自動計算！',
-                url: window.location.href
-            };
-            if (navigator.share) {
-                try { await navigator.share(shareData); } catch (err) { console.log('Share canceled', err); }
-            } else {
-                try { await navigator.clipboard.writeText(window.location.href); alert('已複製連結！傳送給朋友吧！'); } catch (err) { alert('無法使用分享功能'); }
-            }
+            const data = { title: 'TRAIN LIVE', text: '誤點自動計算！', url: window.location.href };
+            if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
         }
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
@@ -486,196 +309,122 @@
 
         function updateToggleBtns() {
             btnTimeFormat.innerText = is24Hour ? "24H" : "12H";
-            if (isShowAll) btnShowAll.classList.add('active');
-            else btnShowAll.classList.remove('active');
+            btnShowAll.classList.toggle('active', isShowAll);
         }
-
-        function toggleTimeFormat() {
-            is24Hour = !is24Hour;
-            localStorage.setItem(LS_IS_24H, is24Hour);
-            updateToggleBtns();
-            reRenderLocal(); 
-        }
-
-        function toggleShowAll() {
-            isShowAll = !isShowAll;
-            updateToggleBtns();
-            reRenderLocal(); 
-        }
-
+        function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); }
+        function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); }
         function formatTime(t) {
-            if(!t) return "";
-            if(is24Hour) return t;
+            if(!t) return ""; if(is24Hour) return t;
             const p=t.split(':'); if(p.length<2) return t;
-            let h=parseInt(p[0]); const m=p[1];
-            let suffix="上午";
-            if(h>=12){ suffix="下午"; if(h>12) h-=12; } else if(h===0) h=12;
-            return `${suffix} ${h}:${m}`;
+            let h=parseInt(p[0]); const m=p[1]; let s="上午";
+            if(h>=12){ s="下午"; if(h>12) h-=12; } else if(h===0) h=12;
+            return `${s} ${h}:${m}`;
         }
 
         function init() {
-            logSystem("Init","App Started");
-            updateToggleBtns();
-            const regions=Object.keys(STATION_DATA);
-            const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
-
+            logSystem("Init","App Started"); updateToggleBtns();
+            const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
             const savedSR = localStorage.getItem(PREF_START_R_KEY);
-
             if (savedSR) {
                 startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
-                const sS=localStorage.getItem(PREF_START_S_KEY)||"屏東";
-                const eR=localStorage.getItem(PREF_END_R_KEY)||"屏東縣"; const eS=localStorage.getItem(PREF_END_S_KEY)||"潮州";
-                setMenu('start',savedSR,sS); setMenu('end',eR,eS);
-                checkLocksOnLoad();
-                loadDataOrFetch();
+                setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
+                setMenu('end',localStorage.getItem(PREF_END_R_KEY)||"屏東縣",localStorage.getItem(PREF_END_S_KEY)||"潮州");
+                checkLocksOnLoad(); loadDataOrFetch();
             } else {
-                const ph = `<option value="" disabled selected>選擇縣市</option>`;
-                startRegion.innerHTML=ph+rOpts; endRegion.innerHTML=ph+rOpts;
-                startStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
-                endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
+                startRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts; 
+                endRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts;
+                startStation.innerHTML=endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
                 list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
-                statusMsg.innerText = "等待輸入...";
+                statusMsg.innerText="等待輸入...";
                 checkLocksOnLoad();
             }
         }
-
         function checkLocksOnLoad() {
             const now=Date.now();
             const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
             const rL=getRefreshLockedUntil(); if(rL>now) lockRefreshButton(Math.ceil((rL-now)/1000));
         }
-
         function setMenu(type,rV,sV) {
             const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
             if(!STATION_DATA[rV]) { rSel.value = ""; return; }
-            rSel.value=rV;
-            sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join('');
+            rSel.value=rV; sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join('');
             if(STATION_DATA[rV].includes(sV)) sSel.value=sV; else sSel.selectedIndex=0;
         }
-
         function updateStationList(type) {
             const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            const rVal = rSel.value;
-            if (!rVal) return;
+            const rVal = rSel.value; if (!rVal) return;
             sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join('');
-            
-            // === 預設大站邏輯 ===
-            const defStation = DEFAULT_STATIONS[rVal];
-            if (defStation && STATION_DATA[rVal].includes(defStation)) {
-                sSel.value = defStation;
-            } else {
-                sSel.selectedIndex = 0;
-            }
-
-            if (startStation.value && endStation.value) markAsChanged();
+            const def=DEFAULT_STATIONS[rVal]; 
+            if(def&&STATION_DATA[rVal].includes(def)) sSel.value=def; else sSel.selectedIndex=0;
+            if(startStation.value&&endStation.value) markAsChanged();
         }
-
         function swapStations() {
-            if (!startStation.value || !endStation.value) return;
-            logSystem("UI","Swap");
+            if(!startStation.value||!endStation.value) return; logSystem("UI","Swap");
             const sR=startRegion.value; const sS=startStation.value;
             setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
             markAsChanged();
         }
-
         function handleSearch() {
-            const val=searchInput.value.trim(); const tgt=searchTarget.value;
-            if(!val) return;
+            const val=searchInput.value.trim(); const tgt=searchTarget.value; if(!val) return;
             let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
             if(found) {
-                logSystem("UI",`Search: ${found}`);
-                setMenu(tgt,STATION_INDEX[found],found);
+                logSystem("UI",`Search: ${found}`); setMenu(tgt,STATION_INDEX[found],found);
                 searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
-                if (startStation.value && endStation.value) markAsChanged();
+                if(startStation.value&&endStation.value) markAsChanged();
             }
         }
-
         function markAsChanged() {
-            if (!startStation.value || !endStation.value) return;
+            if(!startStation.value||!endStation.value) return;
             localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
             localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
             attemptLoadCache(false);
         }
-
-        function savePrefs() { markAsChanged(); } 
-
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
-
         function reRenderLocal() {
             const c=localStorage.getItem(getCacheKey());
-            if(c) {
-                const d=JSON.parse(c);
-                renderCards(d.payload);
-            } else {
-                if (startStation.value && endStation.value) attemptLoadCache(false);
-            }
+            if(c) renderCards(JSON.parse(c).payload); else if(startStation.value&&endStation.value) attemptLoadCache(false);
         }
-
         function attemptLoadCache(isInit) {
-            if (!startStation.value || !endStation.value) return;
-            const c=localStorage.getItem(getCacheKey());
-            let hit=false;
+            if(!startStation.value||!endStation.value) return;
+            const c=localStorage.getItem(getCacheKey()); let hit=false;
             if(c) {
                 const d=JSON.parse(c);
                 if(Date.now()-d.timestamp<60000) {
-                    if(d.payload.diagnostics) lastDiagnostics = d.payload.diagnostics;
-                    renderCards(d.payload);
-                    setUpdateText(`更新於(快取): ${d.payload.update_time}`);
-                    statusMsg.innerText=""; statusMsg.className="status-msg";
-                    list.style.opacity="1"; lastFetchedPair={start:startStation.value,end:endStation.value};
-                    hit=true;
+                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
+                    renderCards(d.payload); setUpdateText(`更新於(快取): ${d.payload.update_time}`);
+                    statusMsg.innerText=""; statusMsg.className="status-msg"; list.style.opacity="1"; 
+                    lastFetchedPair={start:startStation.value,end:endStation.value}; hit=true;
                 }
             }
             if(!hit) {
                 if(isInit) {
-                    statusMsg.innerText="請按「查詢」開始使用"; statusMsg.className="status-msg";
-                    updateTimeDiv.innerText="";
-                    list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
+                    statusMsg.innerText="請按「查詢」開始使用"; list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
                 } else {
-                    list.style.opacity="0.4";
-                    statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg unsync";
-                    updateTimeDiv.innerText="";
+                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg unsync";
                 }
             }
             updateButtonMode();
         }
-
         function loadDataOrFetch(){attemptLoadCache(true);}
-
         function updateButtonMode() {
-            const sL=getSearchLockedUntil(); if(sL>Date.now()) return;
-            if(startStation.value!==lastFetchedPair.start || endStation.value!==lastFetchedPair.end) btnSearch.disabled=false;
+            if(getSearchLockedUntil()>Date.now()) return;
+            if(startStation.value!==lastFetchedPair.start||endStation.value!==lastFetchedPair.end) btnSearch.disabled=false;
         }
 
         function doSearch() {
             const sS=startStation.value; const eS=endStation.value;
-            if (!sS || !eS) {
-                statusMsg.innerText = "請先選擇起點與終點";
-                statusMsg.className = "status-msg alert";
-                setTimeout(()=>statusMsg.innerText="", 2000);
-                return;
-            }
-            savePrefs();
-            if(sS===lastFetchedPair.start && eS===lastFetchedPair.end) {
-                statusMsg.innerText="車站未變更，執行更新"; setTimeout(()=>{if(!statusMsg.classList.contains("alert"))statusMsg.innerText="";},2000);
-                doRefresh(); return;
-            }
-            const now=Date.now();
-            let cnt=getSearchCount(); let rst=getSearchResetTime();
+            if(!sS||!eS) { statusMsg.innerText="請先選擇起點與終點"; statusMsg.className="status-msg alert"; setTimeout(()=>statusMsg.innerText="",2000); return; }
+            markAsChanged();
+            if(sS===lastFetchedPair.start&&eS===lastFetchedPair.end) { doRefresh(); return; }
+            const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime();
             if(now-rst>60000) { cnt=0; setSearchCount(0); rst=now; setSearchResetTime(now); }
             if(cnt===0) { rst=now; setSearchResetTime(now); }
-
             if(cnt>=MAX_SEARCH_PER_MIN) {
-                const w=Math.ceil((60000-(now-rst))/1000);
-                const safeW=w>0?w:60;
-                setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW);
-                logSystem("Limit","Search Limit"); return;
+                const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60;
+                setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit","Search Limit"); return;
             }
-            cnt++; setSearchCount(cnt);
-            logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN})`);
-            fetchData("search");
+            cnt++; setSearchCount(cnt); logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN})`); fetchData("search");
         }
-
         function doRefresh(skip=false) {
             if(!skip) {
                 const now=Date.now(); const rL=getRefreshLockedUntil();
@@ -684,7 +433,37 @@
             logSystem("Action","Refresh"); fetchData("refresh");
         }
 
-        // === 核心修改：加入 Vercel CDN Cache 偵測與 Log 修正 ===
+        // === 核心解析邏輯 ===
+        function parseDiag(str, isCdn) {
+            let source = "TDX API";
+            let quota = "--";
+
+            // 1. 判斷來源
+            if (isCdn) source = "Vercel CDN";
+            else if (str.includes("Hit") || str.includes("Cache")) source = "Redis DB";
+            else if (str.includes("API")) source = "TDX API";
+            else source = "Unknown";
+
+            // 2. 判斷剩餘次數 (如果字串裡有，就挖出來)
+            const match = str.match(/\(剩:\s*(\d+)\)/);
+            if (match) quota = match[1];
+
+            return { source, quota };
+        }
+
+        function parseDiagnostics(diag, isCdn) {
+            const rInfo = parseDiag(diag.route_status, isCdn);
+            const dInfo = parseDiag(diag.delay_status, isCdn);
+            
+            lastDiagnostics = {
+                route_source: rInfo.source,
+                route_quota: rInfo.quota,
+                delay_source: dInfo.source,
+                delay_quota: dInfo.quota
+            };
+            return { rInfo, dInfo };
+        }
+
         async function fetchData(mode) {
             statusMsg.innerText="連線中..."; statusMsg.className="status-msg"; list.style.opacity="1";
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
@@ -693,7 +472,7 @@
             try {
                 const res=await fetch(`/api/index?start=${s}&end=${e}`);
                 
-                // 1. 偵測是否為 Vercel Edge Cache (影印本)
+                // 1. 偵測 Vercel Cache
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
                 
@@ -701,26 +480,18 @@
                 if(json.error) throw new Error(json.error);
                 lastFetchedPair={start:s,end:e};
 
-                if(json.diagnostics) lastDiagnostics = json.diagnostics;
+                // 2. 解析並分流顯示 (來源 vs 額度)
+                const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
 
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
-                
-                // 2. 修正診斷顯示邏輯
-                const extVal = (str) => {
-                    if (isVercelCache) return "Vercel Cache"; // 強制顯示
-                    
-                    if(!str) return "--";
-                    const match = str.match(/\(剩:\s*(\d+)\)/);
-                    return match ? match[1] : (str.includes("Cache") || str.includes("Hit") ? "Cache" : "API");
-                };
-                
-                const rVal = extVal(json.diagnostics.route_status);
-                const dVal = extVal(json.diagnostics.delay_status);
-                logSystem("API", `額度 V3:${rVal}, V2:${dVal}`);
+
+                // 3. 寫入清晰的 Log
+                const logStr = `[V3] ${rInfo.source} (剩:${rInfo.quota}) | [V2] ${dInfo.source} (剩:${dInfo.quota})`;
+                logSystem("Status", logStr);
 
                 if(json.delay_failed) {
-                    statusMsg.innerText="誤點資訊無法取得 (60s 後自動重試)"; statusMsg.className="status-msg warning";
+                    statusMsg.innerText="誤點資訊無法取得 (60s 後重試)"; statusMsg.className="status-msg warning";
                     scheduleRetry(); setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
                 } else {
                     statusMsg.innerText="更新完成"; statusMsg.className="status-msg";
@@ -757,11 +528,9 @@
                     clearInterval(searchLockTimer); btnSearch.disabled=false;
                     btnSearch.classList.remove('error'); btnSearch.innerText="🔍 查詢路線";
                     statusMsg.innerText=""; setSearchLockedUntil(0);
-                }
-                s--;
+                } s--;
             }; t(); searchLockTimer=setInterval(t,1000);
         }
-
         function lockRefreshButton(s) {
             if(refreshTimer) clearInterval(refreshTimer);
             btnRefresh.disabled=true;
@@ -770,44 +539,31 @@
                 if(s<=0){
                     clearInterval(refreshTimer); btnRefresh.disabled=false;
                     btnRefresh.innerText="🔄 更新"; setRefreshLockedUntil(0);
-                }
-                s--;
+                } s--;
             }; t(); refreshTimer=setInterval(t,1000);
         }
 
         function renderCards(data) {
             if(data.trains&&data.trains.length>0) {
                 let html=`<div class="click-hint">👆 點擊卡片查看「列車即時位置」與「完整停靠站」</div>`;
-                let hasVisibleTrains = false;
+                let has = false;
                 data.trains.forEach(t=>{
-                    if (!isShowAll && t.is_past) return;
-                    hasVisibleTrains = true;
-                    let delayTag="";
-                    if(!data.delay_failed && t.delay>0) delayTag=`<div class="delay-badge">誤點 ${t.delay} 分</div>`;
+                    if (!isShowAll && t.is_past) return; has = true;
+                    let delayTag=!data.delay_failed && t.delay>0 ? `<div class="delay-badge">誤點 ${t.delay} 分</div>` : "";
                     const url=`https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                    const pastClass = t.is_past ? 'past' : '';
-                    html+=`<a href="${url}" target="_blank">
-                        <div class="card ${pastClass}" style="border-left-color:${t.color};">
-                            ${delayTag}
-                            <div class="train-info" style="color:${t.color};">${t.type} ${t.no} 次</div>
-                            <div class="main-time"><span>${formatTime(t.act_dep)}</span><span class="arrow">➔</span><span>${formatTime(t.act_arr)}</span></div>
-                            <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
-                        </div></a>`;
+                    html+=`<a href="${url}" target="_blank"><div class="card ${t.is_past?'past':''}" style="border-left-color:${t.color};">
+                        ${delayTag}<div class="train-info" style="color:${t.color};">${t.type} ${t.no} 次</div>
+                        <div class="main-time"><span>${formatTime(t.act_dep)}</span><span class="arrow">➔</span><span>${formatTime(t.act_arr)}</span></div>
+                        <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
+                    </div></a>`;
                 });
-
-                if (!hasVisibleTrains && !isShowAll) {
-                    list.innerHTML = `<div class="message">後續已無班次 👋<br><span style="font-size:0.8rem;color:#666">點擊上方「全部」查看整日班表</span></div>`;
-                } else {
-                    list.innerHTML=html;
-                }
+                list.innerHTML = (!has && !isShowAll) ? `<div class="message">後續已無班次 👋<br><span style="font-size:0.8rem;color:#666">點擊上方「全部」查看整日班表</span></div>` : html;
                 return;
             }
             const orig=data.stats?data.stats.original_count:0;
-            if(orig>0) list.innerHTML=`<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>`;
-            else list.innerHTML=`<div class="message">查無此區間直達列車 ⚠️</div>`;
+            list.innerHTML=orig>0 ? `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : `<div class="message">查無此區間直達列車 ⚠️</div>`;
         }
 
-        let systemLogs=[]; let requestHistory=[];
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
         function recordRequest(){requestHistory.push(Date.now());}
         function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
@@ -818,75 +574,51 @@
             document.getElementById('page'+id).classList.add('active');
             
             if(id==='Report'){
-                const now=Date.now();
-                const rpm=requestHistory.filter(t=>now-t<60000).length;
+                const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
                 document.getElementById('statRpm').innerText=rpm;
-                if(rpm>=5) document.getElementById('cardRpm').classList.add('danger');
-                else document.getElementById('cardRpm').classList.remove('danger');
-                
+                document.getElementById('cardRpm').classList.toggle('danger', rpm>=5);
                 document.getElementById('statTotal').innerText=requestHistory.length;
                 const last=requestHistory[requestHistory.length-1];
                 document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
 
-                const dRoute = document.getElementById('diagRoute');
-                dRoute.innerText = lastDiagnostics.route_status;
-                if(lastDiagnostics.route_status.includes("Cache") || lastDiagnostics.route_status.includes("Hit")) dRoute.className = "badge green";
-                else if(lastDiagnostics.route_status.includes("API")) dRoute.className = "badge yellow";
-                else dRoute.className = "badge red";
+                // === 更新診斷顯示 (分流) ===
+                const updateItem = (prefix, source, quota) => {
+                    const el = document.getElementById(prefix);
+                    let colorClass = "badge";
+                    if(source.includes("Vercel") || source.includes("Redis")) colorClass += " green";
+                    else if(source.includes("API")) colorClass += " yellow";
+                    else colorClass += " red";
+                    
+                    // 顯示格式：[來源] 剩: X
+                    el.innerHTML = `<span class="${colorClass}">${source}</span> <span style="font-size:0.8rem; color:#888;">剩: ${quota}</span>`;
+                };
 
-                const dDelay = document.getElementById('diagDelay');
-                dDelay.innerText = lastDiagnostics.delay_status;
-                if(lastDiagnostics.delay_status.includes("Cache") || lastDiagnostics.delay_status.includes("Hit") || lastDiagnostics.delay_status.includes("0點")) dDelay.className = "badge green";
-                else if(lastDiagnostics.delay_status.includes("Fallback")) dDelay.className = "badge yellow"; 
-                else if(lastDiagnostics.delay_status.includes("Failed")) dDelay.className = "badge red";
-                else dDelay.className = "badge yellow";
+                updateItem('diagRoute', lastDiagnostics.route_source, lastDiagnostics.route_quota);
+                updateItem('diagDelay', lastDiagnostics.delay_source, lastDiagnostics.delay_quota);
 
                 const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
-                document.getElementById('diagPwa').innerText = isStandalone ? "已安裝 (App)" : "瀏覽器 (Web)";
-                document.getElementById('diagRes').innerText = `${window.innerWidth} x ${window.innerHeight}`;
-
                 let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
-                r += `裝置: ${navigator.userAgent}\n`;
-                r += `畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
-                r += `路線: ${startStation.value} -> ${endStation.value}\n`;
-                r += `流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
-                r += `狀態: Route=[${lastDiagnostics.route_status}], Delay=[${lastDiagnostics.delay_status}]\n`;
+                r += `裝置: ${navigator.userAgent}\n畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
+                r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
+                r += `V3: [${lastDiagnostics.route_source}] 剩 ${lastDiagnostics.route_quota}\nV2: [${lastDiagnostics.delay_source}] 剩 ${lastDiagnostics.delay_quota}\n`;
                 r += `--- Log ---\n${systemLogs.join("\n")}`;
 
                 document.getElementById('reportContent').value = r;
                 document.getElementById('terminalView').innerText = systemLogs.join("\n");
             }
         }
-
         function copyReportOnly() {
-            let finalReport = document.getElementById('reportContent').value;
-            const uDesc = document.getElementById('userDesc').value; 
-            if(uDesc) finalReport += `\n\nUser: ${uDesc}`;
-            
-            navigator.clipboard.writeText(finalReport).then(() => {
-                const btn=document.getElementById('btnCopyReport'); 
-                const originalText = btn.innerText;
-                btn.innerText = "✅ 已複製"; 
-                btn.style.background = "#4d7f5e";
-                setTimeout(()=>{ 
-                    btn.innerText = originalText; 
-                    btn.style.background = ""; 
-                }, 2000);
-            }).catch(err => {
-                console.error('複製失敗', err);
-                const b=document.getElementById('reportContent'); 
-                b.style.display = 'block';
-                b.value = finalReport;
-                b.select(); 
-                document.execCommand('copy');
-                b.style.display = 'none';
-                alert('已複製到剪貼簿');
-            });
+            let final = document.getElementById('reportContent').value;
+            const uDesc = document.getElementById('userDesc').value; if(uDesc) final += `\n\nUser: ${uDesc}`;
+            navigator.clipboard.writeText(final).then(() => {
+                const btn=document.getElementById('btnCopyReport'); const original = btn.innerText;
+                btn.innerText = "✅ 已複製"; btn.style.background = "#4d7f5e";
+                setTimeout(()=>{ btn.innerText = original; btn.style.background = ""; }, 2000);
+            }).catch(e=>{alert('複製失敗');});
         }
-
         function openMailClient() {
-            const subject = encodeURIComponent("TRAIN LIVE 系統診斷回報");
-            const body = encodeURIComponent("（請長按貼上剛剛複製的診斷報告）\n\n我的問題描述：\n");
+            const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
+            const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
         }
 
