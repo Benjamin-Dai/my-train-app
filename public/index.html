@@ -13,7 +13,7 @@
 
     <meta property="og:type" content="website">
     <meta property="og:title" content="TRAIN LIVE | 列車時刻即時看板">
-    <meta property="og:description" content="誤點自動計算，顯示實際到站時間。掌握通勤節奏，不再焦慮等待。">
+    <meta property="og:description" content="誤點自動計算，顯示實際到站時間。">
     <meta property="og:url" content="https://benjamindai-train-app.vercel.app/">
     <meta property="og:image" content="https://benjamindai-train-app.vercel.app/icon.png">
     <meta property="og:image:width" content="512">
@@ -78,6 +78,17 @@
         .btn-primary { background: #007AFF; color: white; }
         .btn.error { background: #d32f2f !important; color: white !important; }
 
+        /* 常用路線 History Chips 樣式 */
+        .history-area { display: flex; gap: 8px; margin-top: 15px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        .history-area::-webkit-scrollbar { display: none; }
+        .history-chip { 
+            background: #2c2c2e; border: 1px solid #444; color: #ccc; 
+            padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; white-space: nowrap; cursor: pointer; flex-shrink: 0; 
+            display: flex; align-items: center; gap: 5px; transition: all 0.2s;
+        }
+        .history-chip:active { transform: scale(0.95); background: #444; }
+        .history-arrow { color: #666; font-size: 0.7rem; }
+
         .status-container { text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
         .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
         .status-msg.alert { color: #ff4d4d; font-weight: bold; } 
@@ -92,11 +103,14 @@
         .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; padding: 6px 0; }
         .arrow { margin: 0 6px; color: #666; font-size: 0.8rem; }
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
+        
+        /* 已駛離樣式 */
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
+        
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
 
-        /* 骨架屏動畫樣式 */
+        /* 骨架屏 */
         .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
         @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .sk-line { background: #333; border-radius: 4px; }
@@ -104,6 +118,7 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
+        /* Modal Styles */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; position: sticky; top: -25px; background: #1c1c1e; z-index: 10; padding: 10px 0; border-bottom: 1px solid #333; }
@@ -197,6 +212,8 @@
                 <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
                 <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
             </div>
+
+            <div id="historyChips" class="history-area"></div>
 
             <div class="status-container">
                 <div id="statusMsg" class="status-msg"></div>
@@ -304,6 +321,7 @@
         const CACHE_PREFIX="train_data_v2_";
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
+        const LS_HISTORY="tl_search_history_v1";
 
         const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
         const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
@@ -312,6 +330,7 @@
         const btnTimeFormat=document.getElementById('btnTimeFormat'); const btnShowAll=document.getElementById('btnShowAll');
         const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
         const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
+        const historyContainer = document.getElementById('historyChips');
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
@@ -375,6 +394,9 @@
             logSystem("Init","App Started"); updateToggleBtns();
             const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
             const savedSR = localStorage.getItem(PREF_START_R_KEY);
+            
+            renderHistory(); // 渲染歷史紀錄
+
             if (savedSR) {
                 startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
                 setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
@@ -389,6 +411,41 @@
                 checkLocksOnLoad();
             }
         }
+        
+        // === 歷史紀錄相關邏輯 ===
+        function getHistory() {
+            try { return JSON.parse(localStorage.getItem(LS_HISTORY) || "[]"); } catch(e){ return []; }
+        }
+        function saveToHistory(s, e) {
+            let hist = getHistory();
+            // 移除重複
+            hist = hist.filter(h => !(h.s === s && h.e === e));
+            // 加到最前面
+            hist.unshift({s, e});
+            // 只保留 3 筆
+            if(hist.length > 3) hist = hist.slice(0, 3);
+            localStorage.setItem(LS_HISTORY, JSON.stringify(hist));
+            renderHistory();
+        }
+        function renderHistory() {
+            const hist = getHistory();
+            if(hist.length === 0) { historyContainer.style.display='none'; return; }
+            historyContainer.style.display='flex';
+            historyContainer.innerHTML = hist.map(h => 
+                `<div class="history-chip" onclick="applyHistory('${h.s}', '${h.e}')">${h.s} <span class="history-arrow">⇄</span> ${h.e}</div>`
+            ).join('');
+        }
+        function applyHistory(s, e) {
+            // 自動設定選單並查詢
+            const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
+            if(sR && eR) {
+                setMenu('start', sR, s); setMenu('end', eR, e);
+                markAsChanged();
+                doSearch();
+            }
+        }
+        // =======================
+
         function checkLocksOnLoad() {
             const now=Date.now();
             const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
@@ -552,6 +609,9 @@
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
                 lastFetchedPair={start:s,end:e};
+                
+                // 成功取得資料，儲存到歷史紀錄
+                saveToHistory(s, e);
 
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
@@ -625,7 +685,8 @@
                 let html=`<div class="click-hint">👆 點擊卡片查看「列車即時位置」與「完整停靠站」</div>`;
                 let has = false;
                 data.trains.forEach(t=>{
-                    if (!isShowAll && t.is_past) return; has = true;
+                    if (!isShowAll && t.is_past && !t.delay) return; // 這行其實已經被後端過濾取代，但保留無妨
+                    has = true;
                     let delayTag=!data.delay_failed && t.delay>0 ? `<div class="delay-badge">誤點 ${t.delay} 分</div>` : "";
                     const url=`https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
                     html+=`<a href="${url}" target="_blank"><div class="card ${t.is_past?'past':''}" style="border-left-color:${t.color};">
@@ -696,6 +757,13 @@
             const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
             const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
+        }
+
+        // 新增：註冊 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
         }
 
         init();
