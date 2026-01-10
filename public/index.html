@@ -47,6 +47,7 @@
             border-bottom-right-radius: 12px;
             width: 100%;
             z-index: 100;
+            /* [關鍵] 移除 transition 以實現 1:1 跟手感 */
             will-change: transform; 
         }
 
@@ -194,7 +195,6 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        /* [關鍵] 橫向捲動路線區 (Instagram Style) */
         .quick-route-area { 
             margin: 5px 0 10px 0; 
             display: flex; 
@@ -203,7 +203,7 @@
             min-height: 0; 
             overflow-x: auto; /* 允許橫向滑動 */
             -webkit-overflow-scrolling: touch;
-            padding-right: 20px; /* 讓最後一個看起來切一半 */
+            padding-right: 20px; 
             scrollbar-width: none; 
         }
         .quick-route-area::-webkit-scrollbar { display: none; }
@@ -220,7 +220,7 @@
             cursor: pointer; 
             transition: all 0.2s; 
             user-select: none; 
-            white-space: nowrap; /* 文字不換行 */
+            white-space: nowrap; 
             flex: 0 0 auto; /* 防止被壓縮 */
         }
         .route-chip:active { transform: scale(0.95); background: #333; }
@@ -236,22 +236,27 @@
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
         .btn.error { background: #d32f2f !important; color: white !important; }
 
-        /* 工具列 */
+        /* 工具列橫向捲動設定 */
         .view-toolbar { 
             display: flex; 
             gap: 8px; 
             margin-top: 12px; 
             border-top: 1px solid #333; 
             padding-top: 12px; 
+            
+            overflow-x: auto; 
             white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
         }
+        .view-toolbar::-webkit-scrollbar { display: none; }
 
         .toggle-btn { 
-            flex: 1;
+            flex: 0 0 auto; /* 禁止壓縮 */
             background: #222; 
             border: 1px solid #444; 
             color: #888; 
-            padding: 8px 5px; /* 縮小左右 padding 避免擠壓 */
+            padding: 8px 12px; 
             border-radius: 8px; 
             font-size: 0.8rem; 
             cursor: pointer; 
@@ -266,7 +271,6 @@
         .toggle-btn:active { transform: scale(0.98); }
         .toggle-icon { font-size: 1rem; line-height: 1; }
 
-        /* 懸浮版專用更新按鈕樣式 */
         .btn-sticky-refresh {
             width: 100%;
             height: 100%;
@@ -290,13 +294,9 @@
         }
         .btn-sticky-refresh:active { transform: scale(0.98); }
 
-        /* [關鍵修改] 狀態列樣式 */
         .status-container { text-align: center; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
         
-        /* 平常模式 (隱藏) */
         .status-msg { display: none; font-size: 0.85rem; font-weight: bold; color: #aaa; margin-bottom: 2px; }
-        
-        /* 出錯/忙碌模式 (顯示且醒目) */
         .status-msg.alert { display: block; color: #ff4d4d; animation: fadeIn 0.5s; } 
         .status-msg.warning { display: block; color: #e6b800; animation: fadeIn 0.5s; } 
         
@@ -313,11 +313,11 @@
         .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
 
         .time-part { 
-            font-size: 1.8rem; 
+            font-size: 1.8rem; /* 加大 */
             font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; 
         }
         .ampm { 
-            font-size: 1rem; 
+            font-size: 1rem; /* 加大 */
             margin-right: 3px; color: #aaa; font-weight: normal; 
         }
         .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
@@ -652,8 +652,7 @@
         function updateToggleBtns() {
             const btnTime = document.getElementById('btnTimeFormat');
             
-            // [修改] 純文字
-            btnTime.innerHTML = 'AM/PM';
+            btnTime.innerHTML = '<span class="toggle-icon">🕒</span> AM/PM';
             if (!is24Hour) {
                 btnTime.classList.add('active'); 
             } else {
@@ -662,8 +661,7 @@
 
             const btnAll = document.getElementById('btnShowAll');
             if (isShowAll) {
-                // [修改] 純文字
-                btnAll.innerHTML = '已駛離';
+                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 已駛離';
                 btnAll.classList.add('active');
             } else {
                 btnAll.innerHTML = '已駛離';
@@ -693,9 +691,9 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // [關鍵修正] 1:1 跟手滑動邏輯 (Browser Address Bar Style)
+        // [關鍵修正] 滾動邏輯 - 嚴格防鬼影
         let lastScroll = 0;
-        let currentTranslate = 0; // 追蹤懸浮欄的位移
+        let currentTranslate = 0; 
         
         window.addEventListener('scroll', () => {
             const current = window.scrollY;
@@ -707,49 +705,40 @@
             const threshold = staticPart ? staticPart.offsetHeight : 150;
             const stickyHeight = sticky.offsetHeight || 150;
 
-            // 1. Back to Top Logic
             if(current > 300) {
                 backToTop.classList.add('visible');
             } else {
                 backToTop.classList.remove('visible');
             }
 
-            // 2. Sticky Logic
-            // [關鍵] 嚴格判斷：只有完全離開靜態區，才允許變成 fixed
+            // [關鍵] 當在靜態區範圍內，嚴格禁止懸浮
             if (current <= threshold) {
-                // Zone 1: 回到頂部區域 - 強制復原，避免重影
                 sticky.classList.remove('is-fixed');
-                sticky.style.transform = 'translateY(0)'; // 清除位移
+                sticky.style.transform = 'translateX(-50%) translateY(0)'; // Reset
                 placeholder.style.display = 'none';
-                currentTranslate = 0; // 重置狀態
+                currentTranslate = 0; 
             } else {
-                // Zone 2: 捲動區域 - 啟動 Fixed 模式
+                // 只有離開靜態區後，才准變成 Fixed
                 if (!sticky.classList.contains('is-fixed')) {
                      placeholder.style.display = 'block';
                      placeholder.style.height = stickyHeight + 'px'; 
                      sticky.classList.add('is-fixed');
                 }
 
-                // 計算滑動差值 (Delta)
                 const diff = current - lastScroll;
-                
-                // 核心算法：currentTranslate 減去 diff
                 currentTranslate -= diff;
                 
-                // Clamp (限制範圍)
                 if (currentTranslate > 0) currentTranslate = 0;
                 if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
 
-                // [安全鎖] 增加緩衝區，確保不會在邊界處閃爍
-                if (current < threshold + 50) {
+                // [安全鎖] 緩衝區邏輯，避免在交界處閃爍
+                if (current < threshold + stickyHeight + 10) {
                     currentTranslate = 0;
                 }
 
-                // 直接應用樣式 (1:1 跟手)
                 sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
             }
             
-            // 防止 iOS 彈性滾動導致的負值問題
             lastScroll = current <= 0 ? 0 : current;
         });
 
@@ -993,7 +982,6 @@
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
 
-                // [新增] 針對 429 的特別處理
                 if (res.status === 429) {
                     throw new Error("系統忙碌");
                 }
@@ -1021,7 +1009,6 @@
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
                 
-                // [新增] 針對「系統忙碌」顯示特定文字
                 const errorMsg = err.message.includes("系統忙碌") ? "系統忙碌" : "連線發生問題";
                 scheduleRetry(errorMsg, "status-msg alert");
                 
@@ -1029,20 +1016,17 @@
             }
         }
 
-        // [修改] 更新狀態欄 (Compact vs Alert)
         function setUpdateText(t){
             updateTimeDiv.innerText=t;
             localStorage.setItem("last_update_text",t);
         }
 
-        // [修改] scheduleRetry 更新狀態文字
         function scheduleRetry(msg="誤點資訊無法取得", cls="status-msg warning") {
             let c=30; 
             if(retryTimer) clearInterval(retryTimer);
             
             statusMsg.className = cls; 
             statusMsg.innerText = `${msg} (30s 後重試)`;
-            // 在 Alert 模式下，時間會顯示在下方
 
             retryTimer=setInterval(()=>{
                 c--; 
@@ -1200,6 +1184,20 @@
                 updateHintUI(anyArriving);
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
+
+                // [關鍵] 強制顯示動態欄：當內容更新後，自動把動態欄拉下來
+                const sticky = document.getElementById('stickyHeader');
+                const placeholder = document.getElementById('stickyPlaceholder');
+                const stickyHeight = sticky.offsetHeight || 150;
+                
+                sticky.classList.remove('is-hidden'); 
+                sticky.style.transform = `translateX(-50%) translateY(0)`; 
+                
+                if (!sticky.classList.contains('is-fixed')) {
+                     placeholder.style.display = 'block';
+                     placeholder.style.height = stickyHeight + 'px'; 
+                     sticky.classList.add('is-fixed');
+                }
 
                 setTimeout(() => {
                     const el = document.getElementById("firstActive");
