@@ -22,10 +22,81 @@
         /* 防止寬度計算超出螢幕 */
         *, *::before, *::after { box-sizing: border-box; }
 
+        /* [新增] 平滑捲動 */
+        html { scroll-behavior: smooth; }
+
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
-        .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
+        /* Header 基礎樣式 (移除原本的 padding，改由內部區塊控制) */
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
+
+        /* --- [新增] 區塊 A: 靜態區 (標題、搜尋、選車站) --- */
+        .header-static-part {
+            padding: 15px 15px 5px 15px; /* 上左右有 padding，下方減少因為接著 sticky */
+        }
+
+        /* --- [新增] 區塊 B: 懸浮區 (常用路線、按鈕、設定) --- */
+        .header-sticky-part {
+            padding: 5px 15px 15px 15px;
+            background: #151517; /* 確保懸浮時背景不透明 */
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            transition: transform 0.3s ease-in-out;
+            width: 100%;
+            z-index: 100;
+        }
+
+        /* 懸浮時的狀態 */
+        .header-sticky-part.is-fixed {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            max-width: 500px; /* 限制最大寬度以免在大螢幕跑版 */
+            margin: 0 auto;   /* 置中 */
+            border-radius: 0 0 12px 12px; /* 只有下方圓角 */
+            border: 1px solid #333;
+            border-top: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            padding-top: 15px; /* 增加一點頂部空間 */
+        }
+
+        /* 往下滑時隱藏 */
+        .header-sticky-part.is-hidden {
+            transform: translateY(-100%);
+        }
+
+        /* 佔位符：防止懸浮時內容跳動 */
+        #stickyPlaceholder { display: none; }
+
+        /* --- [新增] 回到頂端按鈕 --- */
+        .back-to-top {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 50px; 
+            height: 50px;
+            background: #4d7f5e;
+            color: #fff;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 90;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none; /* 隱藏時不可點擊 */
+        }
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
         /* 1. 頂部優化 */
         .header-top { 
@@ -45,7 +116,7 @@
             flex: 1; 
         }
 
-        /* --- 頂部安裝按鈕樣式 (綠色固定) --- */
+        /* --- 頂部安裝按鈕樣式 --- */
         .install-btn-top {
             background: #4d7f5e; 
             color: #fff; 
@@ -63,7 +134,7 @@
         }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
 
-        /* --- 白色到金色的緩慢呼吸動畫 --- */
+        /* --- 呼吸燈動畫 --- */
         @keyframes pulse-white-gold {
             0%, 100% { color: #fff; border-color: #444; }
             50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
@@ -103,14 +174,14 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        .quick-route-area { margin: 10px 0 15px 0; display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; }
+        .quick-route-area { margin: 5px 0 10px 0; display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; }
         .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; }
         .route-chip:active { transform: scale(0.95); background: #333; }
         .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
         .route-chip.hist { border-style: dashed; }
 
-        .action-area { margin-top: 15px; display: flex; gap: 8px; }
+        .action-area { margin-top: 5px; display: flex; gap: 8px; }
         .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
@@ -253,64 +324,74 @@
     </div>
 
     <div class="container">
+        <div id="stickyPlaceholder"></div>
+
         <div class="header">
-            <div class="header-top">
-                <div class="app-title">TRAIN LIVE</div>
-                
-                <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
-                    📲 加到桌面
-                </button>
+            <div class="header-static-part">
+                <div class="header-top">
+                    <div class="app-title">TRAIN LIVE</div>
+                    
+                    <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
+                        📲 加到桌面
+                    </button>
 
-                <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
-            </div>
+                    <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
+                </div>
 
-            <div class="search-row">
-                <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
-            </div>
+                <div class="search-row">
+                    <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
+                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
+                </div>
 
-            <div class="selector-row">
-                <div class="selector-label">起點</div>
-                <div class="select-group">
-                    <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
-                    <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
+                <div class="selector-row">
+                    <div class="selector-label">起點</div>
+                    <div class="select-group">
+                        <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
+                        <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
+                    </div>
+                </div>
+                <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
+                <div class="selector-row">
+                    <div class="selector-label">終點</div>
+                    <div class="select-group">
+                        <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
+                        <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
+                    </div>
                 </div>
             </div>
-            <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
-            <div class="selector-row">
-                <div class="selector-label">終點</div>
-                <div class="select-group">
-                    <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
-                    <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
+
+            <div id="stickyHeader" class="header-sticky-part">
+                <div id="quickRouteArea" class="quick-route-area"></div>
+
+                <div class="action-area">
+                    <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
+                    <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
                 </div>
-            </div>
 
-            <div id="quickRouteArea" class="quick-route-area"></div>
+                <div class="view-toolbar">
+                    <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
+                        <span class="toggle-icon">☆</span> 收藏路線
+                    </button>
+                    <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
+                        <span class="toggle-icon">👁️</span> 顯示已駛離
+                    </button>
+                    <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
+                        <span class="toggle-icon">🕒</span> AM/PM
+                    </button>
+                </div>
 
-            <div class="action-area">
-                <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
-                <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
-            </div>
-
-            <div class="view-toolbar">
-                <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
-                    <span class="toggle-icon">☆</span> 收藏路線
-                </button>
-                <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
-                    <span class="toggle-icon">👁️</span> 顯示已駛離
-                </button>
-                <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
-                    <span class="toggle-icon">🕒</span> AM/PM
-                </button>
-            </div>
-
-            <div class="status-container">
-                <div id="statusMsg" class="status-msg"></div>
-                <div id="updateTime" class="update-time"></div>
+                <div class="status-container">
+                    <div id="statusMsg" class="status-msg"></div>
+                    <div id="updateTime" class="update-time"></div>
+                </div>
             </div>
         </div>
         <div id="cardList"></div>
     </div>
+
+    <button id="btnBackToTop" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+        ↑
+    </button>
 
     <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
         <div class="modal-content" onclick="event.stopPropagation()">
@@ -507,6 +588,45 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
+        // [新增] Scroll Logic for Sticky Header & Back to Top
+        let lastScroll = 0;
+        window.addEventListener('scroll', () => {
+            const current = window.scrollY;
+            const sticky = document.getElementById('stickyHeader');
+            const placeholder = document.getElementById('stickyPlaceholder');
+            const backToTop = document.getElementById('btnBackToTop');
+            
+            // 1. Back to Top Button Logic
+            if(current > 300) {
+                backToTop.classList.add('visible');
+            } else {
+                backToTop.classList.remove('visible');
+            }
+
+            // 2. Sticky Header Logic
+            if (current <= 10) {
+                // 回到最頂端：恢復原狀
+                sticky.classList.remove('is-fixed', 'is-hidden');
+                placeholder.style.display = 'none';
+            } else {
+                // 只要稍微捲動，就準備變成 fixed 模式
+                if (!sticky.classList.contains('is-fixed')) {
+                     placeholder.style.display = 'block';
+                     placeholder.style.height = sticky.offsetHeight + 'px'; // 佔位防止跳動
+                     sticky.classList.add('is-fixed');
+                }
+
+                if (current > lastScroll && current > 200) {
+                    // 往下滑：隱藏 Sticky Header
+                    sticky.classList.add('is-hidden');
+                } else {
+                    // 往上滑：顯示 Sticky Header
+                    sticky.classList.remove('is-hidden');
+                }
+            }
+            lastScroll = current;
+        });
+
         function init() {
             logSystem("Init","App Started"); updateToggleBtns();
             const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
@@ -570,7 +690,7 @@
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
         
-        // [關鍵] 只有當有資料時才重新渲染
+        // 只有當有資料時才重新渲染
         function reRenderLocal() {
             const c=localStorage.getItem(getCacheKey());
             if(c) {
@@ -980,7 +1100,6 @@
             }
         }
 
-        // [關鍵] 設定好路線後，直接呼叫 doSearch()
         function loadRoute(s, e) {
             const sR = STATION_INDEX[s];
             const eR = STATION_INDEX[e];
