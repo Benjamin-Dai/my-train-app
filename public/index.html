@@ -51,16 +51,15 @@
             will-change: transform; 
         }
 
-        /* 懸浮時的狀態 - [修正] 精確寬度計算 */
+        /* 懸浮時的狀態 - [修正] 寬度計算對齊 Container */
         .header-sticky-part.is-fixed {
             position: fixed;
             top: 0; 
-            /* 寬度 = 100% - Body Padding(20px) - Header Border(2px) */
-            width: calc(100% - 22px); 
-            /* 最大寬度 = Container(500px) - Header Border(2px) */
-            max-width: 498px; 
-            left: 50%; /* 透過 transform 居中，避免 left 計算誤差 */
-            /* 注意：這裡的 transform 會在 JS 中動態覆蓋，JS 需包含 translateX(-50%) */
+            /* 寬度 = 100% - Body Padding(20px) - 不需扣除 Border */
+            width: calc(100% - 20px); 
+            /* 最大寬度 = Container(500px) */
+            max-width: 500px; 
+            left: 50%; /* 透過 transform 居中 */
             
             border-radius: 0 0 12px 12px; 
             border: 1px solid #333;
@@ -571,8 +570,7 @@
             const backToTop = document.getElementById('btnBackToTop');
             
             const staticPart = document.querySelector('.header-static-part');
-            // 計算靜態區高度（如果未載入完成，給一個安全值 150）
-            const staticHeight = staticPart ? staticPart.offsetHeight : 150;
+            const threshold = staticPart ? staticPart.offsetHeight : 150;
             const stickyHeight = sticky.offsetHeight || 150;
 
             // 1. Back to Top Logic
@@ -583,9 +581,7 @@
             }
 
             // 2. Sticky Logic
-            // 只有當頁面捲動超過「靜態區域」的高度時，才允許進入懸浮模式
-            // 這能確保靜態區域永遠不會被動態區域「鬼影」覆蓋
-            if (current <= staticHeight) {
+            if (current <= threshold) {
                 // Zone 1: 回到頂部區域 - 強制復原，避免重影
                 sticky.classList.remove('is-fixed');
                 sticky.style.transform = 'translateY(0)'; // 清除位移
@@ -602,25 +598,21 @@
                 // 計算滑動差值 (Delta)
                 const diff = current - lastScroll;
                 
-                // 核心算法：currentTranslate 減去 diff
-                // 往下滑 (diff > 0) -> 值變小 (負值) -> 往上收
-                // 往上滑 (diff < 0) -> 值變大 (趨近0) -> 往下吐
+                // 核心算法：currentTranslate 減去 diff，並限制在 [-stickyHeight, 0] 之間
                 currentTranslate -= diff;
                 
                 // Clamp (限制範圍)
-                // 上限：0 (完全顯示)
-                // 下限：-stickyHeight (完全隱藏)
                 if (currentTranslate > 0) currentTranslate = 0;
                 if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
 
                 // [安全鎖] 如果目前捲動位置還在「危險邊緣」(靜態欄剛結束的地方)
                 // 強制動態欄展開，避免快速滑動時的縫隙
-                // 緩衝區設為 stickyHeight 的 1.5 倍
-                if (current < staticHeight + stickyHeight * 1.5) {
+                if (current < threshold + stickyHeight + 10) {
                     currentTranslate = 0;
                 }
 
-                // 應用樣式 (需補上 translateX(-50%) 因為 CSS 用了 left: 50%)
+                // 直接應用樣式 (1:1 跟手)
+                // 補上 translateX(-50%) 因為 CSS 用了 left: 50%
                 sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
             }
             
