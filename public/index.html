@@ -29,7 +29,7 @@
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
         /* Header 基礎樣式 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative;}
 
         /* 區塊 A: 靜態區 */
         .header-static-part {
@@ -47,18 +47,20 @@
             border-bottom-right-radius: 12px;
             width: 100%;
             z-index: 100;
-            /* [關鍵] 移除 transition 以實現 1:1 跟手感 */
+            /* 關鍵：移除 transition 以實現 1:1 跟手感 */
             will-change: transform; 
         }
 
-        /* 懸浮時的狀態 - [修正] 寬度計算以解決跳動問題 */
+        /* 懸浮時的狀態 - [修正] 精確寬度計算 */
         .header-sticky-part.is-fixed {
             position: fixed;
             top: 0; 
-            /* 精準對齊：扣除 Body Padding (10px*2) 與 父層 Border (1px*2) */
+            /* 寬度 = 100% - Body Padding(20px) - Header Border(2px) */
             width: calc(100% - 22px); 
-            max-width: 478px; /* 500px - 22px */
-            left: 0; right: 0; margin: 0 auto; /* 水平置中 */
+            /* 最大寬度 = Container(500px) - Header Border(2px) */
+            max-width: 498px; 
+            left: 50%; /* 透過 transform 居中，避免 left 計算誤差 */
+            /* 注意：這裡的 transform 會在 JS 中動態覆蓋，JS 需包含 translateX(-50%) */
             
             border-radius: 0 0 12px 12px; 
             border: 1px solid #333;
@@ -569,7 +571,8 @@
             const backToTop = document.getElementById('btnBackToTop');
             
             const staticPart = document.querySelector('.header-static-part');
-            const threshold = staticPart ? staticPart.offsetHeight : 150;
+            // 計算靜態區高度（如果未載入完成，給一個安全值 150）
+            const staticHeight = staticPart ? staticPart.offsetHeight : 150;
             const stickyHeight = sticky.offsetHeight || 150;
 
             // 1. Back to Top Logic
@@ -580,7 +583,9 @@
             }
 
             // 2. Sticky Logic
-            if (current <= threshold) {
+            // 只有當頁面捲動超過「靜態區域」的高度時，才允許進入懸浮模式
+            // 這能確保靜態區域永遠不會被動態區域「鬼影」覆蓋
+            if (current <= staticHeight) {
                 // Zone 1: 回到頂部區域 - 強制復原，避免重影
                 sticky.classList.remove('is-fixed');
                 sticky.style.transform = 'translateY(0)'; // 清除位移
@@ -597,18 +602,26 @@
                 // 計算滑動差值 (Delta)
                 const diff = current - lastScroll;
                 
-                // 往下滑 (diff > 0): 隱藏 (translate 往負值走)
-                // 往上滑 (diff < 0): 顯示 (translate 往 0 走)
-                
-                // 核心算法：currentTranslate 減去 diff，並限制在 [-stickyHeight, 0] 之間
+                // 核心算法：currentTranslate 減去 diff
+                // 往下滑 (diff > 0) -> 值變小 (負值) -> 往上收
+                // 往上滑 (diff < 0) -> 值變大 (趨近0) -> 往下吐
                 currentTranslate -= diff;
                 
                 // Clamp (限制範圍)
+                // 上限：0 (完全顯示)
+                // 下限：-stickyHeight (完全隱藏)
                 if (currentTranslate > 0) currentTranslate = 0;
                 if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
 
-                // 直接應用樣式 (1:1 跟手)
-                sticky.style.transform = `translateY(${currentTranslate}px)`;
+                // [安全鎖] 如果目前捲動位置還在「危險邊緣」(靜態欄剛結束的地方)
+                // 強制動態欄展開，避免快速滑動時的縫隙
+                // 緩衝區設為 stickyHeight 的 1.5 倍
+                if (current < staticHeight + stickyHeight * 1.5) {
+                    currentTranslate = 0;
+                }
+
+                // 應用樣式 (需補上 translateX(-50%) 因為 CSS 用了 left: 50%)
+                sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
             }
             
             // 防止 iOS 彈性滾動導致的負值問題
