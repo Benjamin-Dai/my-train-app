@@ -41,17 +41,16 @@
 
         /* 區塊 B: 懸浮區 */
         .header-sticky-part {
-            padding: 5px 15px 10px 15px; /* 下方 padding 稍微減少，給 hint 用 */
+            padding: 5px 15px 10px 15px;
             background: #151517; 
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
             width: 100%;
             z-index: 100;
-            /* 關鍵：移除 transition 以實現 1:1 跟手感 */
             will-change: transform; 
         }
 
-        /* 懸浮時的狀態 - 精確寬度計算 */
+        /* 懸浮時的狀態 - 保持提示欄顯示，但微調間距 */
         .header-sticky-part.is-fixed {
             position: fixed;
             top: 0; 
@@ -63,26 +62,51 @@
             border: 1px solid #333;
             border-top: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-            padding-top: 15px; 
+            
+            /* 稍微縮減間距 */
+            padding-top: 10px; 
+            padding-bottom: 8px;
+        }
+
+        /* [關鍵修改] 懸浮時：隱藏原本的大按鈕區，顯示整合後的更新鈕 */
+        .header-sticky-part.is-fixed .action-area {
+            display: none;
+        }
+        
+        /* 預設隱藏「整合版更新鈕」 */
+        .btn-refresh-sticky-wrapper {
+            display: none;
+            flex: 1.2; /* 讓它稍微寬一點 */
+        }
+        
+        /* 懸浮時：顯示「整合版更新鈕」 */
+        .header-sticky-part.is-fixed .btn-refresh-sticky-wrapper {
+            display: block; 
+        }
+
+        /* 懸浮時，提示欄稍微緊湊一點 */
+        .header-sticky-part.is-fixed .click-hint {
+            margin-top: 6px;
+            padding-top: 6px;
         }
 
         /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* [修改] 提示區塊樣式 - 移入 Header 內 */
+        /* 提示區塊樣式 */
         .click-hint {
             display: flex;
             flex-direction: row; 
             align-items: center;
             justify-content: center;
             gap: 12px;
-            padding: 8px 0 0 0; /* 上方留點空間 */
+            padding: 10px 0 0 0; 
             color: #888;
             font-size: 0.8rem;
-            border-top: 1px solid #2c2c2e; /* 加一條細線區隔 */
+            border-top: 1px solid #2c2c2e; 
             margin-top: 10px;
-            opacity: 0; /* 預設隱藏，有資料才顯示 */
-            transition: opacity 0.5s;
+            opacity: 0; 
+            transition: opacity 0.3s;
         }
         .click-hint.visible { opacity: 1; }
         
@@ -92,6 +116,7 @@
             align-items: flex-end; 
             line-height: 1.2;
         }
+        /* 如果只有文字沒有圖例，就置中 */
         .hint-text-group.only-text { align-items: center; }
 
         .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.85rem; }
@@ -108,8 +133,8 @@
             border-radius: 12px;
             font-size: 0.75rem;
             color: #ccc;
+            animation: fadeIn 0.5s; 
         }
-        /* 圖例用的 icon，不需要絕對定位 */
         .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
 
         /* 回到頂端按鈕 */
@@ -194,6 +219,29 @@
         .toggle-btn:active { transform: scale(0.98); }
         .toggle-icon { font-size: 1rem; line-height: 1; }
 
+        /* [新增] 懸浮版專用更新按鈕樣式 */
+        .btn-sticky-refresh {
+            width: 100%;
+            height: 100%;
+            background: #4d7f5e; /* 綠色背景 */
+            color: #fff;
+            border: 1px solid #4d7f5e;
+            padding: 8px 0;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+        .btn-sticky-refresh:disabled {
+            background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed;
+        }
+        .btn-sticky-refresh:active { transform: scale(0.98); }
+
         .status-container { text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
         .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
         .status-msg.alert { color: #ff4d4d; font-weight: bold; } 
@@ -237,13 +285,12 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
-        /* LED 燈樣式 - 預設隱藏，由 .is-arriving 控制 */
+        /* LED 燈樣式 */
         .left-indicator { 
             position: absolute; left: 12px; top: 50%; transform: translateY(-50%); 
             display: flex; flex-direction: column; gap: 6px; 
             opacity: 0; transition: opacity 0.5s;
         }
-        /* 當父層有 .is-arriving 時顯示 */
         .card.is-arriving .left-indicator { opacity: 1; }
 
         .led-dot { width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); }
@@ -356,10 +403,16 @@
 
                 <div class="action-area">
                     <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
-                    <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
+                    <button id="btnRefresh" class="btn btn-refresh btn-refresh-sync" onclick="doRefresh()">🔄 更新</button>
                 </div>
 
                 <div class="view-toolbar">
+                    <div class="btn-refresh-sticky-wrapper">
+                        <button class="btn-sticky-refresh btn-refresh-sync" onclick="doRefresh()">
+                            <span class="toggle-icon">🔄</span> 更新
+                        </button>
+                    </div>
+
                     <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
                         <span class="toggle-icon">☆</span> 收藏路線
                     </button>
@@ -497,7 +550,7 @@
         const hintContainer = document.getElementById('hintContainer');
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
-        let statusTimer = null; // [新增] 狀態自動更新計時器
+        let statusTimer = null; 
 
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
@@ -584,9 +637,9 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // 滾動邏輯 - 1:1 跟手滑動
+        // [關鍵修正] 1:1 跟手滑動邏輯 (Browser Address Bar Style)
         let lastScroll = 0;
-        let currentTranslate = 0; 
+        let currentTranslate = 0; // 追蹤懸浮欄的位移
         
         window.addEventListener('scroll', () => {
             const current = window.scrollY;
@@ -598,37 +651,49 @@
             const threshold = staticPart ? staticPart.offsetHeight : 150;
             const stickyHeight = sticky.offsetHeight || 150;
 
+            // 1. Back to Top Logic
             if(current > 300) {
                 backToTop.classList.add('visible');
             } else {
                 backToTop.classList.remove('visible');
             }
 
+            // 2. Sticky Logic
             if (current <= threshold) {
+                // Zone 1: 回到頂部區域 - 強制復原，避免重影
                 sticky.classList.remove('is-fixed');
-                sticky.style.transform = 'translateY(0)'; 
+                sticky.style.transform = 'translateY(0)'; // 清除位移
                 placeholder.style.display = 'none';
-                currentTranslate = 0; 
+                currentTranslate = 0; // 重置狀態
             } else {
+                // Zone 2: 捲動區域 - 啟動 Fixed 模式
                 if (!sticky.classList.contains('is-fixed')) {
                      placeholder.style.display = 'block';
                      placeholder.style.height = stickyHeight + 'px'; 
                      sticky.classList.add('is-fixed');
                 }
 
+                // 計算滑動差值 (Delta)
                 const diff = current - lastScroll;
+                
+                // 核心算法：currentTranslate 減去 diff
                 currentTranslate -= diff;
                 
+                // Clamp (限制範圍)
                 if (currentTranslate > 0) currentTranslate = 0;
                 if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
 
+                // [安全鎖] 如果目前捲動位置還在「危險邊緣」(靜態欄剛結束的地方)
+                // 強制動態欄展開，避免快速滑動時的縫隙
                 if (current < threshold + stickyHeight + 10) {
                     currentTranslate = 0;
                 }
 
+                // 直接應用樣式 (1:1 跟手)
                 sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
             }
             
+            // 防止 iOS 彈性滾動導致的負值問題
             lastScroll = current <= 0 ? 0 : current;
         });
 
@@ -651,19 +716,16 @@
             }
             renderQuickRoutes();
             updateStarState();
-            startStatusTimer(); // [新增] 啟動自動狀態檢查
+            startStatusTimer(); 
         }
 
-        // [新增] 自動狀態更新計時器
         function startStatusTimer() {
             if (statusTimer) clearInterval(statusTimer);
-            // 每 10 秒檢查一次
             statusTimer = setInterval(() => {
                 updateRealtimeStatus();
             }, 10000);
         }
 
-        // [新增] 即時狀態更新邏輯 (不打 API)
         function updateRealtimeStatus() {
             const cards = document.querySelectorAll('#cardList .card-link');
             if (cards.length === 0) return;
@@ -684,21 +746,16 @@
                 const rightBadgeContainer = link.querySelector('.status-badge-container');
                 const infoDiv = link.querySelector('.train-info');
                 
-                // 更新顏色與狀態
                 if (isDeparted) {
                     cardDiv.classList.add('departed-card', 'past');
                     if(infoDiv) infoDiv.style.color = '#888';
                     
-                    // 確保已駛離標籤存在
                     if (!rightBadgeContainer.querySelector('.status-tag.departed')) {
-                        // 清空並加入已駛離
                         rightBadgeContainer.innerHTML = '<div class="status-tag departed">已駛離</div>';
                     }
                 } else {
                     cardDiv.classList.remove('departed-card', 'past');
-                    // 恢復原本顏色 (這比較難，因為原本顏色在 style 裡，但通常 remove class 夠了)
                     
-                    // 檢查進站狀態
                     if (isArriving) {
                         cardDiv.classList.add('is-arriving');
                         anyArriving = true;
@@ -708,7 +765,6 @@
                 }
             });
 
-            // 更新提示欄
             updateHintUI(anyArriving);
         }
 
@@ -848,7 +904,7 @@
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
             statusMsg.innerText=""; 
-            hintContainer.innerHTML = ""; // 清空提示
+            hintContainer.innerHTML = ""; 
 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
             const s=startStation.value; const e=endStation.value; 
@@ -938,19 +994,32 @@
                 } s--;
             }; t(); searchLockTimer=setInterval(t,1000);
         }
+        // [修改] 更新按鈕鎖定邏輯：同步所有更新鈕
         function lockRefreshButton(s) {
             if(refreshTimer) clearInterval(refreshTimer);
-            btnRefresh.disabled=true;
+            
+            const btns = document.querySelectorAll('.btn-refresh-sync');
+            btns.forEach(b => b.disabled = true);
+            
             const t=()=>{
-                btnRefresh.innerText=`更新 (${s})`;
+                btns.forEach(b => {
+                    // 保留原本的 icon，只改文字
+                    const icon = b.querySelector('.toggle-icon') ? '<span class="toggle-icon">🔄</span> ' : '';
+                    b.innerHTML = `${icon}更新 (${s})`;
+                });
+                
                 if(s<=0){
-                    clearInterval(refreshTimer); btnRefresh.disabled=false;
-                    btnRefresh.innerText="🔄 更新"; setRefreshLockedUntil(0);
+                    clearInterval(refreshTimer); 
+                    btns.forEach(b => {
+                        b.disabled = false;
+                        const icon = b.querySelector('.toggle-icon') ? '<span class="toggle-icon">🔄</span> ' : '';
+                        b.innerHTML = `${icon}更新`;
+                    });
+                    setRefreshLockedUntil(0);
                 } s--;
             }; t(); refreshTimer=setInterval(t,1000);
         }
 
-        // [新增] 更新提示 UI 的獨立函式
         function updateHintUI(anyArriving) {
             let hintHtml = `<div class="click-hint visible">
                 <div class="hint-text-group ${anyArriving ? '' : 'only-text'}">
@@ -971,7 +1040,6 @@
             }
             hintHtml += `</div>`;
             
-            // 直接更新 stickyHeader 裡的容器
             if(hintContainer) hintContainer.innerHTML = hintHtml;
         }
 
@@ -1014,7 +1082,6 @@
                         foundFirstActive = true;
                     }
 
-                    // LED: 預設就放進去，透過 CSS .card.is-arriving 控制顯示
                     let leftIndicatorHtml = `
                     <div class="left-indicator">
                         <div class="led-dot top"></div>
@@ -1036,7 +1103,6 @@
                     if (isDeparted) cardClass += " departed-card past";
                     if (isArriving) cardClass += " is-arriving";
 
-                    // [新增] data-ts 屬性供計時器讀取
                     cardsHtml += `<a href="${url}" target="_blank" class="card-link" data-ts="${t.sort_key}" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
                             ${leftIndicatorHtml}
@@ -1058,7 +1124,6 @@
                     </a>`;
                 });
 
-                // 更新提示欄位 (移到 Header)
                 updateHintUI(anyArriving);
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
@@ -1076,7 +1141,7 @@
                 `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : 
                 `<div class="message">查無此區間直達列車 ⚠️</div>`;
             
-            updateHintUI(false); // 無資料時隱藏圖例
+            updateHintUI(false); 
         }
 
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
