@@ -51,12 +51,15 @@
             will-change: transform; 
         }
 
-        /* 懸浮時的狀態 */
+        /* 懸浮時的狀態 - [修正] 寬度計算以解決跳動問題 */
         .header-sticky-part.is-fixed {
             position: fixed;
-            top: 0; left: 0; right: 0;
-            max-width: 500px; 
-            margin: 0 auto;   
+            top: 0; 
+            /* 精準對齊：扣除 Body Padding (10px*2) 與 父層 Border (1px*2) */
+            width: calc(100% - 22px); 
+            max-width: 478px; /* 500px - 22px */
+            left: 0; right: 0; margin: 0 auto; /* 水平置中 */
+            
             border-radius: 0 0 12px 12px; 
             border: 1px solid #333;
             border-top: none;
@@ -601,8 +604,6 @@
                 currentTranslate -= diff;
                 
                 // Clamp (限制範圍)
-                // 不能大於 0 (完全顯示)
-                // 不能小於 -stickyHeight (完全隱藏)
                 if (currentTranslate > 0) currentTranslate = 0;
                 if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
 
