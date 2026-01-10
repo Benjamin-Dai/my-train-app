@@ -31,7 +31,7 @@
             border-top-left-radius: 12px;
             border-top-right-radius: 12px;
             border: 1px solid #333;
-            border-bottom: none; 
+            border-bottom: none; /* 無縫連接 */
         }
 
         /* --- B. 動態懸浮區 (下半部) --- */
@@ -48,20 +48,17 @@
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
             border: 1px solid #333;
-            border-top: none;
+            border-top: none; /* 無縫連接 */
             
             box-shadow: none;
 
-            /* 【關鍵修復 3】加入高度與變形的過渡動畫，解決瞬移 */
-            will-change: transform, max-height, padding;
-            transition: transform 0.1s linear, max-height 0.3s ease, box-shadow 0.3s ease;
-            
-            /* 預設最大高度 (大按鈕模式) */
-            max-height: 200px; 
-            overflow: hidden;
+            /* 【關鍵設定】只保留陰影過渡，移除 transform 與 height 的 transition */
+            /* 這樣才能保證 1:1 的手指跟隨感 */
+            will-change: transform;
+            transition: box-shadow 0.2s ease;
         }
 
-        /* 當離開頂部懸浮時的樣式 */
+        /* 懸浮狀態 (加上陰影與頂部邊框) */
         .header-sticky-part.is-floating {
             box-shadow: 0 10px 30px rgba(0,0,0,0.9);
             border-top: 1px solid #333;
@@ -69,40 +66,23 @@
         }
 
         /* --- 精簡模式 (Compact Mode) --- */
-        .header-sticky-part.compact-mode {
-            /* 【關鍵修復 3】縮小最大高度，觸發 CSS 滑動動畫 */
-            max-height: 70px; 
-        }
-
-        /* 按鈕區動畫 */
-        .action-area { 
-            display: flex; gap: 8px; margin-top: 5px; 
-            transition: opacity 0.2s ease; /* 淡入淡出 */
-            opacity: 1;
-        }
-        
+        /* 使用 display 切換，不使用高度動畫，避免手感斷層 */
         .header-sticky-part.compact-mode .action-area { 
-            /* 用 opacity 和 height:0 來隱藏，而不是 display:none，配合 transition */
-            opacity: 0;
-            height: 0;
-            margin: 0;
-            pointer-events: none;
-        }
-
-        .btn-refresh-sticky-wrapper { 
             display: none; 
-            opacity: 0;
-            transition: opacity 0.3s ease;
         }
 
         .header-sticky-part.compact-mode .btn-refresh-sticky-wrapper { 
             display: block; 
             flex: 0 0 auto; 
             min-width: 80px; 
-            opacity: 1;
+            animation: fadeIn 0.3s;
         }
         
         .header-sticky-part.compact-mode .click-hint { margin-top: 6px; padding-top: 6px; }
+
+        /* --- 按鈕區 --- */
+        .action-area { display: flex; gap: 8px; margin-top: 5px; }
+        .btn-refresh-sticky-wrapper { display: none; }
 
         /* --- 其他樣式 --- */
         .click-hint { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem; border-top: 1px solid #2c2c2e; margin-top: 10px; opacity: 0; transition: opacity 0.3s; }
@@ -547,56 +527,89 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // === 最終版 Smart Sticky 邏輯 (包含修復 Jump 與 Recall 問題) ===
+        // === 最終修復版 Smart Sticky 邏輯 (幕後換裝法) ===
 
         let lastScrollY = window.scrollY;
         let currentTranslateY = 0;
         const stickyHeader = document.getElementById('stickyHeader');
         const staticPart = document.querySelector('.header-static-part');
 
+        // 用來標記目前是否為「精簡模式」
+        let isCompactMode = false;
+
         window.addEventListener('scroll', () => {
             const currentScrollY = window.scrollY;
             const diff = currentScrollY - lastScrollY;
-            const headerHeight = stickyHeader.offsetHeight;
+            
+            // 取得靜態區高度
             const staticHeight = staticPart ? staticPart.offsetHeight : 130;
+            
+            // 取得動態欄目前的實際高度 (會隨模式改變)
+            const headerHeight = stickyHeader.offsetHeight;
 
-            // 1. 處理位移 (如果正在自動捲動，強制展開且不收起)
+            // --- 1. 計算位移 (核心手感) ---
+            // 如果正在自動捲動，強制展開，不做計算
             if (!isAutoScrolling) {
+                
+                // 只有離開頂部區域才開始計算隱藏
                 if (currentScrollY > staticHeight) {
                     currentTranslateY -= diff;
                     
-                    // 【關鍵修復 2】確保往回拉時 (diff < 0) 只要 currentTranslateY 還沒到 0，就一定要能展開
-                    // 不管目前是 Compact 還是 Full，0 就是展開
+                    // 限制：不能拉超過 0 (完全展開)
                     if (currentTranslateY > 0) currentTranslateY = 0;
                     
-                    // 限制收起範圍 (不能超過目前高度)
+                    // 限制：不能縮超過目前的高度 (完全收起)
                     if (currentTranslateY < -headerHeight) currentTranslateY = -headerHeight;
+
                 } else {
+                    // 在頂部區域時，強制展開歸零
                     currentTranslateY = 0;
                 }
             } else {
-                // 自動捲動中，強制展開
                 currentTranslateY = 0;
             }
 
-            // 2. 狀態與模式切換 (解決瞬移與按鈕顯示)
-            if (currentScrollY > staticHeight + 10) {
+            // --- 2. 狀態切換邏輯 (幕後換裝) ---
+            
+            if (currentScrollY > staticHeight + 20) {
+                // A. 進入懸浮狀態
                 stickyHeader.classList.add('is-floating');
-                
-                // 【關鍵修復 3】
-                // 加入 compact-mode 會觸發 max-height 動畫，平滑過渡，消除瞬移
-                stickyHeader.classList.add('compact-mode'); 
+
+                // B. 模式切換判定
+                // 如果目前是「完整模式」，而且已經「完全縮進去看不見了」 (translateY <= -headerHeight)
+                // 這時候我們在幕後偷偷把它切換成「精簡模式」
+                if (!isCompactMode && currentTranslateY <= -headerHeight + 5) {
+                    isCompactMode = true;
+                    stickyHeader.classList.add('compact-mode');
+                    
+                    // 【關鍵】切換後，高度變矮了，我們要修正 translateY 讓它保持在「剛好藏起來」的位置
+                    // 這樣當你往回拉時，它會立刻出現，不用拉很長一段空窗
+                    const compactHeight = stickyHeader.offsetHeight; 
+                    currentTranslateY = -compactHeight; 
+                }
+
             } else {
+                // C. 回到頂部 -> 還原一切
                 stickyHeader.classList.remove('is-floating');
                 
-                // 回到頂部，還原大高度
-                stickyHeader.classList.remove('compact-mode'); 
+                if (isCompactMode) {
+                    isCompactMode = false;
+                    stickyHeader.classList.remove('compact-mode');
+                    // 回到頂部自然展開
+                    currentTranslateY = 0;
+                }
             }
 
-            // 3. 套用位移
+            // --- 3. 如果在精簡模式下往回拉，要確保能展開 ---
+            // 修正：當在精簡模式時，如果手指往上滑 (diff < 0)，且還沒完全展開，要允許展開
+            if (isCompactMode && diff < 0 && currentTranslateY < 0) {
+                // 這裡不需要額外邏輯，上面的 currentTranslateY -= diff 已經處理了
+            }
+
+            // --- 4. 套用位移 ---
             stickyHeader.style.transform = `translateY(${currentTranslateY}px)`;
 
-            // 4. Back to Top 按鈕
+            // --- 5. Back to Top ---
             const backToTop = document.getElementById('btnBackToTop');
             if (currentScrollY > 300) {
                 backToTop.classList.add('visible');
@@ -607,44 +620,40 @@
             lastScrollY = currentScrollY;
         });
 
-        // 修改後的 scrollToActiveCard (【關鍵修復 1】強制展開與鎖定)
+        // 修改後的 scrollToActiveCard (配合新邏輯)
         function scrollToActiveCard() {
             const el = document.getElementById("firstActive");
             if (!el) return;
 
             isAutoScrolling = true;
 
-            // 1. 強制展開：回到大按鈕模式
+            // 強制重置為完整模式
+            isCompactMode = false;
             stickyHeader.classList.remove('compact-mode'); 
             stickyHeader.classList.remove('is-floating');
             
-            // 2. 強制歸零位移
             currentTranslateY = 0;
             stickyHeader.style.transform = `translateY(0px)`;
             
-            // 3. 計算目標位置 (基於 Full Height)
-            // 由於剛剛 remove 了 compact-mode，瀏覽器可能還沒 reflow，這裡強制取 offsetHeight
-            // 或者給一個預估值，避免跳動
-            const headerHeight = 150; // 預估的大高度，確保位置足夠
+            const headerHeight = 150; 
             const elementPosition = el.getBoundingClientRect().top + window.scrollY;
             const offsetPosition = elementPosition - headerHeight - 10; 
 
-            // 4. 執行捲動
             window.scrollTo({
                 top: offsetPosition,
                 behavior: "smooth"
             });
 
-            // 5. 解除鎖定 (時間稍微拉長，確保捲動完全停止)
             setTimeout(() => {
                 isAutoScrolling = false;
                 lastScrollY = window.scrollY; 
             }, 1000);
         }
 
-        // 重置 Header 狀態 (搜尋/刷新用)
+        // 修改 resetHeaderState
         function resetHeaderState() {
             currentTranslateY = 0;
+            isCompactMode = false;
             if(stickyHeader) {
                 stickyHeader.style.transform = 'translateY(0)';
                 stickyHeader.classList.remove('compact-mode');
