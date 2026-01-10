@@ -1188,10 +1188,10 @@
             const cur = getCurrentPair();
             const btn = document.getElementById('btnStar');
             if (isFavorite(cur.start, cur.end)) {
-                btn.innerHTML = '<span class="toggle-icon">★</span> 收藏路線';
+                btn.innerHTML = '<span class="toggle-icon">★</span> 收藏';
                 btn.classList.add('fav-active');
             } else {
-                btn.innerHTML = '<span class="toggle-icon">☆</span> 收藏路線';
+                btn.innerHTML = '<span class="toggle-icon">☆</span> 收藏';
                 btn.classList.remove('fav-active');
             }
         }
