@@ -74,8 +74,7 @@ class handler(BaseHTTPRequestHandler):
 
     # === 使用 Redis 存取誤點資訊 (V2) ===
     def get_cached_delays(self, headers):
-        # 【修改點】Key 升級 v4
-        cache_key = "v4_tra_delay_data"
+        cache_key = "v3_tra_delay_data"
         
         if redis_client:
             try:
@@ -106,8 +105,7 @@ class handler(BaseHTTPRequestHandler):
 
     # === 使用 Redis 存取時刻表 (V3) - 12小時快取 ===
     def get_route_timetable(self, start_id, end_id, date_str, headers):
-        # 【修改點】Key 升級 v4
-        cache_key = f"v4_route_{start_id}_{end_id}_{date_str}"
+        cache_key = f"v3_route_{start_id}_{end_id}_{date_str}"
 
         if redis_client:
             try:
@@ -167,7 +165,6 @@ class handler(BaseHTTPRequestHandler):
             dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
             arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
             
-            # 處理跨日問題
             if fix_crossing_night:
                 if dep_time < "12:00": dep_dt += timedelta(days=1)
                 if arr_time < "12:00": arr_dt += timedelta(days=1)
@@ -184,7 +181,7 @@ class handler(BaseHTTPRequestHandler):
             processed.append({
                 "no": no, "type": display_type, "delay": delay, "color": type_color,
                 "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
-                # 【新增】分別回傳出發與抵達的日期 (格式 01/10)
+                # 【修改點】分開提供出發日期與抵達日期
                 "dep_date": real_dep.strftime("%m/%d"),
                 "arr_date": real_arr.strftime("%m/%d"),
                 "sch_dep": dep_time, "sch_arr": arr_time,
@@ -251,7 +248,7 @@ class handler(BaseHTTPRequestHandler):
             final_result = []
             now_ts = now_aware.timestamp()
             
-            # 【修改點】將未來視窗縮短為 24 小時
+            # 【修改點】縮小視窗至 24 小時
             future_limit = now_ts + (24 * 3600) 
             past_limit = now_ts - 600
 
