@@ -22,24 +22,24 @@
         /* 防止寬度計算超出螢幕 */
         *, *::before, *::after { box-sizing: border-box; }
 
-        /* [新增] 平滑捲動 */
+        /* 平滑捲動 */
         html { scroll-behavior: smooth; }
 
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
-        /* Header 基礎樣式 (移除原本的 padding，改由內部區塊控制) */
+        /* Header 基礎樣式 */
         .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
 
-        /* --- [新增] 區塊 A: 靜態區 (標題、搜尋、選車站) --- */
+        /* 區塊 A: 靜態區 */
         .header-static-part {
-            padding: 15px 15px 5px 15px; /* 上左右有 padding，下方減少因為接著 sticky */
+            padding: 15px 15px 5px 15px; 
         }
 
-        /* --- [新增] 區塊 B: 懸浮區 (常用路線、按鈕、設定) --- */
+        /* 區塊 B: 懸浮區 */
         .header-sticky-part {
             padding: 5px 15px 15px 15px;
-            background: #151517; /* 確保懸浮時背景不透明 */
+            background: #151517; 
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
             transition: transform 0.3s ease-in-out;
@@ -51,13 +51,13 @@
         .header-sticky-part.is-fixed {
             position: fixed;
             top: 0; left: 0; right: 0;
-            max-width: 500px; /* 限制最大寬度以免在大螢幕跑版 */
-            margin: 0 auto;   /* 置中 */
-            border-radius: 0 0 12px 12px; /* 只有下方圓角 */
+            max-width: 500px; 
+            margin: 0 auto;   
+            border-radius: 0 0 12px 12px; 
             border: 1px solid #333;
             border-top: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            padding-top: 15px; /* 增加一點頂部空間 */
+            padding-top: 15px; 
         }
 
         /* 往下滑時隱藏 */
@@ -65,10 +65,31 @@
             transform: translateY(-100%);
         }
 
-        /* 佔位符：防止懸浮時內容跳動 */
+        /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* --- [新增] 回到頂端按鈕 --- */
+        /* [修改] 提示文字優化 */
+        .click-hint {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 10px 0;
+            color: #4d7f5e;
+            font-size: 0.9rem;
+            font-weight: bold;
+            line-height: 1.4;
+            text-align: center;
+            animation: fadeIn 1s;
+        }
+        .click-hint-sub {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            font-weight: normal;
+        }
+
+        /* 回到頂端按鈕 */
         .back-to-top {
             position: fixed;
             bottom: 25px;
@@ -89,7 +110,7 @@
             opacity: 0;
             transform: translateY(20px);
             transition: all 0.3s ease;
-            pointer-events: none; /* 隱藏時不可點擊 */
+            pointer-events: none; 
         }
         .back-to-top.visible {
             opacity: 1;
@@ -98,7 +119,6 @@
         }
         .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
-        /* 1. 頂部優化 */
         .header-top { 
             display: flex; 
             justify-content: space-between; 
@@ -116,7 +136,6 @@
             flex: 1; 
         }
 
-        /* --- 頂部安裝按鈕樣式 --- */
         .install-btn-top {
             background: #4d7f5e; 
             color: #fff; 
@@ -134,7 +153,6 @@
         }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
 
-        /* --- 呼吸燈動畫 --- */
         @keyframes pulse-white-gold {
             0%, 100% { color: #fff; border-color: #444; }
             50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
@@ -160,7 +178,6 @@
         }
         .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
 
-        /* 搜尋列 */
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
         .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
         .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
@@ -189,7 +206,6 @@
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
         .btn.error { background: #d32f2f !important; color: white !important; }
 
-        /* 3. 檢視設定列 */
         .view-toolbar { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; }
         .toggle-btn { flex: 1; background: #222; border: 1px solid #444; color: #888; padding: 8px 0; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; white-space: nowrap; }
         .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
@@ -588,7 +604,7 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // [新增] Scroll Logic for Sticky Header & Back to Top
+        // [修正] 滾動邏輯 - 解決重影問題
         let lastScroll = 0;
         window.addEventListener('scroll', () => {
             const current = window.scrollY;
@@ -596,31 +612,36 @@
             const placeholder = document.getElementById('stickyPlaceholder');
             const backToTop = document.getElementById('btnBackToTop');
             
-            // 1. Back to Top Button Logic
+            // 取得靜態區塊的高度，作為切換閾值
+            const staticPart = document.querySelector('.header-static-part');
+            const threshold = staticPart ? staticPart.offsetHeight : 150;
+
+            // 1. Back to Top 按鈕
             if(current > 300) {
                 backToTop.classList.add('visible');
             } else {
                 backToTop.classList.remove('visible');
             }
 
-            // 2. Sticky Header Logic
-            if (current <= 10) {
-                // 回到最頂端：恢復原狀
+            // 2. Sticky Header 邏輯
+            // 只有當捲動超過靜態區的高度時，才開始運作
+            if (current <= threshold) {
+                // 回到頂部區域：強制復原，避免重影
                 sticky.classList.remove('is-fixed', 'is-hidden');
                 placeholder.style.display = 'none';
             } else {
-                // 只要稍微捲動，就準備變成 fixed 模式
+                // 進入懸浮模式
                 if (!sticky.classList.contains('is-fixed')) {
                      placeholder.style.display = 'block';
-                     placeholder.style.height = sticky.offsetHeight + 'px'; // 佔位防止跳動
+                     placeholder.style.height = sticky.offsetHeight + 'px'; 
                      sticky.classList.add('is-fixed');
                 }
 
-                if (current > lastScroll && current > 200) {
-                    // 往下滑：隱藏 Sticky Header
+                if (current > lastScroll && current > threshold + 50) {
+                    // 往下滑：隱藏
                     sticky.classList.add('is-hidden');
                 } else {
-                    // 往上滑：顯示 Sticky Header
+                    // 往上滑：顯示
                     sticky.classList.remove('is-hidden');
                 }
             }
@@ -886,7 +907,13 @@
 
         function renderCards(data) {
             if(data.trains && data.trains.length > 0) {
-                let html = `<div class="click-hint">👆 點擊卡片查看「列車即時位置」與「完整停靠站」</div>`;
+                // [修改] 提示文字結構
+                let html = `
+                <div class="click-hint">
+                    <div>👆 點擊卡片查看</div>
+                    <div class="click-hint-sub">即時位置 & 完整停靠站</div>
+                </div>`;
+                
                 let has = false;
                 let hasShownNextDayDivider = false;
                 let lastTrainTs = 0;
