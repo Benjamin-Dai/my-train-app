@@ -1,1327 +1,1346 @@
 <!DOCTYPE html>
 <html lang="zh-TW" prefix="og: http://ogp.me/ns#">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TRAIN LIVE | 列車時刻即時看板</title>
-    <meta name="description" content="不只是誤點幾分鐘，直接告訴你實際幾點到。專為通勤族設計的極簡、即時火車時刻表 Web App。">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TRAIN LIVE | 列車時刻即時看板</title>
+    <meta name="description" content="不只是誤點幾分鐘，直接告訴你實際幾點到。專為通勤族設計的極簡、即時火車時刻表 Web App。">
 
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#151517">
-    <link rel="apple-touch-icon" href="/icon.png">
-    <link rel="icon" type="image/png" href="/icon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#151517">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <link rel="icon" type="image/png" href="/icon.png">
 
-    <style>
-        /* 防止寬度計算超出螢幕 */
-        *, *::before, *::after { box-sizing: border-box; }
+    <style>
+        /* 防止寬度計算超出螢幕 */
+        *, *::before, *::after { box-sizing: border-box; }
 
-        /* 平滑捲動 */
-        html { scroll-behavior: smooth; }
+        /* 平滑捲動 */
+        html { scroll-behavior: smooth; }
 
-        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
-        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; position: relative; }
+        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
+        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; position: relative; }
 
-        /* Header 基礎樣式 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative; overflow: visible; }
+        /* Header 基礎樣式 */
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative; overflow: visible; }
 
-        /* 區塊 A: 靜態區 */
-        .header-static-part {
-            padding: 15px 15px 5px 15px; 
-            background: #151517;
-            position: relative;
-            z-index: 10;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-        }
+        /* 區塊 A: 靜態區 */
+        .header-static-part {
+            padding: 15px 15px 5px 15px; 
+            background: #151517;
+            position: relative;
+            z-index: 10;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
 
-        /* 區塊 B: 動態懸浮區 (修改重點) */
-        .header-sticky-part {
-            padding: 5px 15px 0 15px; /* 移除底部 padding 讓收合更緊湊 */
-            background: #151517; 
-            
-            /* 核心：讓瀏覽器處理「滑動多少動多少」，碰到頂端自動黏住 */
-            position: -webkit-sticky;
-            position: sticky;
-            top: 0; 
-            z-index: 100;
-            
-            width: 100%;
-            /* 加上陰影與圓角的過渡動畫 */
-            transition: box-shadow 0.3s, border-radius 0.3s, padding 0.3s;
-            
-            /* 預設圓角 */
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
-        }
+        /* 區塊 B: 懸浮區 */
+        .header-sticky-part {
+            padding: 5px 15px 10px 15px;
+            background: #151517; 
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            width: 100%;
+            z-index: 100;
+            position: relative; /* 預設靜態 */
+            will-change: transform; 
+        }
 
-        /* 當黏在頂端時的狀態 (由 JS 加 class) */
-        .header-sticky-part.is-fixed {
-            border-radius: 0 0 12px 12px;
-            border-bottom: 1px solid #333;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-            padding-bottom: 8px; /* 黏住時稍微撐開一點底部 */
-        }
+        /* 狀態二：懸浮模式 (Fixed) */
+        .header-sticky-part.is-fixed {
+            position: fixed;
+            top: 0; 
+            /* 寬度計算：100% - Body Padding(20px) */
+            width: calc(100% - 20px); 
+            max-width: 500px; 
+            left: 50%; 
+            /* 注意：transform 由 JS 控制，這裡只設初始值 */
+            transform: translateX(-50%); 
+            
+            border-radius: 0 0 12px 12px; 
+            border: 1px solid #333;
+            border-top: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            
+            padding-top: 10px; 
+            padding-bottom: 8px;
+        }
 
-        /* --- 大按鈕區域的平滑收合動畫 --- */
-        .action-area {
-            margin-top: 5px;
-            display: flex;
-            gap: 8px;
-            
-            /* 關鍵：設定高度與透明度的過渡動畫 */
-            max-height: 60px; /* 設定一個足夠原本按鈕顯示的高度 */
-            opacity: 1;
-            overflow: hidden; /* 收合時隱藏溢出內容 */
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* 絲滑曲線 */
-        }
+        /* 懸浮時：隱藏大按鈕區 */
+        .header-sticky-part.is-fixed .action-area { display: none; }
+        
+        /* 懸浮時：顯示整合版更新鈕 */
+        .btn-refresh-sticky-wrapper { display: none; flex: 0 0 auto; min-width: 80px; }
+        .header-sticky-part.is-fixed .btn-refresh-sticky-wrapper { display: block; }
 
-        /* 當 Header 變固定時，讓大按鈕區「縮起來」而不是消失 */
-        .header-sticky-part.is-fixed .action-area {
-            max-height: 0;
-            opacity: 0;
-            margin-top: 0;
-            pointer-events: none; /* 收起來後不讓點擊 */
-        }
+        .header-sticky-part.is-fixed .click-hint { margin-top: 6px; padding-top: 6px; }
 
-        /* --- 小更新按鈕的平滑出現動畫 --- */
-        .btn-refresh-sticky-wrapper {
-            /* 預設寬度為 0，隱藏 */
-            flex: 0 0 auto;
-            width: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: all 0.4s ease;
-        }
+        /* 佔位符 */
+        #stickyPlaceholder { display: none; }
 
-        /* 固定時展開 */
-        .header-sticky-part.is-fixed .btn-refresh-sticky-wrapper {
-            width: 80px; /* 展開到原本寬度 */
-            opacity: 1;
-            margin-right: 8px;
-        }
+        /* 提示區塊 */
+        .click-hint {
+            display: flex; flex-direction: row; align-items: center; justify-content: center;
+            gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem;
+            border-top: 1px solid #2c2c2e; margin-top: 10px;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .click-hint.visible { opacity: 1; }
+        
+        .hint-text-group { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+        .hint-text-group.only-text { align-items: center; }
 
-        .header-sticky-part.is-fixed .click-hint { margin-top: 5px; padding-top: 5px; }
+        .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.85rem; }
+        .click-hint-sub { font-size: 0.75rem; opacity: 0.8; font-weight: normal; color: #888; }
 
-        /* 提示區塊 */
-        .click-hint {
-            display: flex; flex-direction: row; align-items: center; justify-content: center;
-            gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem;
-            border-top: 1px solid #2c2c2e; margin-top: 10px;
-            opacity: 0; transition: opacity 0.3s;
-        }
-        .click-hint.visible { opacity: 1; }
-        
-        .hint-text-group { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
-        .hint-text-group.only-text { align-items: center; }
+        .hint-divider { width: 1px; height: 20px; background: #444; }
 
-        .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.85rem; }
-        .click-hint-sub { font-size: 0.75rem; opacity: 0.8; font-weight: normal; color: #888; }
+        .legend-row {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(255, 255, 255, 0.05); padding: 3px 8px;
+            border-radius: 12px; font-size: 0.75rem; color: #ccc;
+            /* 移除 animation 避免重繪閃爍 */
+        }
+        .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
 
-        .hint-divider { width: 1px; height: 20px; background: #444; }
+        /* Back to Top */
+        .back-to-top {
+            position: fixed; bottom: 25px; right: 25px;
+            width: 50px; height: 50px; background: #4d7f5e; color: #fff;
+            border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 90; opacity: 0;
+            transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; 
+        }
+        .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
-        .legend-row {
-            display: flex; align-items: center; gap: 6px;
-            background: rgba(255, 255, 255, 0.05); padding: 3px 8px;
-            border-radius: 12px; font-size: 0.75rem; color: #ccc;
-        }
-        .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
+        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
 
-        /* Back to Top */
-        .back-to-top {
-            position: fixed; bottom: 25px; right: 25px;
-            width: 50px; height: 50px; background: #4d7f5e; color: #fff;
-            border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; z-index: 90; opacity: 0;
-            transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; 
-        }
-        .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .back-to-top:active { transform: scale(0.9); background: #3d664b; }
+        .install-btn-top {
+            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s;
+        }
+        .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
 
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
-        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
+        @keyframes pulse-white-gold {
+            0%, 100% { color: #fff; border-color: #444; }
+            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
+        }
+        .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
 
-        .install-btn-top {
-            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s;
-        }
-        .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
+        .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
 
-        @keyframes pulse-white-gold {
-            0%, 100% { color: #fff; border-color: #444; }
-            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
-        }
-        .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
+        .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
+        .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
+        .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
+        .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
 
-        .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
+        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
+        .select-group { flex: 1; display: flex; gap: 5px; }
+        .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; text-align: center; }
+        .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
+        .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
+        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
-        .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
-        .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
-        .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
+        /* 橫向捲動 Chips */
+        .quick-route-area { 
+            margin: 5px 0 10px 0; 
+            display: flex; flex-wrap: nowrap; gap: 8px; 
+            min-height: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;
+            padding-right: 20px; scrollbar-width: none; 
+        }
+        .quick-route-area::-webkit-scrollbar { display: none; }
 
-        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
-        .select-group { flex: 1; display: flex; gap: 5px; }
-        .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; text-align: center; }
-        .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
-        .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
-        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
+        .route-chip { 
+            display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
+            padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; 
+            user-select: none; white-space: nowrap; flex: 0 0 auto; 
+        }
+        .route-chip:active { transform: scale(0.95); background: #333; }
+        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
+        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
+        .route-chip.hist { border-style: dashed; }
 
-        /* 橫向捲動 Chips */
-        .quick-route-area { 
-            margin: 5px 0 10px 0; 
-            display: flex; flex-wrap: nowrap; gap: 8px; 
-            min-height: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;
-            padding-right: 20px; scrollbar-width: none; 
-        }
-        .quick-route-area::-webkit-scrollbar { display: none; }
+        .action-area { margin-top: 5px; display: flex; gap: 8px; }
+        .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
+        .btn-search { flex: 2; background: #fff; color: #000; }
+        .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
+        .btn.error { background: #d32f2f !important; color: white !important; }
 
-        .route-chip { 
-            display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
-            padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; 
-            user-select: none; white-space: nowrap; flex: 0 0 auto; 
-        }
-        .route-chip:active { transform: scale(0.95); background: #333; }
-        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
-        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
-        .route-chip.hist { border-style: dashed; }
+        /* 工具列橫向捲動設定 */
+        .view-toolbar { 
+            display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; 
+            overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .view-toolbar::-webkit-scrollbar { display: none; }
 
-        .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
-        .btn:active { transform: scale(0.98); }
-        .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
-        .btn-search { flex: 2; background: #fff; color: #000; }
-        .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
-        .btn.error { background: #d32f2f !important; color: white !important; }
+        .toggle-btn { 
+            flex: 0 0 auto; /* 禁止壓縮 */
+            background: #222; border: 1px solid #444; color: #888; 
+            padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; 
+        }
+        .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
+        .toggle-btn.fav-active { background: rgba(230, 184, 0, 0.15); color: #e6b800; border-color: #e6b800; font-weight: bold; }
+        .toggle-btn:active { transform: scale(0.98); }
+        .toggle-icon { font-size: 1rem; line-height: 1; }
 
-        /* 工具列橫向捲動設定 */
-        .view-toolbar { 
-            display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; 
-            overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-        }
-        .view-toolbar::-webkit-scrollbar { display: none; }
+        .btn-sticky-refresh {
+            width: 100%; height: 100%; background: #4d7f5e; color: #fff;
+            border: 1px solid #4d7f5e; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; font-weight: bold; white-space: nowrap;
+        }
+        .btn-sticky-refresh:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
+        .btn-sticky-refresh:active { transform: scale(0.98); }
 
-        .toggle-btn { 
-            flex: 0 0 auto; /* 禁止壓縮 */
-            background: #222; border: 1px solid #444; color: #888; 
-            padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; 
-            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; 
-        }
-        .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
-        .toggle-btn.fav-active { background: rgba(230, 184, 0, 0.15); color: #e6b800; border-color: #e6b800; font-weight: bold; }
-        .toggle-btn:active { transform: scale(0.98); }
-        .toggle-icon { font-size: 1rem; line-height: 1; }
+        .status-container { text-align: center; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+        
+        .status-msg { display: none; font-size: 0.85rem; font-weight: bold; color: #aaa; margin-bottom: 2px; }
+        .status-msg.alert { display: block; color: #ff4d4d; animation: fadeIn 0.5s; } 
+        .status-msg.warning { display: block; color: #e6b800; animation: fadeIn 0.5s; } 
+        
+        .update-time { font-size: 0.7rem; color: #555; font-family: monospace; min-height: 1em; }
 
-        .btn-sticky-refresh {
-            width: 100%; height: 100%; background: #4d7f5e; color: #fff;
-            border: 1px solid #4d7f5e; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; font-weight: bold; white-space: nowrap;
-        }
-        .btn-sticky-refresh:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
-        .btn-sticky-refresh:active { transform: scale(0.98); }
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, opacity 0.5s; }
+        a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
+        .card:active { transform: scale(0.98); background-color: #222; }
 
-        .status-container { text-align: center; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
-        
-        .status-msg { display: none; font-size: 0.85rem; font-weight: bold; color: #aaa; margin-bottom: 2px; }
-        .status-msg.alert { display: block; color: #ff4d4d; animation: fadeIn 0.5s; } 
-        .status-msg.warning { display: block; color: #e6b800; animation: fadeIn 0.5s; } 
-        
-        .update-time { font-size: 0.7rem; color: #555; font-family: monospace; min-height: 1em; }
+        .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
 
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, opacity 0.5s; }
-        a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
-        .card:active { transform: scale(0.98); background-color: #222; }
+        .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 6px; flex-wrap: nowrap; }
+        .time-group { display: flex; flex-direction: column; align-items: center; }
+        .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
 
-        .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+        .time-part { 
+            font-size: 1.8rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; 
+        }
+        .ampm { 
+            font-size: 1rem; margin-right: 3px; color: #aaa; font-weight: normal; 
+        }
+        .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
 
-        .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 6px; flex-wrap: nowrap; }
-        .time-group { display: flex; flex-direction: column; align-items: center; }
-        .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
+        @media (max-width: 360px) { .time-part { font-size: 1.5rem; } .ampm { font-size: 0.85rem; } }
 
-        .time-part { 
-            font-size: 1.8rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; 
-        }
-        .ampm { 
-            font-size: 1rem; margin-right: 3px; color: #aaa; font-weight: normal; 
-        }
-        .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
+        .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
+        .card.past { opacity: 0.5; filter: grayscale(0.8); }
+        .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
+        .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
 
-        @media (max-width: 360px) { .time-part { font-size: 1.5rem; } .ampm { font-size: 0.85rem; } }
+        .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
+        @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        .sk-line { background: #333; border-radius: 4px; }
+        .sk-title { height: 14px; width: 60%; margin-bottom: 12px; }
+        .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
+        .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
-        .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
-        .card.past { opacity: 0.5; filter: grayscale(0.8); }
-        .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
-        .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
+        /* 全域 LED 系統 */
+        .left-indicator { 
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%); 
+            display: flex; flex-direction: column; gap: 6px; 
+            opacity: 0; transition: opacity 0.5s;
+        }
+        .card.is-arriving .left-indicator { opacity: 1; }
 
-        .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
-        @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-        .sk-line { background: #333; border-radius: 4px; }
-        .sk-title { height: 14px; width: 60%; margin-bottom: 12px; }
-        .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
-        .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
+        .led-dot { 
+            width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; 
+            transition: opacity 0.1s, box-shadow 0.1s; 
+        }
 
-        /* 全域 LED 系統 */
-        .left-indicator { 
-            position: absolute; left: 12px; top: 50%; transform: translateY(-50%); 
-            display: flex; flex-direction: column; gap: 6px; 
-            opacity: 0; transition: opacity 0.5s;
-        }
-        .card.is-arriving .left-indicator { opacity: 1; }
+        body.led-phase-0 .led-dot.top,
+        body.led-phase-1 .led-dot.bottom { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
 
-        .led-dot { 
-            width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; 
-            transition: opacity 0.1s, box-shadow 0.1s; 
-        }
+        body.led-phase-0 .led-dot.bottom,
+        body.led-phase-1 .led-dot.top { opacity: 0.2; box-shadow: none; }
 
-        body.led-phase-0 .led-dot.top,
-        body.led-phase-1 .led-dot.bottom { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
+        .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
+        .status-tag.departed { color: #888; border: 1px solid #555; background: #222; }
+        .status-tag.delay { color: hsl(40, 100%, 50%); border: 1px solid hsl(40, 100%, 50%); }
+        .card.departed-card { opacity: 0.5; filter: grayscale(1); border-left-color: #555 !important; }
+        .card.departed-card:active { transform: none; background-color: #151517; }
 
-        body.led-phase-0 .led-dot.bottom,
-        body.led-phase-1 .led-dot.top { opacity: 0.2; box-shadow: none; }
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
+        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 80vh; overflow-y: auto; }
+        .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; position: sticky; top: -25px; background: #1c1c1e; z-index: 10; padding: 10px 0; border-bottom: 1px solid #333; }
+        .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
+        .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
+        .menu-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; }
+        .menu-btn:active { background: #3a3a3c; }
+        .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
+        
+        .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
+        .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .modal-page { display: none; }
+        .modal-page.active { display: block; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-        .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
-        .status-tag.departed { color: #888; border: 1px solid #555; background: #222; }
-        .status-tag.delay { color: hsl(40, 100%, 50%); border: 1px solid hsl(40, 100%, 50%); }
-        .card.departed-card { opacity: 0.5; filter: grayscale(1); border-left-color: #555 !important; }
-        .card.departed-card:active { transform: none; background-color: #151517; }
+        .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
+        .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
+        .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
+        .stat-card.danger .stat-val { color: #ff4d4d; }
+        .diag-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+        .diag-section:last-child { border-bottom: none; }
+        .diag-title { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .info-item { background: #222; padding: 10px; border-radius: 8px; border: 1px solid #333; }
+        .info-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
+        .info-value { font-size: 0.85rem; color: #fff; font-family: monospace; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .badge.green { background: rgba(77, 127, 94, 0.2); color: #4d7f5e; border: 1px solid #4d7f5e; }
+        .badge.yellow { background: rgba(230, 184, 0, 0.2); color: #e6b800; border: 1px solid #e6b800; }
+        .badge.red { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
+        .terminal-box { background: #0d0d0d; border: 1px solid #333; border-radius: 8px; color: #0f0; font-family: 'Consolas', monospace; font-size: 0.7rem; padding: 10px; height: 120px; overflow-y: auto; white-space: pre-wrap; box-shadow: inset 0 0 10px #000; }
+        .ios-instruction { text-align: center; margin-top: 10px; }
+        .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
+        .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
 
-        /* Modal Styles */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
-        .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 80vh; overflow-y: auto; }
-        .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; position: sticky; top: -25px; background: #1c1c1e; z-index: 10; padding: 10px 0; border-bottom: 1px solid #333; }
-        .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
-        .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
-        .menu-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; }
-        .menu-btn:active { background: #3a3a3c; }
-        .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
-        
-        .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
-        .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .modal-page { display: none; }
-        .modal-page.active { display: block; animation: fadeIn 0.2s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        #inAppOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.92); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
+        .guide-icon { font-size: 3rem; color: #4d7f5e; margin-bottom: 20px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
+        .guide-highlight { color: #e6b800; font-weight: bold; font-size: 1.3rem; margin: 20px 0; border: 2px dashed #444; padding: 15px; border-radius: 12px; background: #222; }
 
-        .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
-        .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
-        .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
-        .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
-        .stat-card.danger .stat-val { color: #ff4d4d; }
-        .diag-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
-        .diag-section:last-child { border-bottom: none; }
-        .diag-title { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .info-item { background: #222; padding: 10px; border-radius: 8px; border: 1px solid #333; }
-        .info-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
-        .info-value { font-size: 0.85rem; color: #fff; font-family: monospace; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-        .badge.green { background: rgba(77, 127, 94, 0.2); color: #4d7f5e; border: 1px solid #4d7f5e; }
-        .badge.yellow { background: rgba(230, 184, 0, 0.2); color: #e6b800; border: 1px solid #e6b800; }
-        .badge.red { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
-        .terminal-box { background: #0d0d0d; border: 1px solid #333; border-radius: 8px; color: #0f0; font-family: 'Consolas', monospace; font-size: 0.7rem; padding: 10px; height: 120px; overflow-y: auto; white-space: pre-wrap; box-shadow: inset 0 0 10px #000; }
-        .ios-instruction { text-align: center; margin-top: 10px; }
-        .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
-        .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
-
-        #inAppOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.92); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
-        .guide-icon { font-size: 3rem; color: #4d7f5e; margin-bottom: 20px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
-        .guide-highlight { color: #e6b800; font-weight: bold; font-size: 1.3rem; margin: 20px 0; border: 2px dashed #444; padding: 15px; border-radius: 12px; background: #222; }
-
-        .btn-half { flex: 1; font-size: 0.9rem; }
-        .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
-        .btn-primary { background: #007AFF; color: white; }
-    </style>
+        .btn-half { flex: 1; font-size: 0.9rem; }
+        .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
+        .btn-primary { background: #007AFF; color: white; }
+    </style>
 </head>
 <body>
-    <div id="inAppOverlay" onclick="this.style.display='none'">
-        <div class="guide-icon">🌏</div>
-        <div style="color:#fff; font-size:1.1rem; line-height:1.6;">請切換至瀏覽器開啟</div>
-        <div class="guide-highlight">1. 點擊選單 (⋮)<br><br>2. 選擇「在瀏覽器開啟」</div>
-        <div style="font-size:0.8rem; color:#aaa; margin-top:20px;">(點擊任意處關閉)</div>
-    </div>
-
-    <div class="container">
-        
-        <div class="header">
-            <div class="header-static-part">
-                <div class="header-top">
-                    <div class="app-title">TRAIN LIVE</div>
-                    
-                    <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
-                        📲 加到桌面
-                    </button>
-
-                    <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
-                </div>
-
-                <div class="search-row">
-                    <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
-                </div>
-
-                <div class="selector-row">
-                    <div class="selector-label">起點</div>
-                    <div class="select-group">
-                        <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
-                        <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
-                    </div>
-                </div>
-                <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
-                <div class="selector-row">
-                    <div class="selector-label">終點</div>
-                    <div class="select-group">
-                        <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
-                        <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
-                    </div>
-                </div>
-            </div>
-
-            <div id="stickyHeader" class="header-sticky-part">
-                <div id="quickRouteArea" class="quick-route-area"></div>
-
-                <div class="action-area">
-                    <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
-                    <button id="btnRefresh" class="btn btn-refresh btn-refresh-sync" onclick="doRefresh()">🔄 更新</button>
-                </div>
-
-                <div class="view-toolbar">
-                    <div class="btn-refresh-sticky-wrapper">
-                        <button class="btn-sticky-refresh btn-refresh-sync" onclick="doRefresh()">
-                            <span class="toggle-icon">🔄</span> 更新
-                        </button>
-                    </div>
-
-                    <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
-                        <span class="toggle-icon">☆</span> 收藏
-                    </button>
-                    <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
-                        已駛離
-                    </button>
-                    <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
-                        AM/PM
-                    </button>
-                </div>
-
-                <div class="status-container">
-                    <div id="statusMsg" class="status-msg"></div>
-                    <div id="updateTime" class="update-time"></div>
-                </div>
-
-                <div id="hintContainer"></div>
-            </div>
-        </div>
-        <div id="cardList"></div>
-    </div>
-
-    <button id="btnBackToTop" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-        ↑
-    </button>
-
-    <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div id="pageMenu" class="modal-page active">
-                <div class="modal-header-row"><div class="modal-title">選單</div></div>
-                
-                <button class="menu-btn anim-gold-pulse" onclick="goToPage('Why')">設計理念</button>
-                
-                <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
-                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
-                <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
-                <div style="height:10px"></div>
-                <button class="modal-close" onclick="closeModal()">關閉</button>
-            </div>
-
-            <div id="pageWhy" class="modal-page">
-                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
-                <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
-            </div>
-
-            <div id="pageHow" class="modal-page">
-                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
-                <div class="modal-text">
-                    <strong>雙按鈕機制：</strong><br><br>
-                    1. <strong>🔍 查詢路線 (左)：</strong><br>
-                    切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
-                    若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
-                    2. <strong>🔄 更新 (右)：</strong><br>
-                    刷新當前狀態。每次點擊後需等待 30 秒冷卻。<br><br>
-                    <strong>自動重試機制：</strong><br>
-                    錯誤或系統忙碌都會自動重試，請耐心等候。
-                </div>
-            </div>
-
-            <div id="pageReport" class="modal-page">
-                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
-                <div class="diag-section">
-                    <div class="diag-title">資料來源 / 剩餘額度</div>
-                    <div class="info-grid">
-                        <div class="info-item"><div class="info-label">API 狀態 (V3 / V2)</div><div id="diagStatus" class="info-value">-- / --</div></div>
-                        <div class="info-item"><div class="info-label">剩餘額度</div><div id="diagQuota" class="info-value">--</div></div>
-                    </div>
-                </div>
-                <div class="diag-section">
-                    <div class="diag-title">流量監控</div>
-                    <div class="stats-dashboard">
-                        <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分內請求</div></div>
-                        <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
-                        <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(s)</div></div>
-                    </div>
-                </div>
-                <div class="diag-section" style="border:none;">
-                    <div class="diag-title">系統紀錄 (Log)</div>
-                    <div class="report-hint" style="color:#888; font-size:0.8rem; margin-bottom:10px;">若遇到問題，請先「複製報告」，再點擊寄信。</div>
-                    <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）問題描述..."></textarea>
-                    <textarea id="reportContent" style="display:none;"></textarea>
-                    <div id="terminalView" class="terminal-box"></div>
-                    <div class="action-area" style="margin-top:10px;">
-                        <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
-                        <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
-                    </div>
-                </div>
-            </div>
-            <div id="pageIOS" class="modal-page">
-                <div class="modal-header-row"><div class="modal-title">安裝教學 (iOS)</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
-                <div class="ios-instruction">
-                    <div class="ios-step">1. 點擊 <span class="ios-icon">⎋</span> <strong>分享</strong> 按鈕</div>
-                    <div class="ios-step">2. 選擇 <span class="ios-icon">⊞</span> <strong>加入主畫面</strong></div>
-                    <div class="ios-step">3. 點擊右上角的「加入」</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const STATION_DATA = {
-            "基隆市": ["基隆", "三坑", "八堵", "七堵", "百福", "暖暖", "海科館"],
-            "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "侯硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
-            "臺北市": ["南港", "松山", "臺北", "萬華"],
-            "桃園市": ["桃園", "內壢", "中壢", "埔心", "楊梅", "富岡", "新富"],
-            "新竹縣市": ["北湖", "湖口", "新豐", "竹北", "北新竹", "新竹", "三姓橋", "香山", "千甲", "新莊", "六家", "竹中", "上員", "榮華", "竹東", "橫山", "九讚頭", "合興", "富貴", "內灣"],
-            "苗栗縣": ["崎頂", "竹南", "造橋", "豐富", "苗栗", "南勢", "銅鑼", "三義", "談文", "大山", "後龍", "龍港", "白沙屯", "新埔", "通霄", "苑裡"],
-            "臺中市": ["泰安", "后里", "豐原", "栗林", "潭子", "頭家厝", "松竹", "太原", "精武", "臺中", "五權", "大慶", "烏日", "新烏日", "成功", "日南", "大甲", "臺中港", "清水", "沙鹿", "龍井", "大肚", "追分"],
-            "彰化縣": ["彰化", "花壇", "大村", "員林", "永靖", "社頭", "田中", "二水", "源泉"],
-            "南投縣": ["濁水", "龍泉", "集集", "水里", "車埕"],
-            "雲林縣": ["林內", "石榴", "斗六", "斗南", "石龜"],
-            "嘉義縣市": ["大林", "民雄", "嘉北", "嘉義", "水上", "南靖"],
-            "臺南市": ["後壁", "新營", "柳營", "林鳳營", "隆田", "拔林", "善化", "南科", "新市", "永康", "大橋", "臺南", "保安", "仁德", "中洲", "長榮大學", "沙崙"],
-            "高雄市": ["大湖", "路竹", "岡山", "橋頭", "楠梓", "新左營", "左營", "內惟", "美術館", "鼓山", "三塊厝", "高雄", "民族", "科工館", "正義", "鳳山", "後庄", "九曲堂"],
-            "屏東縣": ["六塊厝", "屏東", "歸來", "麟洛", "西勢", "竹田", "潮州", "崁頂", "南州", "鎮安", "林邊", "佳冬", "東海", "枋寮", "加祿", "內獅", "枋山"],
-            "宜蘭縣": ["漢本", "武塔", "南澳", "東澳", "永樂", "蘇澳", "蘇澳新", "冬山", "羅東", "中里", "二結", "宜蘭", "四城", "礁溪", "頂埔", "頭城", "外澳", "龜山", "大溪", "大里", "石城"],
-            "花蓮縣": ["和平", "和仁", "崇德", "新城", "景美", "北埔", "花蓮", "吉安", "志學", "平和", "壽豐", "豐田", "林榮新光", "南平", "鳳林", "萬榮", "光復", "大富", "富源", "瑞穗", "三民", "玉里", "東里", "東竹", "富里"],
-            "臺東縣": ["池上", "海端", "關山", "瑞和", "瑞源", "鹿野", "山里", "臺東", "康樂", "知本", "太麻里", "金崙", "瀧溪", "大武"]
-        };
-
-        const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
-        const DEFAULT_STATIONS = {"基隆市": "基隆", "新北市": "板橋", "臺北市": "臺北", "桃園市": "桃園", "新竹縣市": "新竹", "苗栗縣": "苗栗", "臺中市": "臺中", "彰化縣": "彰化", "南投縣": "集集", "雲林縣": "斗六", "嘉義縣市": "嘉義", "臺南市": "臺南", "高雄市": "高雄", "屏東縣": "屏東", "宜蘭縣": "羅東", "花蓮縣": "花蓮", "臺東縣": "臺東"};
-
-        const CACHE_PREFIX="train_data_v2_";
-        const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
-        const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
-
-        const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
-        const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
-        const searchInput=document.getElementById('searchInput');const searchTarget=document.getElementById('searchTarget');
-        const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
-        const btnTimeFormat=document.getElementById('btnTimeFormat'); const btnShowAll=document.getElementById('btnShowAll');
-        const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
-        const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
-        const hintContainer = document.getElementById('hintContainer');
-
-        let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
-        let statusTimer = null; 
-        
-        let isAutoScrolling = false;
-
-        const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
-        const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
-        const LS_IS_24H="tl_pref_is_24h"; 
-
-        const MAX_SEARCH_PER_MIN=3;
-        let lastFetchedPair={start:"",end:""};
-        let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
-        let isShowAll = false;
-        let lastDiagnostics = { route_source: "--", route_quota: "--", delay_source: "--", delay_quota: "--" };
-        let systemLogs=[]; let requestHistory=[];
-
-        let deferredPrompt;
-        const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
-        const isInApp = /Line|Instagram|FBAN|FBAV/i.test(navigator.userAgent);
-
-        if ((isIos && !isInStandaloneMode) || isInApp) {
-            btnInstall.style.display = 'flex'; 
-        }
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault(); deferredPrompt = e;
-            btnInstall.style.display = 'flex'; 
-        });
-
-        function handleInstall() {
-            if (isInApp) { document.getElementById('inAppOverlay').style.display = 'flex'; return; }
-            if (isIos) { document.getElementById('aboutModal').style.display = 'flex'; goToPage('IOS'); return; }
-            if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((c) => { if(c.outcome==='accepted') btnInstall.style.display='none'; deferredPrompt=null; }); }
-        }
-        async function shareApp() {
-            const data = { title: 'TRAIN LIVE', text: '誤點自動計算！', url: window.location.href };
-            if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
-        }
-
-        function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
-        function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
-        function getSearchResetTime(){return parseInt(localStorage.getItem(LS_SEARCH_RESET)||"0");}
-        function setSearchResetTime(v){localStorage.setItem(LS_SEARCH_RESET,v);}
-        function getSearchLockedUntil(){return parseInt(localStorage.getItem(LS_SEARCH_LOCK)||"0");}
-        function setSearchLockedUntil(v){localStorage.setItem(LS_SEARCH_LOCK,v);}
-        function getRefreshLockedUntil(){return parseInt(localStorage.getItem(LS_REFRESH_LOCK)||"0");}
-        function setRefreshLockedUntil(v){localStorage.setItem(LS_REFRESH_LOCK,v);}
-
-        function updateToggleBtns() {
-            const btnTime = document.getElementById('btnTimeFormat');
-            
-            btnTime.innerHTML = '<span class="toggle-icon">🕒</span> AM/PM';
-            if (!is24Hour) {
-                btnTime.classList.add('active'); 
-            } else {
-                btnTime.classList.remove('active'); 
-            }
-
-            const btnAll = document.getElementById('btnShowAll');
-            if (isShowAll) {
-                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 已駛離';
-                btnAll.classList.add('active');
-            } else {
-                btnAll.innerHTML = '已駛離';
-                btnAll.classList.remove('active');
-            }
-        }
-        function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); }
-        function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); }
-
-        function formatTime(t) {
-            if(!t) return "";
-            if(is24Hour) return t;
-
-            const p = t.split(':');
-            if(p.length < 2) return t;
-
-            let h = parseInt(p[0]);
-            let suffix = "上午";
-
-            if(h >= 12) { 
-                suffix = "下午"; 
-                if(h > 12) h -= 12; 
-            } else if(h === 0) {
-                h = 12;
-            }
-
-            return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
-        }
-
-        let lastScroll = 0;
-
-        // 簡化後的 Scroll 監聽：只負責切換 is-fixed class
-        window.addEventListener('scroll', () => {
-            const staticPart = document.querySelector('.header-static-part');
-            const sticky = document.getElementById('stickyHeader');
-            const backToTop = document.getElementById('btnBackToTop');
-            const current = window.scrollY;
-
-            // 1. Back to Top 按鈕
-            if(current > 300) {
-                backToTop.classList.add('visible');
-            } else {
-                backToTop.classList.remove('visible');
-            }
-
-            // 2. 觸發收合動畫
-            // 閾值設為靜態區高度減去一點緩衝，讓收合更靈敏
-            const threshold = staticPart ? (staticPart.offsetHeight - 20) : 100;
-
-            if (current > threshold) {
-                if (!sticky.classList.contains('is-fixed')) {
-                    sticky.classList.add('is-fixed');
-                }
-            } else {
-                if (sticky.classList.contains('is-fixed')) {
-                    sticky.classList.remove('is-fixed');
-                }
-            }
-            
-            lastScroll = current <= 0 ? 0 : current;
-        });
-
-        // 優化的自動捲動：配合 sticky header 計算位置
-        function scrollToActiveCard() {
-            const el = document.getElementById("firstActive");
-            if (!el) return;
-
-            isAutoScrolling = true;
-
-            // 計算收合後的 Header 高度 (大約是 Chips + Toolbar 的高度)
-            const offsetHeader = 130; 
-            
-            const elementPosition = el.getBoundingClientRect().top + window.scrollY;
-            const offsetPosition = elementPosition - offsetHeader; 
-
-            window.scrollTo({
-                top: offsetPosition,
-                behavior: "smooth"
-            });
-
-            setTimeout(() => {
-                isAutoScrolling = false;
-                lastScroll = window.scrollY; 
-            }, 800);
-        }
-
-        // 重置狀態
-        function resetStickyState() {
-            const sticky = document.getElementById('stickyHeader');
-            sticky.classList.remove('is-fixed');
-            isAutoScrolling = false;
-        }
-
-        function init() {
-            logSystem("Init","App Started"); updateToggleBtns();
-            const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
-            const savedSR = localStorage.getItem(PREF_START_R_KEY);
-            if (savedSR) {
-                startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
-                setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
-                setMenu('end',localStorage.getItem(PREF_END_R_KEY)||"屏東縣",localStorage.getItem(PREF_END_S_KEY)||"潮州");
-                checkLocksOnLoad(); loadDataOrFetch();
-            } else {
-                startRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts; 
-                endRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts;
-                startStation.innerHTML=endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
-                list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
-                statusMsg.innerText="等待輸入...";
-                checkLocksOnLoad();
-            }
-            renderQuickRoutes();
-            updateStarState();
-            startStatusTimer(); 
-            initGlobalLedSync(); 
-        }
-
-        function startStatusTimer() {
-            if (statusTimer) clearInterval(statusTimer);
-            statusTimer = setInterval(() => {
-                updateRealtimeStatus();
-            }, 10000);
-        }
-
-        function initGlobalLedSync() {
-            const loop = () => {
-                const now = Date.now();
-                const phase = Math.floor((now % 1000) / 500); 
-                
-                if (phase === 0) {
-                    document.body.classList.add('led-phase-0');
-                    document.body.classList.remove('led-phase-1');
-                } else {
-                    document.body.classList.add('led-phase-1');
-                    document.body.classList.remove('led-phase-0');
-                }
-                
-                requestAnimationFrame(loop);
-            };
-            requestAnimationFrame(loop);
-        }
-
-        function updateRealtimeStatus() {
-            const cards = document.querySelectorAll('#cardList .card-link');
-            if (cards.length === 0) return;
-
-            const nowSec = Math.floor(Date.now() / 1000);
-            let anyArriving = false;
-
-            cards.forEach(link => {
-                const ts = parseInt(link.getAttribute('data-ts') || 0);
-                if (!ts) return;
-
-                const diffSec = ts - nowSec;
-                const diffMin = Math.floor(diffSec / 60);
-                const isDeparted = diffSec < 0;
-                const isArriving = !isDeparted && diffMin <= 10;
-
-                const cardDiv = link.querySelector('.card');
-                const rightBadgeContainer = link.querySelector('.status-badge-container');
-                const infoDiv = link.querySelector('.train-info');
-                
-                if (isDeparted) {
-                    if (!cardDiv.classList.contains('departed-card')) {
-                        cardDiv.classList.add('departed-card', 'past');
-                        if(infoDiv) infoDiv.style.color = '#888';
-                        if (!rightBadgeContainer.querySelector('.status-tag.departed')) {
-                            rightBadgeContainer.innerHTML = '<div class="status-tag departed">已駛離</div>';
-                        }
-                    }
-                } else {
-                    if (cardDiv.classList.contains('departed-card')) {
-                            cardDiv.classList.remove('departed-card', 'past');
-                    }
-                    
-                    if (isArriving) {
-                        if (!cardDiv.classList.contains('is-arriving')) cardDiv.classList.add('is-arriving');
-                        anyArriving = true;
-                    } else {
-                        if (cardDiv.classList.contains('is-arriving')) cardDiv.classList.remove('is-arriving');
-                    }
-                }
-            });
-
-            const currentHintState = hintContainer.getAttribute('data-arriving') === 'true';
-            if (currentHintState !== anyArriving) {
-                updateHintUI(anyArriving);
-            }
-        }
-
-        function checkLocksOnLoad() {
-            const now=Date.now();
-            const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
-            const rL=getRefreshLockedUntil(); if(rL>now) lockRefreshButton(Math.ceil((rL-now)/1000));
-        }
-        function setMenu(type,rV,sV) {
-            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            if(!STATION_DATA[rV]) { rSel.value = ""; return; }
-            rSel.value=rV; sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join('');
-            if(STATION_DATA[rV].includes(sV)) sSel.value=sV; else sSel.selectedIndex=0;
-        }
-        function updateStationList(type) {
-            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            const rVal = rSel.value; if (!rVal) return;
-            sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join('');
-            const def=DEFAULT_STATIONS[rVal]; 
-            if(def&&STATION_DATA[rVal].includes(def)) sSel.value=def; else sSel.selectedIndex=0;
-            if(startStation.value&&endStation.value) markAsChanged();
-        }
-        function swapStations() {
-            if(!startStation.value||!endStation.value) return; logSystem("UI","Swap");
-            const sR=startRegion.value; const sS=startStation.value;
-            setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
-            markAsChanged();
-        }
-        function handleSearch() {
-            const val=searchInput.value.trim(); const tgt=searchTarget.value; if(!val) return;
-            let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
-            if(found) {
-                logSystem("UI",`Search: ${found}`); setMenu(tgt,STATION_INDEX[found],found);
-                searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
-                if(startStation.value&&endStation.value) markAsChanged();
-            }
-        }
-        function markAsChanged() {
-            if(!startStation.value||!endStation.value) return;
-            localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
-            localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
-            attemptLoadCache(false);
-            updateStarState();
-        }
-        function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
-        
-        function reRenderLocal() {
-            const c=localStorage.getItem(getCacheKey());
-            if(c) {
-                renderCards(JSON.parse(c).payload); 
-            }
-        }
-        
-        function attemptLoadCache(isInit) {
-            if(!startStation.value||!endStation.value) return;
-            const c=localStorage.getItem(getCacheKey()); let hit=false;
-            if(c) {
-                const d=JSON.parse(c);
-                if(Date.now()-d.timestamp < 60000) {
-                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
-                    renderCards(d.payload); setUpdateText(`更新於(快取): ${d.payload.update_time}`);
-                    statusMsg.className="status-msg"; list.style.opacity="1"; 
-                    lastFetchedPair={start:startStation.value,end:endStation.value}; hit=true;
-                }
-            }
-            if(!hit) {
-                if(isInit) {
-                    statusMsg.innerText="請按「查詢」開始使用"; statusMsg.className="status-msg warning";
-                    list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
-                } else {
-                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg warning";
-                }
-            }
-            updateButtonMode();
-        }
-        function loadDataOrFetch(){attemptLoadCache(true);}
-        function updateButtonMode() {
-            if(getSearchLockedUntil()>Date.now()) return;
-            if(startStation.value!==lastFetchedPair.start||endStation.value!==lastFetchedPair.end) btnSearch.disabled=false;
-        }
-
-        function doSearch() {
-            const sS=startStation.value; const eS=endStation.value;
-            if(!sS||!eS) { statusMsg.innerText="請先選擇起點與終點"; statusMsg.className="status-msg alert"; setTimeout(()=>statusMsg.innerText="",2000); return; }
-            markAsChanged();
-            if(sS===lastFetchedPair.start&&eS===lastFetchedPair.end) { doRefresh(); return; }
-            const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime();
-            if(now-rst>60000) { cnt=0; setSearchCount(0); rst=now; setSearchResetTime(now); }
-            if(cnt===0) { rst=now; setSearchResetTime(now); }
-            if(cnt>=MAX_SEARCH_PER_MIN) {
-                const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60;
-                setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit","Search Limit"); return;
-            }
-            addToHistory();
-            cnt++; setSearchCount(cnt); 
-            logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN}) ${sS}→${eS}`); 
-            fetchData("search");
-        }
-        function doRefresh(skip=false) {
-            if(!skip) {
-                const now=Date.now(); const rL=getRefreshLockedUntil();
-                if(rL>now) { lockRefreshButton(Math.ceil((rL-now)/1000)); return; }
-            }
-            logSystem("Action",`Refresh ${startStation.value}→${endStation.value}`); 
-            fetchData("refresh");
-        }
-
-        function parseDiag(str, isCdn) {
-            let source = "TDX API"; let quota = "--";
-            if (isCdn) source = "Vercel CDN";
-            else if (str.includes("Hit") || str.includes("Cache")) source = "Redis DB";
-            else if (str.includes("API")) source = "TDX API";
-            else source = "Unknown";
-            const match = str.match(/\(剩:\s*(\d+)\)/);
-            if (match) quota = match[1];
-            return { source, quota };
-        }
-
-        function parseDiagnostics(diag, isCdn) {
-            const rInfo = parseDiag(diag.route_status, isCdn);
-            const dInfo = diag.delay_status ? parseDiag(diag.delay_status, isCdn) : { source: "--", quota: "--" };
-            lastDiagnostics = { route_source: rInfo.source, route_quota: rInfo.quota, delay_source: dInfo.source, delay_quota: dInfo.quota };
-            return { rInfo, dInfo };
-        }
-
-        function getSkeletonHTML() {
-            let html = '';
-            for(let i=0; i<3; i++) {
-                html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
-            }
-            return html;
-        }
-
-        async function fetchData(mode) {
-            if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
-
-            resetStickyState();
-
-            list.innerHTML = getSkeletonHTML();
-            list.style.opacity="1";
-            statusMsg.innerText=""; 
-            statusMsg.className = "status-msg"; 
-            hintContainer.innerHTML = ""; 
-
-            if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
-            const s=startStation.value; const e=endStation.value; 
-
-            const cacheKey = getCacheKey();
-            const cached = localStorage.getItem(cacheKey);
-
-            if (cached) {
-                const d = JSON.parse(cached);
-                if (Date.now() - d.timestamp < 60000) { 
-                    await new Promise(r => setTimeout(r, 200)); 
-                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false);
-                    renderCards(d.payload);
-                    setUpdateText(`更新於: ${d.payload.update_time} (資料未過期)`);
-                    lastFetchedPair={start:s,end:e};
-                    logSystem("Cache", "Hit local (Age < 60s)");
-
-                    const now = Date.now();
-                    if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false, 500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                    if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                    return;
-                }
-            }
-
-            recordRequest();
-            try {
-                const res=await fetch(`/api/index?start=${s}&end=${e}`);
-                const age = res.headers.get('Age');
-                const isVercelCache = age && parseInt(age) > 0;
-
-                if (res.status === 429) {
-                    throw new Error("系統忙碌");
-                }
-
-                const json=await res.json();
-                if(json.error) throw new Error(json.error);
-                lastFetchedPair={start:s,end:e};
-
-                const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
-                localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
-                renderCards(json);
-
-                const displayQuota = (rInfo.quota !== "--") ? rInfo.quota : dInfo.quota;
-                logSystem("Status", `狀態: ${rInfo.source} / ${dInfo.source} (剩: ${displayQuota})`);
-
-                if(json.delay_failed) {
-                    scheduleRetry("誤點資訊無法取得", "status-msg warning");
-                    setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
-                } else {
-                    setUpdateText(`更新於: ${json.update_time}`);
-                }
-                const now=Date.now();
-                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-            } catch(err) {
-                console.error(err); logSystem("API Error",err.message);
-                
-                const errorMsg = err.message.includes("系統忙碌") ? "系統忙碌" : "連線發生問題";
-                scheduleRetry(errorMsg, "status-msg alert");
-                
-                list.innerHTML=`<div class="message">${errorMsg} ⚠️<br><span style="font-size:0.8rem;color:#888">請稍後再試</span></div>`;
-            }
-        }
-
-        function setUpdateText(t){
-            updateTimeDiv.innerText=t;
-            localStorage.setItem("last_update_text",t);
-        }
-
-        function scheduleRetry(msg="誤點資訊無法取得", cls="status-msg warning") {
-            let c=30; 
-            if(retryTimer) clearInterval(retryTimer);
-            
-            statusMsg.className = cls; 
-            statusMsg.innerText = `${msg} (30s 後重試)`;
-
-            retryTimer=setInterval(()=>{
-                c--; 
-                statusMsg.innerText=`${msg} (${c}s 後重試)`;
-                if(c<=0){
-                    clearInterval(retryTimer);
-                    retryTimer=null;
-                    doRefresh(true);
-                }
-            },1000);
-        }
-
-        function lockSearchButton(s) {
-            if(searchLockTimer) clearInterval(searchLockTimer);
-            statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-msg alert";
-            btnSearch.classList.add('error'); btnSearch.disabled=true;
-            const t=()=>{
-                btnSearch.innerText=`頻繁操作 (${s})`;
-                if(s<=0){
-                    clearInterval(searchLockTimer); btnSearch.disabled=false;
-                    btnSearch.classList.remove('error'); btnSearch.innerText="🔍 查詢路線";
-                    statusMsg.innerText=""; statusMsg.className="status-msg"; 
-                    setSearchLockedUntil(0);
-                } s--;
-            }; t(); searchLockTimer=setInterval(t,1000);
-        }
-        function lockRefreshButton(s) {
-            if(refreshTimer) clearInterval(refreshTimer);
-            
-            const btns = document.querySelectorAll('.btn-refresh-sync');
-            btns.forEach(b => b.disabled = true);
-            
-            const t=()=>{
-                btns.forEach(b => {
-                    const icon = b.querySelector('.toggle-icon') ? '<span class="toggle-icon">🔄</span> ' : '';
-                    b.innerHTML = `${icon}更新 (${s})`;
-                });
-                
-                if(s<=0){
-                    clearInterval(refreshTimer); 
-                    btns.forEach(b => {
-                        b.disabled = false;
-                        const icon = b.querySelector('.toggle-icon') ? '<span class="toggle-icon">🔄</span> ' : '';
-                        b.innerHTML = `${icon}更新`;
-                    });
-                    setRefreshLockedUntil(0);
-                } s--;
-            }; t(); refreshTimer=setInterval(t,1000);
-        }
-
-        function updateHintUI(anyArriving) {
-            let hintHtml = `<div class="click-hint visible">
-                <div class="hint-text-group ${anyArriving ? '' : 'only-text'}">
-                    <span class="hint-text">👆 點擊卡片查看</span>
-                    <span class="click-hint-sub">即時位置 & 完整停靠站</span>
-                </div>`;
-            
-            if (anyArriving) {
-                hintHtml += `
-                <div class="hint-divider"></div>
-                <div class="legend-row">
-                    <div class="legend-icon">
-                        <div class="led-dot top"></div>
-                        <div class="led-dot bottom"></div>
-                    </div>
-                    <span>10分鐘內進站</span>
-                </div>`;
-            }
-            hintHtml += `</div>`;
-            
-            if(hintContainer) hintContainer.innerHTML = hintHtml;
-        }
-
-        function renderCards(data) {
-            if(data.trains && data.trains.length > 0) {
-                let cardsHtml = '';
-                let anyArriving = false; 
-
-                let has = false;
-                let hasShownNextDayDivider = false;
-                let lastTrainTs = 0;
-                let foundFirstActive = false;
-
-                const nowSec = Math.floor(Date.now() / 1000);
-
-                data.trains.forEach((t, index) => {
-                    const diffSec = t.sort_key - nowSec;
-                    const diffMin = Math.floor(diffSec / 60);
-
-                    let isDeparted = diffSec < 0; 
-                    let isArriving = !isDeparted && diffMin <= 10;
-                    if(isArriving) anyArriving = true;
-
-                    if (!isShowAll && diffMin < -10) return;
-
-                    if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
-                        const thisDate = new Date(t.sort_key * 1000);
-                        const lastDate = new Date(lastTrainTs * 1000);
-                        if (thisDate.getDate() !== lastDate.getDate()) {
-                             cardsHtml += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:10px;">⬇ 次日班次 ⬇</div>`;
-                             hasShownNextDayDivider = true;
-                        }
-                    }
-                    lastTrainTs = t.sort_key;
-                    has = true;
-
-                    let activeId = "";
-                    if (!isDeparted && !foundFirstActive) {
-                        activeId = 'id="firstActive"';
-                        foundFirstActive = true;
-                    }
-
-                    let leftIndicatorHtml = `
-                    <div class="left-indicator">
-                        <div class="led-dot top"></div>
-                        <div class="led-dot bottom"></div>
-                    </div>`;
-
-                    let rightBadgesHtml = '';
-                    if (isDeparted) {
-                        rightBadgesHtml = `<div class="status-tag departed">已駛離</div>`;
-                    } else {
-                        if (!data.delay_failed && t.delay > 0) {
-                            rightBadgesHtml += `<div class="status-tag delay">誤點 ${t.delay} 分</div>`;
-                        }
-                    }
-
-                    const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-
-                    let cardClass = "card";
-                    if (isDeparted) cardClass += " departed-card past";
-                    if (isArriving) cardClass += " is-arriving";
-
-                    cardsHtml += `<a href="${url}" target="_blank" class="card-link" data-ts="${t.sort_key}" ${activeId}>
-                        <div class="${cardClass}" style="border-left-color:${t.color};">
-                            ${leftIndicatorHtml}
-                            <div class="status-badge-container">${rightBadgesHtml}</div>
-                            <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">${t.type} ${t.no} 次</div>
-                            <div class="main-time">
-                                <div class="time-group">
-                                    <div class="time-date-label">${t.dep_date}</div>
-                                    <div class="time-part">${formatTime(t.act_dep)}</div>
-                                </div>
-                                <span class="arrow">➔</span>
-                                <div class="time-group">
-                                    <div class="time-date-label">${t.arr_date}</div>
-                                    <div class="time-part">${formatTime(t.act_arr)}</div>
-                                </div>
-                            </div>
-                            <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
-                        </div>
-                    </a>`;
-                });
-
-                updateHintUI(anyArriving);
-
-                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
-
-                scrollToActiveCard();
-
-                return;
-            }
-
-            const orig = data.stats ? data.stats.original_count : 0;
-            list.innerHTML = orig > 0 ? 
-                `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : 
-                `<div class="message">查無此區間直達列車 ⚠️</div>`;
-            
-            updateHintUI(false); 
-        }
-
-        function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
-        function recordRequest(){requestHistory.push(Date.now());}
-        function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
-        function closeModal(){document.getElementById('aboutModal').style.display='none';}
-
-        function goToPage(id){
-            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
-            document.getElementById('page'+id).classList.add('active');
-
-            if(id==='Report'){
-                const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
-                document.getElementById('statRpm').innerText=rpm;
-                document.getElementById('cardRpm').classList.toggle('danger', rpm>=5);
-                document.getElementById('statTotal').innerText=requestHistory.length;
-                const last=requestHistory[requestHistory.length-1];
-                document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
-
-                const getColor = (src) => {
-                    if(src.includes("Vercel")||src.includes("Redis")) return "green";
-                    if(src.includes("API")) return "yellow";
-                    return "red";
-                };
-
-                const displayQuota = (lastDiagnostics.route_quota !== "--") ? lastDiagnostics.route_quota : lastDiagnostics.delay_quota;
-
-                const elStatus = document.getElementById('diagStatus');
-                elStatus.innerHTML = `<span class="badge ${getColor(lastDiagnostics.route_source)}">${lastDiagnostics.route_source}</span> / <span class="badge ${getColor(lastDiagnostics.delay_source)}">${lastDiagnostics.delay_source}</span>`;
-
-                const elQuota = document.getElementById('diagQuota');
-                elQuota.innerHTML = `<span style="font-size:1.1rem; color:#fff;">${displayQuota}</span>`;
-
-                const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
-                let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
-                r += `裝置: ${navigator.userAgent}\n畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
-                r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
-                r += `狀態: [${lastDiagnostics.route_source}] / [${lastDiagnostics.delay_source}]\n剩餘: ${displayQuota}\n`;
-                r += `--- Log ---\n${systemLogs.join("\n")}`;
-
-                document.getElementById('reportContent').value = r;
-                document.getElementById('terminalView').innerText = systemLogs.join("\n");
-            }
-        }
-        function copyReportOnly() {
-            let final = document.getElementById('reportContent').value;
-            const uDesc = document.getElementById('userDesc').value; if(uDesc) final += `\n\nUser: ${uDesc}`;
-            navigator.clipboard.writeText(final).then(() => {
-                const btn=document.getElementById('btnCopyReport'); const original = btn.innerText;
-                btn.innerText = "✅ 已複製"; btn.style.background = "#4d7f5e";
-                setTimeout(()=>{ btn.innerText = original; btn.style.background = ""; }, 2000);
-            }).catch(e=>{alert('複製失敗');});
-        }
-        function openMailClient() {
-            const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
-            const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
-            window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
-        }
-
-        const LS_FAV = "tl_favorites";
-        const LS_HIST = "tl_history";
-        const MAX_HIST = 3;
-        const MAX_FAV = 6;
-        const btnStar = document.getElementById('btnStar');
-        const quickArea = document.getElementById('quickRouteArea');
-
-        function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
-
-        function isFavorite(s, e) {
-            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            return favs.some(f => f.start === s && f.end === e);
-        }
-
-        function toggleFavorite() {
-            const cur = getCurrentPair();
-            if (!cur.start || !cur.end) return;
-
-            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
-
-            if (idx >= 0) {
-                favs.splice(idx, 1); 
-                logSystem("Fav", "Removed");
-            } else {
-                if (favs.length >= MAX_FAV) { alert(`常用路線最多儲存 ${MAX_FAV} 組`); return; }
-                favs.unshift(cur); 
-                logSystem("Fav", "Added");
-            }
-            localStorage.setItem(LS_FAV, JSON.stringify(favs));
-            updateStarState();
-            renderQuickRoutes();
-        }
-
-        function addToHistory() {
-            const cur = getCurrentPair();
-            if (!cur.start || !cur.end) return;
-
-            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
-            hist.unshift(cur);
-            if (hist.length > MAX_HIST) hist.pop();
-
-            localStorage.setItem(LS_HIST, JSON.stringify(hist));
-            renderQuickRoutes();
-        }
-
-        function updateStarState() {
-            const cur = getCurrentPair();
-            const btn = document.getElementById('btnStar');
-            if (isFavorite(cur.start, cur.end)) {
-                btn.innerHTML = '<span class="toggle-icon">★</span> 收藏';
-                btn.classList.add('fav-active');
-            } else {
-                btn.innerHTML = '<span class="toggle-icon">☆</span> 收藏';
-                btn.classList.remove('fav-active');
-            }
-        }
-
-        function loadRoute(s, e) {
-            const sR = STATION_INDEX[s];
-            const eR = STATION_INDEX[e];
-            if (sR && eR) {
-                setMenu('start', sR, s);
-                setMenu('end', eR, e);
-                localStorage.setItem(PREF_START_R_KEY, startRegion.value);
-                localStorage.setItem(PREF_START_S_KEY, startStation.value);
-                localStorage.setItem(PREF_END_R_KEY, endRegion.value);
-                localStorage.setItem(PREF_END_S_KEY, endStation.value);
-                updateStarState();
-                doSearch(); 
-            }
-        }
-
-        function renderQuickRoutes() {
-            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-
-            let html = '';
-            favs.forEach(r => {
-                html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">
-                    ${r.start}<span class="chip-arrow">➔</span>${r.end}
-                </div>`;
-            });
-            hist.forEach(r => {
-                if (!isFavorite(r.start, r.end)) {
-                    html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">
-                        ${r.start}<span class="chip-arrow">➔</span>${r.end}
-                    </div>`;
-                }
-            });
-
-            if (html === '') {
-                quickArea.style.display = 'none';
-            } else {
-                quickArea.style.display = 'flex';
-                quickArea.innerHTML = html;
-            }
-        }
-
-        init();
-    </script>
+    <div id="inAppOverlay" onclick="this.style.display='none'">
+        <div class="guide-icon">🌏</div>
+        <div style="color:#fff; font-size:1.1rem; line-height:1.6;">請切換至瀏覽器開啟</div>
+        <div class="guide-highlight">1. 點擊選單 (⋮)<br><br>2. 選擇「在瀏覽器開啟」</div>
+        <div style="font-size:0.8rem; color:#aaa; margin-top:20px;">(點擊任意處關閉)</div>
+    </div>
+
+    <div class="container">
+        <div id="stickyPlaceholder"></div>
+
+        <div class="header">
+            <div class="header-static-part">
+                <div class="header-top">
+                    <div class="app-title">TRAIN LIVE</div>
+                    
+                    <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
+                        📲 加到桌面
+                    </button>
+
+                    <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
+                </div>
+
+                <div class="search-row">
+                    <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
+                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
+                </div>
+
+                <div class="selector-row">
+                    <div class="selector-label">起點</div>
+                    <div class="select-group">
+                        <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
+                        <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
+                    </div>
+                </div>
+                <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
+                <div class="selector-row">
+                    <div class="selector-label">終點</div>
+                    <div class="select-group">
+                        <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
+                        <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stickyHeader" class="header-sticky-part">
+                <div id="quickRouteArea" class="quick-route-area"></div>
+
+                <div class="action-area">
+                    <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
+                    <button id="btnRefresh" class="btn btn-refresh btn-refresh-sync" onclick="doRefresh()">🔄 更新</button>
+                </div>
+
+                <div class="view-toolbar">
+                    <div class="btn-refresh-sticky-wrapper">
+                        <button class="btn-sticky-refresh btn-refresh-sync" onclick="doRefresh()">
+                            <span class="toggle-icon">🔄</span> 更新
+                        </button>
+                    </div>
+
+                    <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
+                        <span class="toggle-icon">☆</span> 收藏
+                    </button>
+                    <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
+                        已駛離
+                    </button>
+                    <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
+                        AM/PM
+                    </button>
+                </div>
+
+                <div class="status-container">
+                    <div id="statusMsg" class="status-msg"></div>
+                    <div id="updateTime" class="update-time"></div>
+                </div>
+
+                <div id="hintContainer"></div>
+            </div>
+        </div>
+        <div id="cardList"></div>
+    </div>
+
+    <button id="btnBackToTop" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+        ↑
+    </button>
+
+    <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div id="pageMenu" class="modal-page active">
+                <div class="modal-header-row"><div class="modal-title">選單</div></div>
+                
+                <button class="menu-btn anim-gold-pulse" onclick="goToPage('Why')">設計理念</button>
+                
+                <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
+                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
+                <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
+                <div style="height:10px"></div>
+                <button class="modal-close" onclick="closeModal()">關閉</button>
+            </div>
+
+            <div id="pageWhy" class="modal-page">
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
+                <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
+            </div>
+
+            <div id="pageHow" class="modal-page">
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
+                <div class="modal-text">
+                    <strong>雙按鈕機制：</strong><br><br>
+                    1. <strong>🔍 查詢路線 (左)：</strong><br>
+                    切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
+                    若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
+                    2. <strong>🔄 更新 (右)：</strong><br>
+                    刷新當前狀態。每次點擊後需等待 30 秒冷卻。<br><br>
+                    <strong>自動重試機制：</strong><br>
+                    錯誤或系統忙碌都會自動重試，請耐心等候。
+                </div>
+            </div>
+
+            <div id="pageReport" class="modal-page">
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
+                <div class="diag-section">
+                    <div class="diag-title">資料來源 / 剩餘額度</div>
+                    <div class="info-grid">
+                        <div class="info-item"><div class="info-label">API 狀態 (V3 / V2)</div><div id="diagStatus" class="info-value">-- / --</div></div>
+                        <div class="info-item"><div class="info-label">剩餘額度</div><div id="diagQuota" class="info-value">--</div></div>
+                    </div>
+                </div>
+                <div class="diag-section">
+                    <div class="diag-title">流量監控</div>
+                    <div class="stats-dashboard">
+                        <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分內請求</div></div>
+                        <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
+                        <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(s)</div></div>
+                    </div>
+                </div>
+                <div class="diag-section" style="border:none;">
+                    <div class="diag-title">系統紀錄 (Log)</div>
+                    <div class="report-hint" style="color:#888; font-size:0.8rem; margin-bottom:10px;">若遇到問題，請先「複製報告」，再點擊寄信。</div>
+                    <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）問題描述..."></textarea>
+                    <textarea id="reportContent" style="display:none;"></textarea>
+                    <div id="terminalView" class="terminal-box"></div>
+                    <div class="action-area" style="margin-top:10px;">
+                        <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
+                        <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 開啟信箱</button>
+                    </div>
+                </div>
+            </div>
+            <div id="pageIOS" class="modal-page">
+                <div class="modal-header-row"><div class="modal-title">安裝教學 (iOS)</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
+                <div class="ios-instruction">
+                    <div class="ios-step">1. 點擊 <span class="ios-icon">⎋</span> <strong>分享</strong> 按鈕</div>
+                    <div class="ios-step">2. 選擇 <span class="ios-icon">⊞</span> <strong>加入主畫面</strong></div>
+                    <div class="ios-step">3. 點擊右上角的「加入」</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STATION_DATA = {
+            "基隆市": ["基隆", "三坑", "八堵", "七堵", "百福", "暖暖", "海科館"],
+            "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "侯硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
+            "臺北市": ["南港", "松山", "臺北", "萬華"],
+            "桃園市": ["桃園", "內壢", "中壢", "埔心", "楊梅", "富岡", "新富"],
+            "新竹縣市": ["北湖", "湖口", "新豐", "竹北", "北新竹", "新竹", "三姓橋", "香山", "千甲", "新莊", "六家", "竹中", "上員", "榮華", "竹東", "橫山", "九讚頭", "合興", "富貴", "內灣"],
+            "苗栗縣": ["崎頂", "竹南", "造橋", "豐富", "苗栗", "南勢", "銅鑼", "三義", "談文", "大山", "後龍", "龍港", "白沙屯", "新埔", "通霄", "苑裡"],
+            "臺中市": ["泰安", "后里", "豐原", "栗林", "潭子", "頭家厝", "松竹", "太原", "精武", "臺中", "五權", "大慶", "烏日", "新烏日", "成功", "日南", "大甲", "臺中港", "清水", "沙鹿", "龍井", "大肚", "追分"],
+            "彰化縣": ["彰化", "花壇", "大村", "員林", "永靖", "社頭", "田中", "二水", "源泉"],
+            "南投縣": ["濁水", "龍泉", "集集", "水里", "車埕"],
+            "雲林縣": ["林內", "石榴", "斗六", "斗南", "石龜"],
+            "嘉義縣市": ["大林", "民雄", "嘉北", "嘉義", "水上", "南靖"],
+            "臺南市": ["後壁", "新營", "柳營", "林鳳營", "隆田", "拔林", "善化", "南科", "新市", "永康", "大橋", "臺南", "保安", "仁德", "中洲", "長榮大學", "沙崙"],
+            "高雄市": ["大湖", "路竹", "岡山", "橋頭", "楠梓", "新左營", "左營", "內惟", "美術館", "鼓山", "三塊厝", "高雄", "民族", "科工館", "正義", "鳳山", "後庄", "九曲堂"],
+            "屏東縣": ["六塊厝", "屏東", "歸來", "麟洛", "西勢", "竹田", "潮州", "崁頂", "南州", "鎮安", "林邊", "佳冬", "東海", "枋寮", "加祿", "內獅", "枋山"],
+            "宜蘭縣": ["漢本", "武塔", "南澳", "東澳", "永樂", "蘇澳", "蘇澳新", "冬山", "羅東", "中里", "二結", "宜蘭", "四城", "礁溪", "頂埔", "頭城", "外澳", "龜山", "大溪", "大里", "石城"],
+            "花蓮縣": ["和平", "和仁", "崇德", "新城", "景美", "北埔", "花蓮", "吉安", "志學", "平和", "壽豐", "豐田", "林榮新光", "南平", "鳳林", "萬榮", "光復", "大富", "富源", "瑞穗", "三民", "玉里", "東里", "東竹", "富里"],
+            "臺東縣": ["池上", "海端", "關山", "瑞和", "瑞源", "鹿野", "山里", "臺東", "康樂", "知本", "太麻里", "金崙", "瀧溪", "大武"]
+        };
+
+        const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
+        const DEFAULT_STATIONS = {"基隆市": "基隆", "新北市": "板橋", "臺北市": "臺北", "桃園市": "桃園", "新竹縣市": "新竹", "苗栗縣": "苗栗", "臺中市": "臺中", "彰化縣": "彰化", "南投縣": "集集", "雲林縣": "斗六", "嘉義縣市": "嘉義", "臺南市": "臺南", "高雄市": "高雄", "屏東縣": "屏東", "宜蘭縣": "羅東", "花蓮縣": "花蓮", "臺東縣": "臺東"};
+
+        const CACHE_PREFIX="train_data_v2_";
+        const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
+        const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
+
+        const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
+        const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
+        const searchInput=document.getElementById('searchInput');const searchTarget=document.getElementById('searchTarget');
+        const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
+        const btnTimeFormat=document.getElementById('btnTimeFormat'); const btnShowAll=document.getElementById('btnShowAll');
+        const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
+        const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
+        const hintContainer = document.getElementById('hintContainer');
+
+        let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
+        let statusTimer = null; 
+        
+        let isAutoScrolling = false;
+
+        const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
+        const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
+        const LS_IS_24H="tl_pref_is_24h"; 
+
+        const MAX_SEARCH_PER_MIN=3;
+        let lastFetchedPair={start:"",end:""};
+        let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
+        let isShowAll = false;
+        let lastDiagnostics = { route_source: "--", route_quota: "--", delay_source: "--", delay_quota: "--" };
+        let systemLogs=[]; let requestHistory=[];
+
+        let deferredPrompt;
+        const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
+        const isInApp = /Line|Instagram|FBAN|FBAV/i.test(navigator.userAgent);
+
+        if ((isIos && !isInStandaloneMode) || isInApp) {
+            btnInstall.style.display = 'flex'; 
+        }
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault(); deferredPrompt = e;
+            btnInstall.style.display = 'flex'; 
+        });
+
+        function handleInstall() {
+            if (isInApp) { document.getElementById('inAppOverlay').style.display = 'flex'; return; }
+            if (isIos) { document.getElementById('aboutModal').style.display = 'flex'; goToPage('IOS'); return; }
+            if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((c) => { if(c.outcome==='accepted') btnInstall.style.display='none'; deferredPrompt=null; }); }
+        }
+        async function shareApp() {
+            const data = { title: 'TRAIN LIVE', text: '誤點自動計算！', url: window.location.href };
+            if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
+        }
+
+        function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
+        function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
+        function getSearchResetTime(){return parseInt(localStorage.getItem(LS_SEARCH_RESET)||"0");}
+        function setSearchResetTime(v){localStorage.setItem(LS_SEARCH_RESET,v);}
+        function getSearchLockedUntil(){return parseInt(localStorage.getItem(LS_SEARCH_LOCK)||"0");}
+        function setSearchLockedUntil(v){localStorage.setItem(LS_SEARCH_LOCK,v);}
+        function getRefreshLockedUntil(){return parseInt(localStorage.getItem(LS_REFRESH_LOCK)||"0");}
+        function setRefreshLockedUntil(v){localStorage.setItem(LS_REFRESH_LOCK,v);}
+
+        function updateToggleBtns() {
+            const btnTime = document.getElementById('btnTimeFormat');
+            
+            btnTime.innerHTML = '<span class="toggle-icon">🕒</span> AM/PM';
+            if (!is24Hour) {
+                btnTime.classList.add('active'); 
+            } else {
+                btnTime.classList.remove('active'); 
+            }
+
+            const btnAll = document.getElementById('btnShowAll');
+            if (isShowAll) {
+                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 已駛離';
+                btnAll.classList.add('active');
+            } else {
+                btnAll.innerHTML = '已駛離';
+                btnAll.classList.remove('active');
+            }
+        }
+        function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); }
+        function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); }
+
+        function formatTime(t) {
+            if(!t) return "";
+            if(is24Hour) return t;
+
+            const p = t.split(':');
+            if(p.length < 2) return t;
+
+            let h = parseInt(p[0]);
+            let suffix = "上午";
+
+            if(h >= 12) { 
+                suffix = "下午"; 
+                if(h > 12) h -= 12; 
+            } else if(h === 0) {
+                h = 12;
+            }
+
+            return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
+        }
+
+        let lastScroll = 0;
+        let currentTranslate = 0; 
+
+        // [關鍵修改] 統一管理動態欄狀態，修復左側錯位與鬼影
+        function setStickyState(isFixed, translate = 0) {
+            const sticky = document.getElementById('stickyHeader');
+            const placeholder = document.getElementById('stickyPlaceholder');
+            
+            if (isFixed) {
+                if (!sticky.classList.contains('is-fixed')) {
+                    placeholder.style.display = 'block';
+                    placeholder.style.height = (sticky.offsetHeight || 150) + 'px'; 
+                    sticky.classList.add('is-fixed');
+                }
+                // [修復] 強制加上 translateX(-50%)，防止左偏
+                sticky.style.transform = `translateX(-50%) translateY(${translate}px)`;
+            } else {
+                sticky.classList.remove('is-fixed');
+                // [修復] 靜態時清除所有 transform
+                sticky.style.transform = 'none'; 
+                placeholder.style.display = 'none';
+            }
+        }
+        
+        window.addEventListener('scroll', () => {
+            if (isAutoScrolling) return; // 自動捲動時，交給 scrollToActiveCard 控制
+
+            const current = window.scrollY;
+            const sticky = document.getElementById('stickyHeader');
+            const backToTop = document.getElementById('btnBackToTop');
+            
+            const staticPart = document.querySelector('.header-static-part');
+            const threshold = staticPart ? staticPart.offsetHeight : 150;
+            const stickyHeight = sticky.offsetHeight || 150;
+
+            if(current > 300) {
+                backToTop.classList.add('visible');
+            } else {
+                backToTop.classList.remove('visible');
+            }
+
+            // [保護區]：只要靜態區還在畫面上，強制 Reset
+            if (current <= threshold) {
+                setStickyState(false);
+                currentTranslate = 0; 
+            } else {
+                // 計算滑動差值
+                const diff = current - lastScroll;
+                currentTranslate -= diff;
+                
+                // Clamp
+                if (currentTranslate > 0) currentTranslate = 0;
+                if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
+
+                // 安全鎖
+                if (current < threshold + stickyHeight + 10) {
+                    currentTranslate = 0;
+                }
+
+                setStickyState(true, currentTranslate);
+            }
+            
+            lastScroll = current <= 0 ? 0 : current;
+        });
+
+        // [優化] 自動捲動：開啟無敵模式 + 強制歸位
+        function scrollToActiveCard() {
+            const el = document.getElementById("firstActive");
+            if (!el) return;
+
+            isAutoScrolling = true;
+
+            // 強制完全展開
+            setStickyState(true, 0);
+            currentTranslate = 0;
+
+            const sticky = document.getElementById('stickyHeader');
+            const headerHeight = sticky.offsetHeight || 150;
+            const elementPosition = el.getBoundingClientRect().top + window.scrollY;
+            const offsetPosition = elementPosition - headerHeight - 10; 
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth"
+            });
+
+            // 鎖定稍長時間，防止慣性滾動干擾
+            setTimeout(() => {
+                isAutoScrolling = false;
+                lastScroll = window.scrollY; 
+            }, 800);
+        }
+
+        // [優化] 重置動態欄 (搜尋/切換時使用)
+        function resetStickyState() {
+            setStickyState(false);
+            currentTranslate = 0;
+            isAutoScrolling = false;
+        }
+
+        function init() {
+            logSystem("Init","App Started"); updateToggleBtns();
+            const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
+            const savedSR = localStorage.getItem(PREF_START_R_KEY);
+            if (savedSR) {
+                startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
+                setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
+                setMenu('end',localStorage.getItem(PREF_END_R_KEY)||"屏東縣",localStorage.getItem(PREF_END_S_KEY)||"潮州");
+                checkLocksOnLoad(); loadDataOrFetch();
+            } else {
+                startRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts; 
+                endRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts;
+                startStation.innerHTML=endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
+                list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
+                statusMsg.innerText="等待輸入...";
+                checkLocksOnLoad();
+            }
+            renderQuickRoutes();
+            updateStarState();
+            startStatusTimer(); 
+            initGlobalLedSync(); 
+        }
+
+        function startStatusTimer() {
+            if (statusTimer) clearInterval(statusTimer);
+            statusTimer = setInterval(() => {
+                updateRealtimeStatus();
+            }, 10000);
+        }
+
+        function initGlobalLedSync() {
+            const loop = () => {
+                const now = Date.now();
+                const phase = Math.floor((now % 1000) / 500); 
+                
+                if (phase === 0) {
+                    document.body.classList.add('led-phase-0');
+                    document.body.classList.remove('led-phase-1');
+                } else {
+                    document.body.classList.add('led-phase-1');
+                    document.body.classList.remove('led-phase-0');
+                }
+                
+                requestAnimationFrame(loop);
+            };
+            requestAnimationFrame(loop);
+        }
+
+        function updateRealtimeStatus() {
+            const cards = document.querySelectorAll('#cardList .card-link');
+            if (cards.length === 0) return;
+
+            const nowSec = Math.floor(Date.now() / 1000);
+            let anyArriving = false;
+
+            cards.forEach(link => {
+                const ts = parseInt(link.getAttribute('data-ts') || 0);
+                if (!ts) return;
+
+                const diffSec = ts - nowSec;
+                const diffMin = Math.floor(diffSec / 60);
+                const isDeparted = diffSec < 0;
+                const isArriving = !isDeparted && diffMin <= 10;
+
+                const cardDiv = link.querySelector('.card');
+                const rightBadgeContainer = link.querySelector('.status-badge-container');
+                const infoDiv = link.querySelector('.train-info');
+                
+                if (isDeparted) {
+                    if (!cardDiv.classList.contains('departed-card')) {
+                        cardDiv.classList.add('departed-card', 'past');
+                        if(infoDiv) infoDiv.style.color = '#888';
+                        if (!rightBadgeContainer.querySelector('.status-tag.departed')) {
+                            rightBadgeContainer.innerHTML = '<div class="status-tag departed">已駛離</div>';
+                        }
+                    }
+                } else {
+                    if (cardDiv.classList.contains('departed-card')) {
+                         cardDiv.classList.remove('departed-card', 'past');
+                    }
+                    
+                    if (isArriving) {
+                        if (!cardDiv.classList.contains('is-arriving')) cardDiv.classList.add('is-arriving');
+                        anyArriving = true;
+                    } else {
+                        if (cardDiv.classList.contains('is-arriving')) cardDiv.classList.remove('is-arriving');
+                    }
+                }
+            });
+
+            // [修改] 只有當狀態真的改變時才更新 Hint UI，避免閃爍
+            const currentHintState = hintContainer.getAttribute('data-arriving') === 'true';
+            if (currentHintState !== anyArriving) {
+                updateHintUI(anyArriving);
+            }
+        }
+
+        function checkLocksOnLoad() {
+            const now=Date.now();
+            const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
+            const rL=getRefreshLockedUntil(); if(rL>now) lockRefreshButton(Math.ceil((rL-now)/1000));
+        }
+        function setMenu(type,rV,sV) {
+            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
+            if(!STATION_DATA[rV]) { rSel.value = ""; return; }
+            rSel.value=rV; sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join('');
+            if(STATION_DATA[rV].includes(sV)) sSel.value=sV; else sSel.selectedIndex=0;
+        }
+        function updateStationList(type) {
+            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
+            const rVal = rSel.value; if (!rVal) return;
+            sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join('');
+            const def=DEFAULT_STATIONS[rVal]; 
+            if(def&&STATION_DATA[rVal].includes(def)) sSel.value=def; else sSel.selectedIndex=0;
+            if(startStation.value&&endStation.value) markAsChanged();
+        }
+        function swapStations() {
+            if(!startStation.value||!endStation.value) return; logSystem("UI","Swap");
+            const sR=startRegion.value; const sS=startStation.value;
+            setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
+            markAsChanged();
+        }
+        function handleSearch() {
+            const val=searchInput.value.trim(); const tgt=searchTarget.value; if(!val) return;
+            let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
+            if(found) {
+                logSystem("UI",`Search: ${found}`); setMenu(tgt,STATION_INDEX[found],found);
+                searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
+                if(startStation.value&&endStation.value) markAsChanged();
+            }
+        }
+        function markAsChanged() {
+            if(!startStation.value||!endStation.value) return;
+            localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
+            localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
+            attemptLoadCache(false);
+            updateStarState();
+        }
+        function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
+        
+        // 只有當有資料時才重新渲染
+        function reRenderLocal() {
+            const c=localStorage.getItem(getCacheKey());
+            if(c) {
+                renderCards(JSON.parse(c).payload); 
+            }
+        }
+        
+        function attemptLoadCache(isInit) {
+            if(!startStation.value||!endStation.value) return;
+            const c=localStorage.getItem(getCacheKey()); let hit=false;
+            if(c) {
+                const d=JSON.parse(c);
+                if(Date.now()-d.timestamp < 60000) {
+                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
+                    renderCards(d.payload); setUpdateText(`更新於(快取): ${d.payload.update_time}`);
+                    statusMsg.className="status-msg"; list.style.opacity="1"; 
+                    lastFetchedPair={start:startStation.value,end:endStation.value}; hit=true;
+                }
+            }
+            if(!hit) {
+                if(isInit) {
+                    statusMsg.innerText="請按「查詢」開始使用"; statusMsg.className="status-msg warning";
+                    list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
+                } else {
+                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg warning";
+                }
+            }
+            updateButtonMode();
+        }
+        function loadDataOrFetch(){attemptLoadCache(true);}
+        function updateButtonMode() {
+            if(getSearchLockedUntil()>Date.now()) return;
+            if(startStation.value!==lastFetchedPair.start||endStation.value!==lastFetchedPair.end) btnSearch.disabled=false;
+        }
+
+        function doSearch() {
+            const sS=startStation.value; const eS=endStation.value;
+            if(!sS||!eS) { statusMsg.innerText="請先選擇起點與終點"; statusMsg.className="status-msg alert"; setTimeout(()=>statusMsg.innerText="",2000); return; }
+            markAsChanged();
+            if(sS===lastFetchedPair.start&&eS===lastFetchedPair.end) { doRefresh(); return; }
+            const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime();
+            if(now-rst>60000) { cnt=0; setSearchCount(0); rst=now; setSearchResetTime(now); }
+            if(cnt===0) { rst=now; setSearchResetTime(now); }
+            if(cnt>=MAX_SEARCH_PER_MIN) {
+                const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60;
+                setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit","Search Limit"); return;
+            }
+            addToHistory();
+            cnt++; setSearchCount(cnt); 
+            logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN}) ${sS}→${eS}`); 
+            fetchData("search");
+        }
+        function doRefresh(skip=false) {
+            if(!skip) {
+                const now=Date.now(); const rL=getRefreshLockedUntil();
+                if(rL>now) { lockRefreshButton(Math.ceil((rL-now)/1000)); return; }
+            }
+            logSystem("Action",`Refresh ${startStation.value}→${endStation.value}`); 
+            fetchData("refresh");
+        }
+
+        function parseDiag(str, isCdn) {
+            let source = "TDX API"; let quota = "--";
+            if (isCdn) source = "Vercel CDN";
+            else if (str.includes("Hit") || str.includes("Cache")) source = "Redis DB";
+            else if (str.includes("API")) source = "TDX API";
+            else source = "Unknown";
+            const match = str.match(/\(剩:\s*(\d+)\)/);
+            if (match) quota = match[1];
+            return { source, quota };
+        }
+
+        function parseDiagnostics(diag, isCdn) {
+            const rInfo = parseDiag(diag.route_status, isCdn);
+            const dInfo = diag.delay_status ? parseDiag(diag.delay_status, isCdn) : { source: "--", quota: "--" };
+            lastDiagnostics = { route_source: rInfo.source, route_quota: rInfo.quota, delay_source: dInfo.source, delay_quota: dInfo.quota };
+            return { rInfo, dInfo };
+        }
+
+        function getSkeletonHTML() {
+            let html = '';
+            for(let i=0; i<3; i++) {
+                html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
+            }
+            return html;
+        }
+
+        async function fetchData(mode) {
+            if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
+
+            resetStickyState();
+
+            list.innerHTML = getSkeletonHTML();
+            list.style.opacity="1";
+            statusMsg.innerText=""; 
+            statusMsg.className = "status-msg"; // Reset class
+            hintContainer.innerHTML = ""; 
+
+            if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
+            const s=startStation.value; const e=endStation.value; 
+
+            const cacheKey = getCacheKey();
+            const cached = localStorage.getItem(cacheKey);
+
+            if (cached) {
+                const d = JSON.parse(cached);
+                if (Date.now() - d.timestamp < 60000) { 
+                    await new Promise(r => setTimeout(r, 200)); 
+                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false);
+                    renderCards(d.payload);
+                    setUpdateText(`更新於: ${d.payload.update_time} (資料未過期)`);
+                    lastFetchedPair={start:s,end:e};
+                    logSystem("Cache", "Hit local (Age < 60s)");
+
+                    const now = Date.now();
+                    if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false, 500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                    if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                    return;
+                }
+            }
+
+            recordRequest();
+            try {
+                const res=await fetch(`/api/index?start=${s}&end=${e}`);
+                const age = res.headers.get('Age');
+                const isVercelCache = age && parseInt(age) > 0;
+
+                if (res.status === 429) {
+                    throw new Error("系統忙碌");
+                }
+
+                const json=await res.json();
+                if(json.error) throw new Error(json.error);
+                lastFetchedPair={start:s,end:e};
+
+                const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
+                localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
+                renderCards(json);
+
+                const displayQuota = (rInfo.quota !== "--") ? rInfo.quota : dInfo.quota;
+                logSystem("Status", `狀態: ${rInfo.source} / ${dInfo.source} (剩: ${displayQuota})`);
+
+                if(json.delay_failed) {
+                    scheduleRetry("誤點資訊無法取得", "status-msg warning");
+                    setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
+                } else {
+                    setUpdateText(`更新於: ${json.update_time}`);
+                }
+                const now=Date.now();
+                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+            } catch(err) {
+                console.error(err); logSystem("API Error",err.message);
+                
+                const errorMsg = err.message.includes("系統忙碌") ? "系統忙碌" : "連線發生問題";
+                scheduleRetry(errorMsg, "status-msg alert");
+                
+                list.innerHTML=`<div class="message">${errorMsg} ⚠️<br><span style="font-size:0.8rem;color:#888">請稍後再試</span></div>`;
+            }
+        }
+
+        function setUpdateText(t){
+            updateTimeDiv.innerText=t;
+            localStorage.setItem("last_update_text",t);
+        }
+
+        function scheduleRetry(msg="誤點資訊無法取得", cls="status-msg warning") {
+            let c=30; 
+            if(retryTimer) clearInterval(retryTimer);
+            
+            statusMsg.className = cls; 
+            statusMsg.innerText = `${msg} (30s 後重試)`;
+
+            retryTimer=setInterval(()=>{
+                c--; 
+                statusMsg.innerText=`${msg} (${c}s 後重試)`;
+                if(c<=0){
+                    clearInterval(retryTimer);
+                    retryTimer=null;
+                    doRefresh(true);
+                }
+            },1000);
+        }
+
+        function lockSearchButton(s) {
+            if(searchLockTimer) clearInterval(searchLockTimer);
+            statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-msg alert";
+            btnSearch.classList.add('error'); btnSearch.disabled=true;
+            const t=()=>{
+                btnSearch.innerText=`頻繁操作 (${s})`;
+                if(s<=0){
+                    clearInterval(searchLockTimer); btnSearch.disabled=false;
+                    btnSearch.classList.remove('error'); btnSearch.innerText="🔍 查詢路線";
+                    statusMsg.innerText=""; statusMsg.className="status-msg"; // Reset
+                    setSearchLockedUntil(0);
+                } s--;
+            }; t(); searchLockTimer=setInterval(t,1000);
+        }
+        function lockRefreshButton(s) {
+            if(refreshTimer) clearInterval(refreshTimer);
+            
+            const btns = document.querySelectorAll('.btn-refresh-sync');
+            btns.forEach(b => b.disabled = true);
+            
+            const t=()=>{
+                btns.forEach(b => {
+                    const icon = b.querySelector('.toggle-icon') ? '<span class="toggle-icon">🔄</span> ' : '';
+                    b.innerHTML = `${icon}更新 (${s})`;
+                });
+                
+                if(s<=0){
+                    clearInterval(refreshTimer); 
+                    btns.forEach(b => {
+                        b.disabled = false;
+                        const icon = b.querySelector('.toggle-icon') ? '<span class="toggle-icon">🔄</span> ' : '';
+                        b.innerHTML = `${icon}更新`;
+                    });
+                    setRefreshLockedUntil(0);
+                } s--;
+            }; t(); refreshTimer=setInterval(t,1000);
+        }
+
+        function updateHintUI(anyArriving) {
+            let hintHtml = `<div class="click-hint visible">
+                <div class="hint-text-group ${anyArriving ? '' : 'only-text'}">
+                    <span class="hint-text">👆 點擊卡片查看</span>
+                    <span class="click-hint-sub">即時位置 & 完整停靠站</span>
+                </div>`;
+            
+            if (anyArriving) {
+                hintHtml += `
+                <div class="hint-divider"></div>
+                <div class="legend-row">
+                    <div class="legend-icon">
+                        <div class="led-dot top"></div>
+                        <div class="led-dot bottom"></div>
+                    </div>
+                    <span>10分鐘內進站</span>
+                </div>`;
+            }
+            hintHtml += `</div>`;
+            
+            if(hintContainer) hintContainer.innerHTML = hintHtml;
+        }
+
+        function renderCards(data) {
+            if(data.trains && data.trains.length > 0) {
+                let cardsHtml = '';
+                let anyArriving = false; 
+
+                let has = false;
+                let hasShownNextDayDivider = false;
+                let lastTrainTs = 0;
+                let foundFirstActive = false;
+
+                const nowSec = Math.floor(Date.now() / 1000);
+
+                data.trains.forEach((t, index) => {
+                    const diffSec = t.sort_key - nowSec;
+                    const diffMin = Math.floor(diffSec / 60);
+
+                    let isDeparted = diffSec < 0; 
+                    let isArriving = !isDeparted && diffMin <= 10;
+                    if(isArriving) anyArriving = true;
+
+                    if (!isShowAll && diffMin < -10) return;
+
+                    if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
+                        const thisDate = new Date(t.sort_key * 1000);
+                        const lastDate = new Date(lastTrainTs * 1000);
+                        if (thisDate.getDate() !== lastDate.getDate()) {
+                             cardsHtml += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:10px;">⬇ 次日班次 ⬇</div>`;
+                             hasShownNextDayDivider = true;
+                        }
+                    }
+                    lastTrainTs = t.sort_key;
+                    has = true;
+
+                    let activeId = "";
+                    if (!isDeparted && !foundFirstActive) {
+                        activeId = 'id="firstActive"';
+                        foundFirstActive = true;
+                    }
+
+                    let leftIndicatorHtml = `
+                    <div class="left-indicator">
+                        <div class="led-dot top"></div>
+                        <div class="led-dot bottom"></div>
+                    </div>`;
+
+                    let rightBadgesHtml = '';
+                    if (isDeparted) {
+                        rightBadgesHtml = `<div class="status-tag departed">已駛離</div>`;
+                    } else {
+                        if (!data.delay_failed && t.delay > 0) {
+                            rightBadgesHtml += `<div class="status-tag delay">誤點 ${t.delay} 分</div>`;
+                        }
+                    }
+
+                    const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
+
+                    let cardClass = "card";
+                    if (isDeparted) cardClass += " departed-card past";
+                    if (isArriving) cardClass += " is-arriving";
+
+                    cardsHtml += `<a href="${url}" target="_blank" class="card-link" data-ts="${t.sort_key}" ${activeId}>
+                        <div class="${cardClass}" style="border-left-color:${t.color};">
+                            ${leftIndicatorHtml}
+                            <div class="status-badge-container">${rightBadgesHtml}</div>
+                            <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">${t.type} ${t.no} 次</div>
+                            <div class="main-time">
+                                <div class="time-group">
+                                    <div class="time-date-label">${t.dep_date}</div>
+                                    <div class="time-part">${formatTime(t.act_dep)}</div>
+                                </div>
+                                <span class="arrow">➔</span>
+                                <div class="time-group">
+                                    <div class="time-date-label">${t.arr_date}</div>
+                                    <div class="time-part">${formatTime(t.act_arr)}</div>
+                                </div>
+                            </div>
+                            <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
+                        </div>
+                    </a>`;
+                });
+
+                updateHintUI(anyArriving);
+
+                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
+
+                // 呼叫自動捲動邏輯 (會觸發 isAutoScrolling 鎖定)
+                scrollToActiveCard();
+
+                return;
+            }
+
+            const orig = data.stats ? data.stats.original_count : 0;
+            list.innerHTML = orig > 0 ? 
+                `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : 
+                `<div class="message">查無此區間直達列車 ⚠️</div>`;
+            
+            updateHintUI(false); 
+        }
+
+        function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
+        function recordRequest(){requestHistory.push(Date.now());}
+        function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
+        function closeModal(){document.getElementById('aboutModal').style.display='none';}
+
+        function goToPage(id){
+            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
+            document.getElementById('page'+id).classList.add('active');
+
+            if(id==='Report'){
+                const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
+                document.getElementById('statRpm').innerText=rpm;
+                document.getElementById('cardRpm').classList.toggle('danger', rpm>=5);
+                document.getElementById('statTotal').innerText=requestHistory.length;
+                const last=requestHistory[requestHistory.length-1];
+                document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
+
+                const getColor = (src) => {
+                    if(src.includes("Vercel")||src.includes("Redis")) return "green";
+                    if(src.includes("API")) return "yellow";
+                    return "red";
+                };
+
+                const displayQuota = (lastDiagnostics.route_quota !== "--") ? lastDiagnostics.route_quota : lastDiagnostics.delay_quota;
+
+                const elStatus = document.getElementById('diagStatus');
+                elStatus.innerHTML = `<span class="badge ${getColor(lastDiagnostics.route_source)}">${lastDiagnostics.route_source}</span> / <span class="badge ${getColor(lastDiagnostics.delay_source)}">${lastDiagnostics.delay_source}</span>`;
+
+                const elQuota = document.getElementById('diagQuota');
+                elQuota.innerHTML = `<span style="font-size:1.1rem; color:#fff;">${displayQuota}</span>`;
+
+                const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
+                let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
+                r += `裝置: ${navigator.userAgent}\n畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
+                r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
+                r += `狀態: [${lastDiagnostics.route_source}] / [${lastDiagnostics.delay_source}]\n剩餘: ${displayQuota}\n`;
+                r += `--- Log ---\n${systemLogs.join("\n")}`;
+
+                document.getElementById('reportContent').value = r;
+                document.getElementById('terminalView').innerText = systemLogs.join("\n");
+            }
+        }
+        function copyReportOnly() {
+            let final = document.getElementById('reportContent').value;
+            const uDesc = document.getElementById('userDesc').value; if(uDesc) final += `\n\nUser: ${uDesc}`;
+            navigator.clipboard.writeText(final).then(() => {
+                const btn=document.getElementById('btnCopyReport'); const original = btn.innerText;
+                btn.innerText = "✅ 已複製"; btn.style.background = "#4d7f5e";
+                setTimeout(()=>{ btn.innerText = original; btn.style.background = ""; }, 2000);
+            }).catch(e=>{alert('複製失敗');});
+        }
+        function openMailClient() {
+            const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
+            const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
+            window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
+        }
+
+        // === 常用路線與歷史紀錄邏輯 ===
+        const LS_FAV = "tl_favorites";
+        const LS_HIST = "tl_history";
+        const MAX_HIST = 3;
+        const MAX_FAV = 6;
+        const btnStar = document.getElementById('btnStar');
+        const quickArea = document.getElementById('quickRouteArea');
+
+        function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
+
+        function isFavorite(s, e) {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            return favs.some(f => f.start === s && f.end === e);
+        }
+
+        function toggleFavorite() {
+            const cur = getCurrentPair();
+            if (!cur.start || !cur.end) return;
+
+            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
+
+            if (idx >= 0) {
+                favs.splice(idx, 1); 
+                logSystem("Fav", "Removed");
+            } else {
+                if (favs.length >= MAX_FAV) { alert(`常用路線最多儲存 ${MAX_FAV} 組`); return; }
+                favs.unshift(cur); 
+                logSystem("Fav", "Added");
+            }
+            localStorage.setItem(LS_FAV, JSON.stringify(favs));
+            updateStarState();
+            renderQuickRoutes();
+        }
+
+        function addToHistory() {
+            const cur = getCurrentPair();
+            if (!cur.start || !cur.end) return;
+
+            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
+            hist.unshift(cur);
+            if (hist.length > MAX_HIST) hist.pop();
+
+            localStorage.setItem(LS_HIST, JSON.stringify(hist));
+            renderQuickRoutes();
+        }
+
+        function updateStarState() {
+            const cur = getCurrentPair();
+            const btn = document.getElementById('btnStar');
+            if (isFavorite(cur.start, cur.end)) {
+                btn.innerHTML = '<span class="toggle-icon">★</span> 收藏';
+                btn.classList.add('fav-active');
+            } else {
+                btn.innerHTML = '<span class="toggle-icon">☆</span> 收藏';
+                btn.classList.remove('fav-active');
+            }
+        }
+
+        function loadRoute(s, e) {
+            const sR = STATION_INDEX[s];
+            const eR = STATION_INDEX[e];
+            if (sR && eR) {
+                setMenu('start', sR, s);
+                setMenu('end', eR, e);
+                localStorage.setItem(PREF_START_R_KEY, startRegion.value);
+                localStorage.setItem(PREF_START_S_KEY, startStation.value);
+                localStorage.setItem(PREF_END_R_KEY, endRegion.value);
+                localStorage.setItem(PREF_END_S_KEY, endStation.value);
+                updateStarState();
+                doSearch(); 
+            }
+        }
+
+        function renderQuickRoutes() {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+
+            let html = '';
+            favs.forEach(r => {
+                html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">
+                    ${r.start}<span class="chip-arrow">➔</span>${r.end}
+                </div>`;
+            });
+            hist.forEach(r => {
+                if (!isFavorite(r.start, r.end)) {
+                    html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">
+                        ${r.start}<span class="chip-arrow">➔</span>${r.end}
+                    </div>`;
+                }
+            });
+
+            if (html === '') {
+                quickArea.style.display = 'none';
+            } else {
+                quickArea.style.display = 'flex';
+                quickArea.innerHTML = html;
+            }
+        }
+
+        init();
+    </script>
 </body>
 </html>
