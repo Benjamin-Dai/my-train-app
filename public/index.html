@@ -11,13 +11,6 @@
     <link rel="apple-touch-icon" href="/icon.png">
     <link rel="icon" type="image/png" href="/icon.png">
 
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="TRAIN LIVE | 列車時刻即時看板">
-    <meta property="og:description" content="誤點自動計算，顯示實際到站時間。掌握通勤節奏，不再焦慮等待。">
-    <meta property="og:url" content="https://benjamindai-train-app.vercel.app/">
-    <meta property="og:image" content="https://benjamindai-train-app.vercel.app/icon.png">
-    <meta name="twitter:card" content="summary">
-
     <style>
         /* --- 基礎設定 --- */
         *, *::before, *::after { box-sizing: border-box; }
@@ -29,18 +22,18 @@
         .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
 
         /* 靜態區 (搜尋與選單) */
-        .header-static-part { padding: 15px 15px 5px 15px; background: #151517; position: relative; z-index: 10; }
+        .header-static-part { padding: 15px 15px 10px 15px; background: #151517; position: relative; z-index: 10; }
         
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
         .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
         
-        /* 安裝按鈕與選單按鈕容器 */
+        /* [修改] 安裝按鈕與選單按鈕容器 */
         .top-actions { display: flex; align-items: center; gap: 8px; }
         
         .install-btn-top {
-            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; 
-            font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; 
-            align-items: center; gap: 4px; animation: fadeIn 0.5s;
+            background: #4d7f5e; color: #fff; border: none; padding: 0 12px; height: 36px; border-radius: 8px; 
+            font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; /* 預設隱藏，由 JS 控制 */
+            align-items: center; gap: 4px; animation: fadeIn 0.5s; white-space: nowrap;
         }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
 
@@ -67,7 +60,7 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        /* --- [修改] 動態懸浮區 (Sticky Header) --- */
+        /* --- [大改版] 動態懸浮區 (Sticky Header) --- */
         .header-sticky-part {
             background: #151517; 
             border-bottom-left-radius: 12px;
@@ -77,90 +70,86 @@
             will-change: transform;
             display: flex;
             flex-direction: column;
+            border-top: 1px solid #222;
         }
 
         .header-sticky-part.is-fixed {
             position: fixed; top: 0; width: calc(100% - 20px); max-width: 500px; left: 50%;
             border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-            padding-top: 10px; /* 稍微減少 padding */
         }
         #stickyPlaceholder { display: none; }
 
-        /* 第一層：路線捷徑 (橫向捲動) */
+        /* Row 1: 捲動路線 + 更新按鈕 */
+        .sticky-row-top { display: flex; align-items: center; border-bottom: 1px solid #222; height: 50px; }
+        
         .quick-route-scroll-container {
-            width: 100%;
-            overflow-x: auto;
-            white-space: nowrap;
-            padding: 5px 15px;
-            /* 隱藏捲軸 */
+            flex: 1; overflow-x: auto; white-space: nowrap; padding: 0 10px; height: 100%; display: flex; align-items: center;
             -ms-overflow-style: none; scrollbar-width: none; 
-            border-bottom: 1px solid #222;
         }
         .quick-route-scroll-container::-webkit-scrollbar { display: none; }
         
         .route-chip { 
             display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
             padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; margin-right: 6px; 
-            user-select: none;
+            user-select: none; flex-shrink: 0;
         }
         .route-chip:active { transform: scale(0.95); background: #333; }
         .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
         .route-chip.hist { border-style: dashed; }
 
-        /* 第二層：工具列 (按鈕 + 提示) */
-        .toolbar-row {
-            display: flex; gap: 8px; padding: 10px 15px; align-items: center;
+        .btn-refresh-container { padding: 0 10px; border-left: 1px solid #222; height: 100%; display: flex; align-items: center; }
+        .btn-refresh-compact {
+            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 8px; 
+            font-size: 0.85rem; font-weight: bold; cursor: pointer; white-space: nowrap; transition: all 0.1s;
         }
+        .btn-refresh-compact:active { transform: scale(0.95); }
+        .btn-refresh-compact:disabled { background: #333; color: #888; cursor: not-allowed; }
+
+        /* Row 2: 工具按鈕 (3個一排) */
+        .sticky-row-tools { display: flex; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #222; }
         .toolbar-btn {
             flex: 1; background: #222; border: 1px solid #444; color: #ccc; 
             padding: 8px 0; border-radius: 8px; font-size: 0.85rem; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.1s;
         }
         .toolbar-btn:active { transform: scale(0.96); background: #333; }
-        .toolbar-btn.refresh { background: #4d7f5e; color: #fff; border-color: #4d7f5e; font-weight: bold; flex: 1.2;}
-        .toolbar-btn.refresh:disabled { background: #333; border-color: #333; color: #888; }
         .toolbar-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77,127,94,0.1); }
         .toolbar-btn.fav-active { color: #e6b800; border-color: #e6b800; background: rgba(230,184,0,0.1); }
-        
-        /* 提示整合小區塊 */
-        .hint-mini {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 0.65rem; color: #666; margin-left: 5px; padding-left: 8px; border-left: 1px solid #333;
-            min-width: 50px;
-        }
-        .hint-icon-group { display: flex; flex-direction: column; gap: 3px; margin-bottom: 2px; }
 
-        /* 第三層：狀態列 (左右對齊) */
-        .status-bar {
+        /* Row 3: 提示列 (獨立一排) */
+        .sticky-row-hints { 
+            display: flex; align-items: center; justify-content: center; gap: 15px; 
+            padding: 5px 0; font-size: 0.75rem; color: #666; background: #1a1a1c;
+        }
+        .hint-item { display: flex; align-items: center; gap: 6px; }
+        .hint-text { color: #888; }
+        
+        /* Row 4: 狀態列 (底部) */
+        .sticky-row-status {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 15px; background: #111; border-top: 1px solid #222;
+            padding: 6px 15px 8px 15px; background: #111; 
             border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
         }
-        .status-left { font-size: 0.8rem; color: #aaa; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .status-left { font-size: 0.8rem; color: #aaa; font-weight: bold; display: flex; align-items: center; gap: 5px; min-height: 1.2em;}
         .status-left.alert { color: #ff4d4d; }
         .status-left.warning { color: #e6b800; }
         .status-right { font-size: 0.75rem; color: #666; font-family: monospace; }
 
-        /* 隱藏舊的 action-area, view-toolbar */
-        .old-hidden { display: none; }
-
-        /* --- [修改] 同步 LED 燈號系統 (Global Ticker) --- */
+        /* --- 同步 LED 燈號系統 --- */
         .led-dot { 
-            width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; 
-            opacity: 0.2; /* 預設暗 */
-            transition: opacity 0.1s; /* 快速切換 */
+            width: 8px; height: 8px; background-color: #4d7f5e; border-radius: 50%; 
+            opacity: 0.2; transition: opacity 0.1s; 
         }
+        body.tick-a .led-dot.top { opacity: 1; box-shadow: 0 0 6px #4d7f5e; }
+        body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px #4d7f5e; }
         
-        /* Body class 控制：
-           .tick-a -> 上亮下暗
-           .tick-b -> 上暗下亮
-        */
-        body.tick-a .led-dot.top { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
-        body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
+        /* 動態欄內的小 LED */
+        .led-pair-mini { display: flex; flex-direction: column; gap: 2px; }
+        .led-pair-mini .led-dot { width: 6px; height: 6px; }
 
-        /* --- 卡片樣式 --- */
+        /* --- 卡片樣式 (維持原樣) --- */
         .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
@@ -304,25 +293,36 @@
             </div>
 
             <div id="stickyHeader" class="header-sticky-part">
-                <div id="quickRouteArea" class="quick-route-scroll-container"></div>
-
-                <div class="toolbar-row">
-                    <button id="btnRefresh" class="toolbar-btn refresh" onclick="doRefresh()">🔄 更新</button>
-                    <button id="btnStar" class="toolbar-btn" onclick="toggleFavorite()">☆ 收藏</button>
-                    <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 顯示</button>
-                    <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 格式</button>
-                    
-                    <div class="hint-mini">
-                         <div class="hint-icon-group">
-                             <div class="led-dot top"></div>
-                             <div class="led-dot bottom"></div>
-                         </div>
-                         <span>進站中</span>
+                <div class="sticky-row-top">
+                    <div id="quickRouteArea" class="quick-route-scroll-container"></div>
+                    <div class="btn-refresh-container">
+                         <button id="btnRefresh" class="btn-refresh-compact" onclick="doRefresh()">🔄 更新</button>
                     </div>
                 </div>
 
-                <div class="status-bar">
-                    <div id="statusMsg" class="status-left">等待輸入...</div>
+                <div class="sticky-row-tools">
+                    <button id="btnStar" class="toolbar-btn" onclick="toggleFavorite()">☆ 收藏</button>
+                    <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 已駛離</button>
+                    <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 格式</button>
+                </div>
+
+                <div class="sticky-row-hints">
+                    <div class="hint-item">
+                        <div class="led-pair-mini">
+                            <div class="led-dot top"></div>
+                            <div class="led-dot bottom"></div>
+                        </div>
+                        <span class="hint-text">進站提示</span>
+                    </div>
+                    <div style="width:1px; height:10px; background:#333"></div>
+                    <div class="hint-item">
+                        <span style="font-size:1rem">👆</span>
+                        <span class="hint-text">點擊卡片</span>
+                    </div>
+                </div>
+
+                <div class="sticky-row-status">
+                    <div id="statusMsg" class="status-left"></div>
                     <div id="updateTime" class="status-right"></div>
                 </div>
             </div>
@@ -402,7 +402,7 @@
     </div>
 
     <script>
-        // --- 站點資料 (縮減以節省空間，請保持原有的完整清單) ---
+        // --- 站點資料 ---
         const STATION_DATA = {
             "基隆市": ["基隆", "三坑", "八堵", "七堵", "百福", "暖暖", "海科館"],
             "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "侯硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
@@ -490,7 +490,6 @@
             // 被動重繪 15s (不打 API，只更新狀態)
             setInterval(() => {
                 if (currentTrainData && !document.hidden) {
-                    // 重新渲染，自動將時間到的車變灰
                     renderCards(currentTrainData);
                 }
             }, 15000);
@@ -562,7 +561,7 @@
 
         function init() {
             logSystem("Init","App Started"); 
-            startTicker(); // 啟動全域計時器
+            startTicker(); 
             updateToggleBtns();
             
             const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
@@ -780,7 +779,7 @@
         function lockSearchButton(s) {
             if(searchLockTimer) clearInterval(searchLockTimer);
             statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-left alert";
-            btnSearch.disabled=true; // search is now hidden, but logic remains
+            btnSearch.disabled=true; 
             const t=()=>{
                 if(s<=0){
                     clearInterval(searchLockTimer); btnSearch.disabled=false;
@@ -792,7 +791,7 @@
             if(refreshTimer) clearInterval(refreshTimer);
             btnRefresh.disabled=true;
             const t=()=>{
-                btnRefresh.innerText=`${s}`;
+                btnRefresh.innerText=`更新 (${s})`;
                 if(s<=0){
                     clearInterval(refreshTimer); btnRefresh.disabled=false;
                     btnRefresh.innerText="🔄 更新"; setRefreshLockedUntil(0);
@@ -801,17 +800,14 @@
         }
 
         function renderCards(data) {
-            currentTrainData = data; // 儲存供被動更新使用
-
+            currentTrainData = data; 
             if(data.trains && data.trains.length > 0) {
                 let cardsHtml = '';
                 let anyArriving = false; 
-
                 let has = false;
                 let hasShownNextDayDivider = false;
                 let lastTrainTs = 0;
                 let foundFirstActive = false;
-
                 const nowSec = Math.floor(Date.now() / 1000);
 
                 data.trains.forEach((t, index) => {
@@ -835,12 +831,8 @@
                     has = true;
 
                     let activeId = "";
-                    if (!isDeparted && !foundFirstActive) {
-                        activeId = 'id="firstActive"';
-                        foundFirstActive = true;
-                    }
+                    if (!isDeparted && !foundFirstActive) { activeId = 'id="firstActive"'; foundFirstActive = true; }
 
-                    // [修改] 使用新的同步 LED，只在進站中顯示
                     let leftIndicatorHtml = '';
                     if (isArriving) {
                         leftIndicatorHtml = `
@@ -860,8 +852,7 @@
                     }
 
                     const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                    let cardClass = "card";
-                    if (isDeparted) cardClass += " departed-card";
+                    let cardClass = "card"; if (isDeparted) cardClass += " departed-card";
 
                     cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
@@ -883,22 +874,11 @@
                         </div>
                     </a>`;
                 });
-
-                // 移除舊的 hintHtml，因為已經整合到 header
-
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
-
-                // 只有在非被動更新 (例如按鈕觸發) 時才滾動
-                // 這裡簡單判定：如果是因為 setInterval 呼叫的，不要滾動 (UX 考量)
-                // 但為了簡單起見，我們只在有 activeId 且頁面剛載入時滾動 (略過)
-                
                 return;
             }
-
             const orig = data.stats ? data.stats.original_count : 0;
-            list.innerHTML = orig > 0 ? 
-                `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : 
-                `<div class="message">查無此區間直達列車 ⚠️</div>`;
+            list.innerHTML = orig > 0 ? `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : `<div class="message">查無此區間直達列車 ⚠️</div>`;
         }
 
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
@@ -910,7 +890,6 @@
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
             if(id==='Report'){
-                // (Report generation logic same as before)
                 const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
                 document.getElementById('statRpm').innerText=rpm;
                 document.getElementById('cardRpm').classList.toggle('danger', rpm>=5);
