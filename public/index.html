@@ -29,7 +29,7 @@
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
         /* Header 基礎樣式 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative;}
 
         /* 區塊 A: 靜態區 */
         .header-static-part {
@@ -41,7 +41,7 @@
 
         /* 區塊 B: 懸浮區 */
         .header-sticky-part {
-            padding: 5px 15px 15px 15px;
+            padding: 5px 15px 10px 15px; /* 下方 padding 稍微減少，給 hint 用 */
             background: #151517; 
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
@@ -55,9 +55,7 @@
         .header-sticky-part.is-fixed {
             position: fixed;
             top: 0; 
-            /* 寬度 = 100% - Body Padding(20px) */
             width: calc(100% - 20px); 
-            /* 最大寬度 = Container(500px) */
             max-width: 500px; 
             left: 50%; /* 透過 transform 居中 */
             
@@ -71,43 +69,48 @@
         /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* 提示區塊樣式 */
+        /* [修改] 提示區塊樣式 - 移入 Header 內 */
         .click-hint {
             display: flex;
             flex-direction: row; 
             align-items: center;
             justify-content: center;
-            gap: 15px;
-            padding: 12px 0 8px 0;
+            gap: 12px;
+            padding: 8px 0 0 0; /* 上方留點空間 */
             color: #888;
-            font-size: 0.85rem;
-            animation: fadeIn 1s;
+            font-size: 0.8rem;
+            border-top: 1px solid #2c2c2e; /* 加一條細線區隔 */
+            margin-top: 10px;
+            opacity: 0; /* 預設隱藏，有資料才顯示 */
+            transition: opacity 0.5s;
         }
+        .click-hint.visible { opacity: 1; }
         
         .hint-text-group {
             display: flex;
             flex-direction: column;
             align-items: flex-end; 
-            line-height: 1.3;
+            line-height: 1.2;
         }
         .hint-text-group.only-text { align-items: center; }
 
-        .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.9rem; }
-        .click-hint-sub { font-size: 0.8rem; opacity: 0.8; font-weight: normal; color: #888; }
+        .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.85rem; }
+        .click-hint-sub { font-size: 0.75rem; opacity: 0.8; font-weight: normal; color: #888; }
 
-        .hint-divider { width: 1px; height: 24px; background: #333; }
+        .hint-divider { width: 1px; height: 20px; background: #444; }
 
         .legend-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.08);
-            padding: 4px 10px;
-            border-radius: 20px;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 3px 8px;
+            border-radius: 12px;
             font-size: 0.75rem;
             color: #ccc;
         }
-        .indicator-icon { display: flex; flex-direction: column; gap: 6px; }
+        /* 圖例用的 icon，不需要絕對定位 */
+        .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
 
         /* 回到頂端按鈕 */
         .back-to-top {
@@ -197,7 +200,7 @@
         .status-msg.warning { color: #e6b800; } 
         .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
 
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, opacity 0.5s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
 
@@ -207,7 +210,6 @@
         .time-group { display: flex; flex-direction: column; align-items: center; }
         .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
 
-        /* [修正] 加大字體 */
         .time-part { 
             font-size: 1.8rem; /* 加大 */
             font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; 
@@ -218,7 +220,6 @@
         }
         .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
 
-        /* 小螢幕 (如 iPhone SE) 稍微縮小，避免換行 */
         @media (max-width: 360px) { 
             .time-part { font-size: 1.5rem; } 
             .ampm { font-size: 0.85rem; } 
@@ -236,7 +237,15 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
-        .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
+        /* LED 燈樣式 - 預設隱藏，由 .is-arriving 控制 */
+        .left-indicator { 
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%); 
+            display: flex; flex-direction: column; gap: 6px; 
+            opacity: 0; transition: opacity 0.5s;
+        }
+        /* 當父層有 .is-arriving 時顯示 */
+        .card.is-arriving .left-indicator { opacity: 1; }
+
         .led-dot { width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); }
         .led-dot.top { animation: blink-primary 1s infinite step-end; }
         .led-dot.bottom { animation: blink-secondary 1s infinite step-end; }
@@ -366,6 +375,8 @@
                     <div id="statusMsg" class="status-msg"></div>
                     <div id="updateTime" class="update-time"></div>
                 </div>
+
+                <div id="hintContainer"></div>
             </div>
         </div>
         <div id="cardList"></div>
@@ -483,8 +494,11 @@
         const btnTimeFormat=document.getElementById('btnTimeFormat'); const btnShowAll=document.getElementById('btnShowAll');
         const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
         const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
+        const hintContainer = document.getElementById('hintContainer');
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
+        let statusTimer = null; // [新增] 狀態自動更新計時器
+
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
         const LS_IS_24H="tl_pref_is_24h"; 
@@ -570,9 +584,9 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // [關鍵修正] 1:1 跟手滑動邏輯 (Browser Address Bar Style)
+        // 滾動邏輯 - 1:1 跟手滑動
         let lastScroll = 0;
-        let currentTranslate = 0; // 追蹤懸浮欄的位移
+        let currentTranslate = 0; 
         
         window.addEventListener('scroll', () => {
             const current = window.scrollY;
@@ -584,50 +598,37 @@
             const threshold = staticPart ? staticPart.offsetHeight : 150;
             const stickyHeight = sticky.offsetHeight || 150;
 
-            // 1. Back to Top Logic
             if(current > 300) {
                 backToTop.classList.add('visible');
             } else {
                 backToTop.classList.remove('visible');
             }
 
-            // 2. Sticky Logic
             if (current <= threshold) {
-                // Zone 1: 回到頂部區域 - 強制復原，避免重影
                 sticky.classList.remove('is-fixed');
-                sticky.style.transform = 'translateY(0)'; // 清除位移
+                sticky.style.transform = 'translateY(0)'; 
                 placeholder.style.display = 'none';
-                currentTranslate = 0; // 重置狀態
+                currentTranslate = 0; 
             } else {
-                // Zone 2: 捲動區域 - 啟動 Fixed 模式
                 if (!sticky.classList.contains('is-fixed')) {
                      placeholder.style.display = 'block';
                      placeholder.style.height = stickyHeight + 'px'; 
                      sticky.classList.add('is-fixed');
                 }
 
-                // 計算滑動差值 (Delta)
                 const diff = current - lastScroll;
-                
-                // 核心算法：currentTranslate 減去 diff，並限制在 [-stickyHeight, 0] 之間
                 currentTranslate -= diff;
                 
-                // Clamp (限制範圍)
                 if (currentTranslate > 0) currentTranslate = 0;
                 if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
 
-                // [安全鎖] 如果目前捲動位置還在「危險邊緣」(靜態欄剛結束的地方)
-                // 強制動態欄展開，避免快速滑動時的縫隙
                 if (current < threshold + stickyHeight + 10) {
                     currentTranslate = 0;
                 }
 
-                // 直接應用樣式 (1:1 跟手)
-                // 補上 translateX(-50%) 因為 CSS 用了 left: 50%
                 sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
             }
             
-            // 防止 iOS 彈性滾動導致的負值問題
             lastScroll = current <= 0 ? 0 : current;
         });
 
@@ -650,7 +651,67 @@
             }
             renderQuickRoutes();
             updateStarState();
+            startStatusTimer(); // [新增] 啟動自動狀態檢查
         }
+
+        // [新增] 自動狀態更新計時器
+        function startStatusTimer() {
+            if (statusTimer) clearInterval(statusTimer);
+            // 每 10 秒檢查一次
+            statusTimer = setInterval(() => {
+                updateRealtimeStatus();
+            }, 10000);
+        }
+
+        // [新增] 即時狀態更新邏輯 (不打 API)
+        function updateRealtimeStatus() {
+            const cards = document.querySelectorAll('#cardList .card-link');
+            if (cards.length === 0) return;
+
+            const nowSec = Math.floor(Date.now() / 1000);
+            let anyArriving = false;
+
+            cards.forEach(link => {
+                const ts = parseInt(link.getAttribute('data-ts') || 0);
+                if (!ts) return;
+
+                const diffSec = ts - nowSec;
+                const diffMin = Math.floor(diffSec / 60);
+                const isDeparted = diffSec < 0;
+                const isArriving = !isDeparted && diffMin <= 10;
+
+                const cardDiv = link.querySelector('.card');
+                const rightBadgeContainer = link.querySelector('.status-badge-container');
+                const infoDiv = link.querySelector('.train-info');
+                
+                // 更新顏色與狀態
+                if (isDeparted) {
+                    cardDiv.classList.add('departed-card', 'past');
+                    if(infoDiv) infoDiv.style.color = '#888';
+                    
+                    // 確保已駛離標籤存在
+                    if (!rightBadgeContainer.querySelector('.status-tag.departed')) {
+                        // 清空並加入已駛離
+                        rightBadgeContainer.innerHTML = '<div class="status-tag departed">已駛離</div>';
+                    }
+                } else {
+                    cardDiv.classList.remove('departed-card', 'past');
+                    // 恢復原本顏色 (這比較難，因為原本顏色在 style 裡，但通常 remove class 夠了)
+                    
+                    // 檢查進站狀態
+                    if (isArriving) {
+                        cardDiv.classList.add('is-arriving');
+                        anyArriving = true;
+                    } else {
+                        cardDiv.classList.remove('is-arriving');
+                    }
+                }
+            });
+
+            // 更新提示欄
+            updateHintUI(anyArriving);
+        }
+
         function checkLocksOnLoad() {
             const now=Date.now();
             const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
@@ -787,6 +848,7 @@
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
             statusMsg.innerText=""; 
+            hintContainer.innerHTML = ""; // 清空提示
 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
             const s=startStation.value; const e=endStation.value; 
@@ -888,10 +950,35 @@
             }; t(); refreshTimer=setInterval(t,1000);
         }
 
+        // [新增] 更新提示 UI 的獨立函式
+        function updateHintUI(anyArriving) {
+            let hintHtml = `<div class="click-hint visible">
+                <div class="hint-text-group ${anyArriving ? '' : 'only-text'}">
+                    <span class="hint-text">👆 點擊卡片查看</span>
+                    <span class="click-hint-sub">即時位置 & 完整停靠站</span>
+                </div>`;
+            
+            if (anyArriving) {
+                hintHtml += `
+                <div class="hint-divider"></div>
+                <div class="legend-row">
+                    <div class="legend-icon">
+                        <div class="led-dot top"></div>
+                        <div class="led-dot bottom"></div>
+                    </div>
+                    <span>10分鐘內進站</span>
+                </div>`;
+            }
+            hintHtml += `</div>`;
+            
+            // 直接更新 stickyHeader 裡的容器
+            if(hintContainer) hintContainer.innerHTML = hintHtml;
+        }
+
         function renderCards(data) {
             if(data.trains && data.trains.length > 0) {
                 let cardsHtml = '';
-                let anyArriving = false; // 偵測是否有進站中的車
+                let anyArriving = false; 
 
                 let has = false;
                 let hasShownNextDayDivider = false;
@@ -904,10 +991,7 @@
                     const diffSec = t.sort_key - nowSec;
                     const diffMin = Math.floor(diffSec / 60);
 
-                    // 1. 已駛離 (diffMin < 0)
                     let isDeparted = diffSec < 0; 
-
-                    // 2. 進站中 (10分鐘內，且未駛離)
                     let isArriving = !isDeparted && diffMin <= 10;
                     if(isArriving) anyArriving = true;
 
@@ -930,14 +1014,12 @@
                         foundFirstActive = true;
                     }
 
-                    let leftIndicatorHtml = '';
-                    if (isArriving) {
-                        leftIndicatorHtml = `
-                        <div class="left-indicator">
-                            <div class="led-dot top"></div>
-                            <div class="led-dot bottom"></div>
-                        </div>`;
-                    }
+                    // LED: 預設就放進去，透過 CSS .card.is-arriving 控制顯示
+                    let leftIndicatorHtml = `
+                    <div class="left-indicator">
+                        <div class="led-dot top"></div>
+                        <div class="led-dot bottom"></div>
+                    </div>`;
 
                     let rightBadgesHtml = '';
                     if (isDeparted) {
@@ -951,9 +1033,11 @@
                     const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
 
                     let cardClass = "card";
-                    if (isDeparted) cardClass += " departed-card";
+                    if (isDeparted) cardClass += " departed-card past";
+                    if (isArriving) cardClass += " is-arriving";
 
-                    cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
+                    // [新增] data-ts 屬性供計時器讀取
+                    cardsHtml += `<a href="${url}" target="_blank" class="card-link" data-ts="${t.sort_key}" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
                             ${leftIndicatorHtml}
                             <div class="status-badge-container">${rightBadgesHtml}</div>
@@ -974,27 +1058,10 @@
                     </a>`;
                 });
 
-                // 根據是否有進站中列車，決定提示文字樣式
-                let hintHtml = `<div class="click-hint">
-                    <div class="hint-text-group ${anyArriving ? '' : 'only-text'}">
-                        <span class="hint-text">👆 點擊卡片查看</span>
-                        <span class="click-hint-sub">即時位置 & 完整停靠站</span>
-                    </div>`;
-                
-                if (anyArriving) {
-                    hintHtml += `
-                    <div class="hint-divider"></div>
-                    <div class="legend-row">
-                        <div class="indicator-icon">
-                            <div class="led-dot top"></div>
-                            <div class="led-dot bottom"></div>
-                        </div>
-                        <span>10分鐘內進站</span>
-                    </div>`;
-                }
-                hintHtml += `</div>`;
+                // 更新提示欄位 (移到 Header)
+                updateHintUI(anyArriving);
 
-                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : (hintHtml + cardsHtml);
+                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
 
                 setTimeout(() => {
                     const el = document.getElementById("firstActive");
@@ -1008,6 +1075,8 @@
             list.innerHTML = orig > 0 ? 
                 `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : 
                 `<div class="message">查無此區間直達列車 ⚠️</div>`;
+            
+            updateHintUI(false); // 無資料時隱藏圖例
         }
 
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
