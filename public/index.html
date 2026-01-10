@@ -11,28 +11,179 @@
     <link rel="apple-touch-icon" href="/icon.png">
     <link rel="icon" type="image/png" href="/icon.png">
 
-    <style>
-        /* --- 基礎設定 --- */
-        *, *::before, *::after { box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
-        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; position: relative; }
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="TRAIN LIVE | 列車時刻即時看板">
+    <meta property="og:description" content="誤點自動計算，顯示實際到站時間。掌握通勤節奏，不再焦慮等待。">
+    <meta property="og:url" content="https://benjamindai-train-app.vercel.app/">
+    <meta property="og:image" content="https://benjamindai-train-app.vercel.app/icon.png">
+    <meta name="twitter:card" content="summary">
 
-        /* --- 單一靜態 Header (最穩定) --- */
-        .header { 
-            margin-bottom: 15px; 
-            background: #151517; 
-            border-radius: 12px; 
-            border: 1px solid #333; 
-            position: relative; 
-            padding: 15px;
-            /* 移除所有 sticky/fixed 設定 */
+    <style>
+        /* 防止寬度計算超出螢幕 */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        /* 平滑捲動 */
+        html { scroll-behavior: smooth; }
+
+        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
+        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
+
+        /* Header 基礎樣式 */
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative;}
+
+        /* 區塊 A: 靜態區 */
+        .header-static-part {
+            padding: 15px 15px 5px 15px; 
+            background: #151517;
+            position: relative;
+            z-index: 10;
         }
 
-        /* --- 內部排版 --- */
+        /* 區塊 B: 懸浮區 */
+        .header-sticky-part {
+            padding: 5px 15px 10px 15px;
+            background: #151517; 
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            width: 100%;
+            z-index: 100;
+            will-change: transform; 
+        }
+
+        /* 懸浮時的狀態 - 保持提示欄顯示，但微調間距 */
+        .header-sticky-part.is-fixed {
+            position: fixed;
+            top: 0; 
+            width: calc(100% - 20px); 
+            max-width: 500px; 
+            left: 50%; /* 透過 transform 居中 */
+            
+            border-radius: 0 0 12px 12px; 
+            border: 1px solid #333;
+            border-top: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            
+            /* 稍微縮減間距 */
+            padding-top: 10px; 
+            padding-bottom: 8px;
+        }
+
+        /* [關鍵修改] 懸浮時：隱藏原本的大按鈕區，顯示整合後的更新鈕 */
+        .header-sticky-part.is-fixed .action-area {
+            display: none;
+        }
+        
+        /* 預設隱藏「整合版更新鈕」 */
+        .btn-refresh-sticky-wrapper {
+            display: none;
+            flex: 1.2; /* 讓它稍微寬一點 */
+        }
+        
+        /* 懸浮時：顯示「整合版更新鈕」 */
+        .header-sticky-part.is-fixed .btn-refresh-sticky-wrapper {
+            display: block; 
+        }
+
+        /* 懸浮時，提示欄稍微緊湊一點 */
+        .header-sticky-part.is-fixed .click-hint {
+            margin-top: 6px;
+            padding-top: 6px;
+        }
+
+        /* 佔位符 */
+        #stickyPlaceholder { display: none; }
+
+        /* 提示區塊樣式 */
+        .click-hint {
+            display: flex;
+            flex-direction: row; 
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 10px 0 0 0; 
+            color: #888;
+            font-size: 0.8rem;
+            border-top: 1px solid #2c2c2e; 
+            margin-top: 10px;
+            opacity: 0; 
+            transition: opacity 0.3s;
+        }
+        .click-hint.visible { opacity: 1; }
+        
+        .hint-text-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; 
+            line-height: 1.2;
+        }
+        /* 如果只有文字沒有圖例，就置中 */
+        .hint-text-group.only-text { align-items: center; }
+
+        .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.85rem; }
+        .click-hint-sub { font-size: 0.75rem; opacity: 0.8; font-weight: normal; color: #888; }
+
+        .hint-divider { width: 1px; height: 20px; background: #444; }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: #ccc;
+            animation: fadeIn 0.5s; 
+        }
+        .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
+
+        /* 回到頂端按鈕 */
+        .back-to-top {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 50px; 
+            height: 50px;
+            background: #4d7f5e;
+            color: #fff;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 90;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none; 
+        }
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .back-to-top:active { transform: scale(0.9); background: #3d664b; }
+
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
         .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
-        
+
+        .install-btn-top {
+            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s;
+        }
+        .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
+
+        @keyframes pulse-white-gold {
+            0%, 100% { color: #fff; border-color: #444; }
+            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
+        }
+        .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
+
+        .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
+
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
         .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
         .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
@@ -43,27 +194,17 @@
         .select-group { flex: 1; display: flex; gap: 5px; }
         .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; text-align: center; }
         .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
-        
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        /* 快速路線 Chips */
-        .quick-route-area { 
-            margin: 5px 0 10px 0; 
-            display: flex; flex-wrap: nowrap; gap: 8px; 
-            min-height: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; 
-            padding-right: 20px; scrollbar-width: none; 
-        }
-        .quick-route-area::-webkit-scrollbar { display: none; }
-        
-        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; white-space: nowrap; flex: 0 0 auto; }
+        .quick-route-area { margin: 5px 0 10px 0; display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; }
+        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; }
         .route-chip:active { transform: scale(0.95); background: #333; }
         .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
         .route-chip.hist { border-style: dashed; }
 
-        /* 按鈕區 */
-        .action-area { display: flex; gap: 8px; margin-top: 5px; }
+        .action-area { margin-top: 5px; display: flex; gap: 8px; }
         .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
@@ -71,56 +212,67 @@
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
         .btn.error { background: #d32f2f !important; color: white !important; }
 
-        /* 工具列 */
-        .view-toolbar { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .view-toolbar::-webkit-scrollbar { display: none; }
-
-        .toggle-btn { flex: 0 0 auto; background: #222; border: 1px solid #444; color: #888; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; }
+        .view-toolbar { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; }
+        .toggle-btn { flex: 1; background: #222; border: 1px solid #444; color: #888; padding: 8px 0; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; white-space: nowrap; }
         .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
         .toggle-btn.fav-active { background: rgba(230, 184, 0, 0.15); color: #e6b800; border-color: #e6b800; font-weight: bold; }
         .toggle-btn:active { transform: scale(0.98); }
         .toggle-icon { font-size: 1rem; line-height: 1; }
 
-        /* 狀態與提示 */
-        .status-container { text-align: center; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
-        .status-msg { display: none; font-size: 0.85rem; font-weight: bold; color: #aaa; margin-bottom: 2px; }
-        .status-msg.alert { display: block; color: #ff4d4d; animation: fadeIn 0.5s; } 
-        .status-msg.warning { display: block; color: #e6b800; animation: fadeIn 0.5s; } 
-        .update-time { font-size: 0.7rem; color: #555; font-family: monospace; min-height: 1em; }
+        /* [新增] 懸浮版專用更新按鈕樣式 */
+        .btn-sticky-refresh {
+            width: 100%;
+            height: 100%;
+            background: #4d7f5e; /* 綠色背景 */
+            color: #fff;
+            border: 1px solid #4d7f5e;
+            padding: 8px 0;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+        .btn-sticky-refresh:disabled {
+            background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed;
+        }
+        .btn-sticky-refresh:active { transform: scale(0.98); }
 
-        .click-hint { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem; border-top: 1px solid #2c2c2e; margin-top: 10px; opacity: 0; transition: opacity 0.3s; }
-        .click-hint.visible { opacity: 1; }
-        .hint-text-group { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
-        .hint-text-group.only-text { align-items: center; }
-        .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.85rem; }
-        .click-hint-sub { font-size: 0.75rem; opacity: 0.8; font-weight: normal; color: #888; }
-        .hint-divider { width: 1px; height: 20px; background: #444; }
-        .legend-row { display: flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, 0.05); padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; color: #ccc; }
-        .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
+        .status-container { text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+        .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
+        .status-msg.alert { color: #ff4d4d; font-weight: bold; } 
+        .status-msg.warning { color: #e6b800; } 
+        .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
 
-        /* Back to Top */
-        .back-to-top { position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 90; opacity: 0; transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; }
-        .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .back-to-top:active { transform: scale(0.9); background: #3d664b; }
-
-        /* 通用元件 */
-        .install-btn-top { background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s; }
-        .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
-        .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
-
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, opacity 0.5s; scroll-margin-top: 10px; }
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, opacity 0.5s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
 
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+
         .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 6px; flex-wrap: nowrap; }
         .time-group { display: flex; flex-direction: column; align-items: center; }
         .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
-        .time-part { font-size: 1.8rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; }
-        .ampm { font-size: 1rem; margin-right: 3px; color: #aaa; font-weight: normal; }
+
+        .time-part { 
+            font-size: 1.8rem; /* 加大 */
+            font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; 
+        }
+        .ampm { 
+            font-size: 1rem; /* 加大 */
+            margin-right: 3px; color: #aaa; font-weight: normal; 
+        }
         .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
-        @media (max-width: 360px) { .time-part { font-size: 1.5rem; } .ampm { font-size: 0.85rem; } }
+
+        @media (max-width: 360px) { 
+            .time-part { font-size: 1.5rem; } 
+            .ampm { font-size: 0.85rem; } 
+        }
+
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
@@ -133,11 +285,19 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
-        .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; opacity: 0; transition: opacity 0.5s; }
+        /* LED 燈樣式 */
+        .left-indicator { 
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%); 
+            display: flex; flex-direction: column; gap: 6px; 
+            opacity: 0; transition: opacity 0.5s;
+        }
         .card.is-arriving .left-indicator { opacity: 1; }
-        .led-dot { width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; transition: opacity 0.1s, box-shadow 0.1s; }
-        body.led-phase-0 .led-dot.top, body.led-phase-1 .led-dot.bottom { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
-        body.led-phase-0 .led-dot.bottom, body.led-phase-1 .led-dot.top { opacity: 0.2; box-shadow: none; }
+
+        .led-dot { width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); }
+        .led-dot.top { animation: blink-primary 1s infinite step-end; }
+        .led-dot.bottom { animation: blink-secondary 1s infinite step-end; }
+        @keyframes blink-primary { 0%, 49% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } 50%, 100% { opacity: 0.2; box-shadow: none; } }
+        @keyframes blink-secondary { 0%, 49% { opacity: 0.2; box-shadow: none; } 50%, 100% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } }
 
         .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
@@ -191,12 +351,6 @@
         .btn-half { flex: 1; font-size: 0.9rem; }
         .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
         .btn-primary { background: #007AFF; color: white; }
-        
-        @keyframes pulse-white-gold {
-            0%, 100% { color: #fff; border-color: #444; }
-            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
-        }
-        .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
     </style>
 </head>
 <body>
@@ -208,65 +362,76 @@
     </div>
 
     <div class="container">
+        <div id="stickyPlaceholder"></div>
+
         <div class="header">
-            <div class="header-top">
-                <div class="app-title">TRAIN LIVE</div>
-                
-                <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
-                    📲 加到桌面
-                </button>
+            <div class="header-static-part">
+                <div class="header-top">
+                    <div class="app-title">TRAIN LIVE</div>
+                    
+                    <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
+                        📲 加到桌面
+                    </button>
 
-                <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
-            </div>
+                    <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
+                </div>
 
-            <div class="search-row">
-                <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
-            </div>
+                <div class="search-row">
+                    <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
+                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
+                </div>
 
-            <div class="selector-row">
-                <div class="selector-label">起點</div>
-                <div class="select-group">
-                    <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
-                    <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
+                <div class="selector-row">
+                    <div class="selector-label">起點</div>
+                    <div class="select-group">
+                        <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
+                        <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
+                    </div>
+                </div>
+                <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
+                <div class="selector-row">
+                    <div class="selector-label">終點</div>
+                    <div class="select-group">
+                        <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
+                        <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
+                    </div>
                 </div>
             </div>
-            <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
-            <div class="selector-row">
-                <div class="selector-label">終點</div>
-                <div class="select-group">
-                    <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
-                    <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
+
+            <div id="stickyHeader" class="header-sticky-part">
+                <div id="quickRouteArea" class="quick-route-area"></div>
+
+                <div class="action-area">
+                    <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
+                    <button id="btnRefresh" class="btn btn-refresh btn-refresh-sync" onclick="doRefresh()">🔄 更新</button>
                 </div>
+
+                <div class="view-toolbar">
+                    <div class="btn-refresh-sticky-wrapper">
+                        <button class="btn-sticky-refresh btn-refresh-sync" onclick="doRefresh()">
+                            <span class="toggle-icon">🔄</span> 更新
+                        </button>
+                    </div>
+
+                    <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
+                        <span class="toggle-icon">☆</span> 收藏路線
+                    </button>
+                    <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
+                        <span class="toggle-icon">👁️</span> 顯示已駛離
+                    </button>
+                    <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
+                        <span class="toggle-icon">🕒</span> AM/PM
+                    </button>
+                </div>
+
+                <div class="status-container">
+                    <div id="statusMsg" class="status-msg"></div>
+                    <div id="updateTime" class="update-time"></div>
+                </div>
+
+                <div id="hintContainer"></div>
             </div>
-
-            <div id="quickRouteArea" class="quick-route-area"></div>
-
-            <div class="action-area">
-                <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
-                <button id="btnRefresh" class="btn btn-refresh btn-refresh-sync" onclick="doRefresh()">🔄 更新</button>
-            </div>
-
-            <div class="view-toolbar">
-                <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
-                    <span class="toggle-icon">☆</span> 收藏
-                </button>
-                <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
-                    已駛離
-                </button>
-                <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
-                    AM/PM
-                </button>
-            </div>
-
-            <div class="status-container">
-                <div id="statusMsg" class="status-msg"></div>
-                <div id="updateTime" class="update-time"></div>
-            </div>
-
-            <div id="hintContainer"></div>
         </div>
-
         <div id="cardList"></div>
     </div>
 
@@ -278,7 +443,9 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="pageMenu" class="modal-page active">
                 <div class="modal-header-row"><div class="modal-title">選單</div></div>
+                
                 <button class="menu-btn anim-gold-pulse" onclick="goToPage('Why')">設計理念</button>
+                
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
                 <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
@@ -384,9 +551,6 @@
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         let statusTimer = null; 
-        
-        // 移除自動捲動邏輯，回歸單純
-        let isAutoScrolling = false; 
 
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
@@ -443,10 +607,10 @@
 
             const btnAll = document.getElementById('btnShowAll');
             if (isShowAll) {
-                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 已駛離';
+                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 顯示全部';
                 btnAll.classList.add('active');
             } else {
-                btnAll.innerHTML = '已駛離';
+                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 顯示已駛離';
                 btnAll.classList.remove('active');
             }
         }
@@ -473,20 +637,64 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // --- 核心捲動：僅單純捲動到卡片，無任何 Header 縮放邏輯 ---
-        function scrollToActiveCard() {
-            const el = document.getElementById("firstActive");
-            if (!el) return;
-            // 簡單平滑捲動，讓瀏覽器自己處理
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-
-        // 監聽滾動只為了 Back to Top
+        // [關鍵修正] 1:1 跟手滑動邏輯 (Browser Address Bar Style)
+        let lastScroll = 0;
+        let currentTranslate = 0; // 追蹤懸浮欄的位移
+        
         window.addEventListener('scroll', () => {
-            const currentScrollY = window.scrollY;
+            const current = window.scrollY;
+            const sticky = document.getElementById('stickyHeader');
+            const placeholder = document.getElementById('stickyPlaceholder');
             const backToTop = document.getElementById('btnBackToTop');
-            if (currentScrollY > 300) backToTop.classList.add('visible');
-            else backToTop.classList.remove('visible');
+            
+            const staticPart = document.querySelector('.header-static-part');
+            const threshold = staticPart ? staticPart.offsetHeight : 150;
+            const stickyHeight = sticky.offsetHeight || 150;
+
+            // 1. Back to Top Logic
+            if(current > 300) {
+                backToTop.classList.add('visible');
+            } else {
+                backToTop.classList.remove('visible');
+            }
+
+            // 2. Sticky Logic
+            if (current <= threshold) {
+                // Zone 1: 回到頂部區域 - 強制復原，避免重影
+                sticky.classList.remove('is-fixed');
+                sticky.style.transform = 'translateY(0)'; // 清除位移
+                placeholder.style.display = 'none';
+                currentTranslate = 0; // 重置狀態
+            } else {
+                // Zone 2: 捲動區域 - 啟動 Fixed 模式
+                if (!sticky.classList.contains('is-fixed')) {
+                     placeholder.style.display = 'block';
+                     placeholder.style.height = stickyHeight + 'px'; 
+                     sticky.classList.add('is-fixed');
+                }
+
+                // 計算滑動差值 (Delta)
+                const diff = current - lastScroll;
+                
+                // 核心算法：currentTranslate 減去 diff
+                currentTranslate -= diff;
+                
+                // Clamp (限制範圍)
+                if (currentTranslate > 0) currentTranslate = 0;
+                if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
+
+                // [安全鎖] 如果目前捲動位置還在「危險邊緣」(靜態欄剛結束的地方)
+                // 強制動態欄展開，避免快速滑動時的縫隙
+                if (current < threshold + stickyHeight + 10) {
+                    currentTranslate = 0;
+                }
+
+                // 直接應用樣式 (1:1 跟手)
+                sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
+            }
+            
+            // 防止 iOS 彈性滾動導致的負值問題
+            lastScroll = current <= 0 ? 0 : current;
         });
 
         function init() {
@@ -509,7 +717,6 @@
             renderQuickRoutes();
             updateStarState();
             startStatusTimer(); 
-            initGlobalLedSync(); 
         }
 
         function startStatusTimer() {
@@ -517,24 +724,6 @@
             statusTimer = setInterval(() => {
                 updateRealtimeStatus();
             }, 10000);
-        }
-
-        function initGlobalLedSync() {
-            const loop = () => {
-                const now = Date.now();
-                const phase = Math.floor((now % 1000) / 500); 
-                
-                if (phase === 0) {
-                    document.body.classList.add('led-phase-0');
-                    document.body.classList.remove('led-phase-1');
-                } else {
-                    document.body.classList.add('led-phase-1');
-                    document.body.classList.remove('led-phase-0');
-                }
-                
-                requestAnimationFrame(loop);
-            };
-            requestAnimationFrame(loop);
         }
 
         function updateRealtimeStatus() {
@@ -558,31 +747,25 @@
                 const infoDiv = link.querySelector('.train-info');
                 
                 if (isDeparted) {
-                    if (!cardDiv.classList.contains('departed-card')) {
-                        cardDiv.classList.add('departed-card', 'past');
-                        if(infoDiv) infoDiv.style.color = '#888';
-                        if (!rightBadgeContainer.querySelector('.status-tag.departed')) {
-                            rightBadgeContainer.innerHTML = '<div class="status-tag departed">已駛離</div>';
-                        }
+                    cardDiv.classList.add('departed-card', 'past');
+                    if(infoDiv) infoDiv.style.color = '#888';
+                    
+                    if (!rightBadgeContainer.querySelector('.status-tag.departed')) {
+                        rightBadgeContainer.innerHTML = '<div class="status-tag departed">已駛離</div>';
                     }
                 } else {
-                    if (cardDiv.classList.contains('departed-card')) {
-                         cardDiv.classList.remove('departed-card', 'past');
-                    }
+                    cardDiv.classList.remove('departed-card', 'past');
                     
                     if (isArriving) {
-                        if (!cardDiv.classList.contains('is-arriving')) cardDiv.classList.add('is-arriving');
+                        cardDiv.classList.add('is-arriving');
                         anyArriving = true;
                     } else {
-                        if (cardDiv.classList.contains('is-arriving')) cardDiv.classList.remove('is-arriving');
+                        cardDiv.classList.remove('is-arriving');
                     }
                 }
             });
 
-            const currentHintState = hintContainer.getAttribute('data-arriving') === 'true';
-            if (currentHintState !== anyArriving) {
-                updateHintUI(anyArriving);
-            }
+            updateHintUI(anyArriving);
         }
 
         function checkLocksOnLoad() {
@@ -628,6 +811,7 @@
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
         
+        // 只有當有資料時才重新渲染
         function reRenderLocal() {
             const c=localStorage.getItem(getCacheKey());
             if(c) {
@@ -643,16 +827,15 @@
                 if(Date.now()-d.timestamp < 60000) {
                     if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
                     renderCards(d.payload); setUpdateText(`更新於(快取): ${d.payload.update_time}`);
-                    statusMsg.className="status-msg"; list.style.opacity="1"; 
+                    statusMsg.innerText=""; statusMsg.className="status-msg"; list.style.opacity="1"; 
                     lastFetchedPair={start:startStation.value,end:endStation.value}; hit=true;
                 }
             }
             if(!hit) {
                 if(isInit) {
-                    statusMsg.innerText="請按「查詢」開始使用"; statusMsg.className="status-msg warning";
-                    list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
+                    statusMsg.innerText="請按「查詢」開始使用"; list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
                 } else {
-                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg warning";
+                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg unsync";
                 }
             }
             updateButtonMode();
@@ -718,12 +901,9 @@
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
 
-            // 移除 resetHeaderState();
-
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
             statusMsg.innerText=""; 
-            statusMsg.className = "status-msg"; 
             hintContainer.innerHTML = ""; 
 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
@@ -755,10 +935,6 @@
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
 
-                if (res.status === 429) {
-                    throw new Error("系統忙碌");
-                }
-
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
                 lastFetchedPair={start:s,end:e};
@@ -781,23 +957,16 @@
                 if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
-                
-                const errorMsg = err.message.includes("系統忙碌") ? "系統忙碌" : "連線發生問題";
-                scheduleRetry(errorMsg, "status-msg alert");
-                
-                list.innerHTML=`<div class="message">${errorMsg} ⚠️<br><span style="font-size:0.8rem;color:#888">請稍後再試</span></div>`;
+                scheduleRetry("連線發生問題", "status-msg alert");
+                list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`;
             }
         }
 
-        function setUpdateText(t){
-            updateTimeDiv.innerText=t;
-            localStorage.setItem("last_update_text",t);
-        }
+        function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
 
         function scheduleRetry(msg="誤點資訊無法取得", cls="status-msg warning") {
             let c=30; 
             if(retryTimer) clearInterval(retryTimer);
-            
             statusMsg.className = cls; 
             statusMsg.innerText = `${msg} (30s 後重試)`;
 
@@ -821,11 +990,11 @@
                 if(s<=0){
                     clearInterval(searchLockTimer); btnSearch.disabled=false;
                     btnSearch.classList.remove('error'); btnSearch.innerText="🔍 查詢路線";
-                    statusMsg.innerText=""; statusMsg.className="status-msg"; 
-                    setSearchLockedUntil(0);
+                    statusMsg.innerText=""; setSearchLockedUntil(0);
                 } s--;
             }; t(); searchLockTimer=setInterval(t,1000);
         }
+        // [修改] 更新按鈕鎖定邏輯：同步所有更新鈕
         function lockRefreshButton(s) {
             if(refreshTimer) clearInterval(refreshTimer);
             
@@ -834,6 +1003,7 @@
             
             const t=()=>{
                 btns.forEach(b => {
+                    // 保留原本的 icon，只改文字
                     const icon = b.querySelector('.toggle-icon') ? '<span class="toggle-icon">🔄</span> ' : '';
                     b.innerHTML = `${icon}更新 (${s})`;
                 });
@@ -958,7 +1128,10 @@
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
 
-                scrollToActiveCard();
+                setTimeout(() => {
+                    const el = document.getElementById("firstActive");
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 300);
 
                 return;
             }
@@ -1028,6 +1201,7 @@
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
         }
 
+        // === 常用路線與歷史紀錄邏輯 ===
         const LS_FAV = "tl_favorites";
         const LS_HIST = "tl_history";
         const MAX_HIST = 3;
@@ -1079,10 +1253,10 @@
             const cur = getCurrentPair();
             const btn = document.getElementById('btnStar');
             if (isFavorite(cur.start, cur.end)) {
-                btn.innerHTML = '<span class="toggle-icon">★</span> 收藏';
+                btn.innerHTML = '<span class="toggle-icon">★</span> 收藏路線';
                 btn.classList.add('fav-active');
             } else {
-                btn.innerHTML = '<span class="toggle-icon">☆</span> 收藏';
+                btn.innerHTML = '<span class="toggle-icon">☆</span> 收藏路線';
                 btn.classList.remove('fav-active');
             }
         }
