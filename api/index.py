@@ -72,7 +72,7 @@ class handler(BaseHTTPRequestHandler):
         if val: return f"API {res.status_code} (剩: {val})"
         return f"API {res.status_code}"
 
-    # === 使用 Redis 存取誤點資訊 (V2) ===
+    # === 使用 Redis 存取誤點資訊 (V3 Key) ===
     def get_cached_delays(self, headers):
         cache_key = "v3_tra_delay_data"
         
@@ -103,7 +103,7 @@ class handler(BaseHTTPRequestHandler):
         else: 
             raise Exception(f"Delay API Error: {res.status_code}")
 
-    # === 使用 Redis 存取時刻表 (V3) - 12小時快取 ===
+    # === 使用 Redis 存取時刻表 (V3 Key) ===
     def get_route_timetable(self, start_id, end_id, date_str, headers):
         cache_key = f"v3_route_{start_id}_{end_id}_{date_str}"
 
@@ -181,7 +181,6 @@ class handler(BaseHTTPRequestHandler):
             processed.append({
                 "no": no, "type": display_type, "delay": delay, "color": type_color,
                 "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
-                # 【修改點】分開提供出發日期與抵達日期
                 "dep_date": real_dep.strftime("%m/%d"),
                 "arr_date": real_arr.strftime("%m/%d"),
                 "sch_dep": dep_time, "sch_arr": arr_time,
@@ -241,16 +240,21 @@ class handler(BaseHTTPRequestHandler):
                 processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=True))
 
             processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
-            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=True))
+            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
 
             unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
             
             final_result = []
             now_ts = now_aware.timestamp()
             
-            # 【修改點】縮小視窗至 24 小時
+            # 【關鍵修改】放寬過去的限制，為了讓「全部」按鈕可以看到今天早上的車
+            # 取得「今天 00:00:00」的 timestamp
+            today_start = now_aware.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+            
+            # 視窗：從今天 00:00 起 ~ 未來 24 小時
+            # 這樣後端就會傳回今天整天的資料，剩下的交給前端過濾
             future_limit = now_ts + (24 * 3600) 
-            past_limit = now_ts - 600
+            past_limit = today_start 
 
             for p in unique_dict.values():
                 ts = p['sort_key']
