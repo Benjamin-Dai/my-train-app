@@ -42,7 +42,7 @@
             border-bottom-right-radius: 12px;
             width: 100%;
             z-index: 100;
-            position: relative; /* 預設靜態定位 */
+            position: relative; /* 預設靜態 */
             will-change: transform; 
         }
 
@@ -54,7 +54,7 @@
             width: calc(100% - 20px); 
             max-width: 500px; 
             left: 50%; 
-            /* 注意：transform 由 JS 控制，CSS 這裡只定義初始狀態 */
+            /* 注意：transform 由 JS 控制，這裡只設初始值 */
             transform: translateX(-50%); 
             
             border-radius: 0 0 12px 12px; 
@@ -99,7 +99,7 @@
             display: flex; align-items: center; gap: 6px;
             background: rgba(255, 255, 255, 0.05); padding: 3px 8px;
             border-radius: 12px; font-size: 0.75rem; color: #ccc;
-            /* 移除 animation 避免重繪時閃爍 */
+            /* 移除 animation 避免重繪閃爍 */
         }
         .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
 
@@ -600,7 +600,7 @@
         let lastScroll = 0;
         let currentTranslate = 0; 
 
-        // [關鍵修改] 統一管理動態欄狀態，避免邏輯打架
+        // [關鍵修改] 統一管理動態欄狀態，修復左側錯位與鬼影
         function setStickyState(isFixed, translate = 0) {
             const sticky = document.getElementById('stickyHeader');
             const placeholder = document.getElementById('stickyPlaceholder');
@@ -1080,11 +1080,7 @@
             }
             hintHtml += `</div>`;
             
-            if(hintContainer) {
-                // 儲存狀態，下次比對
-                hintContainer.setAttribute('data-arriving', anyArriving);
-                hintContainer.innerHTML = hintHtml;
-            }
+            if(hintContainer) hintContainer.innerHTML = hintHtml;
         }
 
         function renderCards(data) {
@@ -1184,6 +1180,164 @@
                 `<div class="message">查無此區間直達列車 ⚠️</div>`;
             
             updateHintUI(false); 
+        }
+
+        function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
+        function recordRequest(){requestHistory.push(Date.now());}
+        function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
+        function closeModal(){document.getElementById('aboutModal').style.display='none';}
+
+        function goToPage(id){
+            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
+            document.getElementById('page'+id).classList.add('active');
+
+            if(id==='Report'){
+                const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
+                document.getElementById('statRpm').innerText=rpm;
+                document.getElementById('cardRpm').classList.toggle('danger', rpm>=5);
+                document.getElementById('statTotal').innerText=requestHistory.length;
+                const last=requestHistory[requestHistory.length-1];
+                document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
+
+                const getColor = (src) => {
+                    if(src.includes("Vercel")||src.includes("Redis")) return "green";
+                    if(src.includes("API")) return "yellow";
+                    return "red";
+                };
+
+                const displayQuota = (lastDiagnostics.route_quota !== "--") ? lastDiagnostics.route_quota : lastDiagnostics.delay_quota;
+
+                const elStatus = document.getElementById('diagStatus');
+                elStatus.innerHTML = `<span class="badge ${getColor(lastDiagnostics.route_source)}">${lastDiagnostics.route_source}</span> / <span class="badge ${getColor(lastDiagnostics.delay_source)}">${lastDiagnostics.delay_source}</span>`;
+
+                const elQuota = document.getElementById('diagQuota');
+                elQuota.innerHTML = `<span style="font-size:1.1rem; color:#fff;">${displayQuota}</span>`;
+
+                const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
+                let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
+                r += `裝置: ${navigator.userAgent}\n畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
+                r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
+                r += `狀態: [${lastDiagnostics.route_source}] / [${lastDiagnostics.delay_source}]\n剩餘: ${displayQuota}\n`;
+                r += `--- Log ---\n${systemLogs.join("\n")}`;
+
+                document.getElementById('reportContent').value = r;
+                document.getElementById('terminalView').innerText = systemLogs.join("\n");
+            }
+        }
+        function copyReportOnly() {
+            let final = document.getElementById('reportContent').value;
+            const uDesc = document.getElementById('userDesc').value; if(uDesc) final += `\n\nUser: ${uDesc}`;
+            navigator.clipboard.writeText(final).then(() => {
+                const btn=document.getElementById('btnCopyReport'); const original = btn.innerText;
+                btn.innerText = "✅ 已複製"; btn.style.background = "#4d7f5e";
+                setTimeout(()=>{ btn.innerText = original; btn.style.background = ""; }, 2000);
+            }).catch(e=>{alert('複製失敗');});
+        }
+        function openMailClient() {
+            const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
+            const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
+            window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
+        }
+
+        // === 常用路線與歷史紀錄邏輯 ===
+        const LS_FAV = "tl_favorites";
+        const LS_HIST = "tl_history";
+        const MAX_HIST = 3;
+        const MAX_FAV = 6;
+        const btnStar = document.getElementById('btnStar');
+        const quickArea = document.getElementById('quickRouteArea');
+
+        function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
+
+        function isFavorite(s, e) {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            return favs.some(f => f.start === s && f.end === e);
+        }
+
+        function toggleFavorite() {
+            const cur = getCurrentPair();
+            if (!cur.start || !cur.end) return;
+
+            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
+
+            if (idx >= 0) {
+                favs.splice(idx, 1); 
+                logSystem("Fav", "Removed");
+            } else {
+                if (favs.length >= MAX_FAV) { alert(`常用路線最多儲存 ${MAX_FAV} 組`); return; }
+                favs.unshift(cur); 
+                logSystem("Fav", "Added");
+            }
+            localStorage.setItem(LS_FAV, JSON.stringify(favs));
+            updateStarState();
+            renderQuickRoutes();
+        }
+
+        function addToHistory() {
+            const cur = getCurrentPair();
+            if (!cur.start || !cur.end) return;
+
+            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
+            hist.unshift(cur);
+            if (hist.length > MAX_HIST) hist.pop();
+
+            localStorage.setItem(LS_HIST, JSON.stringify(hist));
+            renderQuickRoutes();
+        }
+
+        function updateStarState() {
+            const cur = getCurrentPair();
+            const btn = document.getElementById('btnStar');
+            if (isFavorite(cur.start, cur.end)) {
+                btn.innerHTML = '<span class="toggle-icon">★</span> 收藏';
+                btn.classList.add('fav-active');
+            } else {
+                btn.innerHTML = '<span class="toggle-icon">☆</span> 收藏';
+                btn.classList.remove('fav-active');
+            }
+        }
+
+        function loadRoute(s, e) {
+            const sR = STATION_INDEX[s];
+            const eR = STATION_INDEX[e];
+            if (sR && eR) {
+                setMenu('start', sR, s);
+                setMenu('end', eR, e);
+                localStorage.setItem(PREF_START_R_KEY, startRegion.value);
+                localStorage.setItem(PREF_START_S_KEY, startStation.value);
+                localStorage.setItem(PREF_END_R_KEY, endRegion.value);
+                localStorage.setItem(PREF_END_S_KEY, endStation.value);
+                updateStarState();
+                doSearch(); 
+            }
+        }
+
+        function renderQuickRoutes() {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+
+            let html = '';
+            favs.forEach(r => {
+                html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">
+                    ${r.start}<span class="chip-arrow">➔</span>${r.end}
+                </div>`;
+            });
+            hist.forEach(r => {
+                if (!isFavorite(r.start, r.end)) {
+                    html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">
+                        ${r.start}<span class="chip-arrow">➔</span>${r.end}
+                    </div>`;
+                }
+            });
+
+            if (html === '') {
+                quickArea.style.display = 'none';
+            } else {
+                quickArea.style.display = 'flex';
+                quickArea.innerHTML = html;
+            }
         }
 
         init();
