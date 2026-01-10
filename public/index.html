@@ -19,133 +19,33 @@
     <meta name="twitter:card" content="summary">
 
     <style>
-        /* 防止寬度計算超出螢幕 */
+        /* --- 基礎設定 --- */
         *, *::before, *::after { box-sizing: border-box; }
-
-        /* 平滑捲動 */
         html { scroll-behavior: smooth; }
-
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
-        /* Header 基礎樣式 */
+        /* --- Header 結構 --- */
         .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
 
-        /* 區塊 A: 靜態區 */
-        .header-static-part {
-            padding: 15px 15px 5px 15px; 
-            background: #151517;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* 區塊 B: 懸浮區 */
-        .header-sticky-part {
-            padding: 5px 15px 15px 15px;
-            background: #151517; 
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
-            width: 100%;
-            z-index: 100;
-            /* 關鍵：移除 transition 以實現 1:1 跟手感 */
-            will-change: transform; 
-        }
-
-        /* 懸浮時的狀態 - 精確寬度計算 */
-        .header-sticky-part.is-fixed {
-            position: fixed;
-            top: 0; 
-            /* 寬度 = 100% - Body Padding(20px) */
-            width: calc(100% - 20px); 
-            /* 最大寬度 = Container(500px) */
-            max-width: 500px; 
-            left: 50%; /* 透過 transform 居中 */
-            
-            border-radius: 0 0 12px 12px; 
-            border: 1px solid #333;
-            border-top: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-            padding-top: 15px; 
-        }
-
-        /* 佔位符 */
-        #stickyPlaceholder { display: none; }
-
-        /* 提示區塊樣式 */
-        .click-hint {
-            display: flex;
-            flex-direction: row; 
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            padding: 12px 0 8px 0;
-            color: #888;
-            font-size: 0.85rem;
-            animation: fadeIn 1s;
-        }
+        /* 靜態區 (搜尋與選單) */
+        .header-static-part { padding: 15px 15px 5px 15px; background: #151517; position: relative; z-index: 10; }
         
-        .hint-text-group {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end; 
-            line-height: 1.3;
-        }
-        .hint-text-group.only-text { align-items: center; }
-
-        .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.9rem; }
-        .click-hint-sub { font-size: 0.8rem; opacity: 0.8; font-weight: normal; color: #888; }
-
-        .hint-divider { width: 1px; height: 24px; background: #333; }
-
-        .legend-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.08);
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            color: #ccc;
-        }
-        .indicator-icon { display: flex; flex-direction: column; gap: 6px; }
-
-        /* 回到頂端按鈕 */
-        .back-to-top {
-            position: fixed;
-            bottom: 25px;
-            right: 25px;
-            width: 50px; 
-            height: 50px;
-            background: #4d7f5e;
-            color: #fff;
-            border-radius: 50%;
-            border: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            font-size: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 90;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s ease;
-            pointer-events: none; 
-        }
-        .back-to-top.visible {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-        .back-to-top:active { transform: scale(0.9); background: #3d664b; }
-
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
         .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
-
+        
+        /* 安裝按鈕與選單按鈕容器 */
+        .top-actions { display: flex; align-items: center; gap: 8px; }
+        
         .install-btn-top {
-            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s;
+            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; 
+            font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; 
+            align-items: center; gap: 4px; animation: fadeIn 0.5s;
         }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
+
+        .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
 
         @keyframes pulse-white-gold {
             0%, 100% { color: #fff; border-color: #444; }
@@ -153,9 +53,7 @@
         }
         .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
 
-        .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
-
+        /* --- 搜尋與下拉選單 --- */
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
         .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
         .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
@@ -169,80 +67,120 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        .quick-route-area { margin: 5px 0 10px 0; display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; }
-        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; }
+        /* --- [修改] 動態懸浮區 (Sticky Header) --- */
+        .header-sticky-part {
+            background: #151517; 
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            width: 100%;
+            z-index: 100;
+            will-change: transform;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-sticky-part.is-fixed {
+            position: fixed; top: 0; width: calc(100% - 20px); max-width: 500px; left: 50%;
+            border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            padding-top: 10px; /* 稍微減少 padding */
+        }
+        #stickyPlaceholder { display: none; }
+
+        /* 第一層：路線捷徑 (橫向捲動) */
+        .quick-route-scroll-container {
+            width: 100%;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 5px 15px;
+            /* 隱藏捲軸 */
+            -ms-overflow-style: none; scrollbar-width: none; 
+            border-bottom: 1px solid #222;
+        }
+        .quick-route-scroll-container::-webkit-scrollbar { display: none; }
+        
+        .route-chip { 
+            display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
+            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; margin-right: 6px; 
+            user-select: none;
+        }
         .route-chip:active { transform: scale(0.95); background: #333; }
         .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
         .route-chip.hist { border-style: dashed; }
 
-        .action-area { margin-top: 5px; display: flex; gap: 8px; }
-        .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
-        .btn:active { transform: scale(0.98); }
-        .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
-        .btn-search { flex: 2; background: #fff; color: #000; }
-        .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
-        .btn.error { background: #d32f2f !important; color: white !important; }
+        /* 第二層：工具列 (按鈕 + 提示) */
+        .toolbar-row {
+            display: flex; gap: 8px; padding: 10px 15px; align-items: center;
+        }
+        .toolbar-btn {
+            flex: 1; background: #222; border: 1px solid #444; color: #ccc; 
+            padding: 8px 0; border-radius: 8px; font-size: 0.85rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.1s;
+        }
+        .toolbar-btn:active { transform: scale(0.96); background: #333; }
+        .toolbar-btn.refresh { background: #4d7f5e; color: #fff; border-color: #4d7f5e; font-weight: bold; flex: 1.2;}
+        .toolbar-btn.refresh:disabled { background: #333; border-color: #333; color: #888; }
+        .toolbar-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77,127,94,0.1); }
+        .toolbar-btn.fav-active { color: #e6b800; border-color: #e6b800; background: rgba(230,184,0,0.1); }
+        
+        /* 提示整合小區塊 */
+        .hint-mini {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 0.65rem; color: #666; margin-left: 5px; padding-left: 8px; border-left: 1px solid #333;
+            min-width: 50px;
+        }
+        .hint-icon-group { display: flex; flex-direction: column; gap: 3px; margin-bottom: 2px; }
 
-        .view-toolbar { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; }
-        .toggle-btn { flex: 1; background: #222; border: 1px solid #444; color: #888; padding: 8px 0; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; white-space: nowrap; }
-        .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
-        .toggle-btn.fav-active { background: rgba(230, 184, 0, 0.15); color: #e6b800; border-color: #e6b800; font-weight: bold; }
-        .toggle-btn:active { transform: scale(0.98); }
-        .toggle-icon { font-size: 1rem; line-height: 1; }
+        /* 第三層：狀態列 (左右對齊) */
+        .status-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 15px; background: #111; border-top: 1px solid #222;
+            border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+        }
+        .status-left { font-size: 0.8rem; color: #aaa; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .status-left.alert { color: #ff4d4d; }
+        .status-left.warning { color: #e6b800; }
+        .status-right { font-size: 0.75rem; color: #666; font-family: monospace; }
 
-        .status-container { text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
-        .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
-        .status-msg.alert { color: #ff4d4d; font-weight: bold; } 
-        .status-msg.warning { color: #e6b800; } 
-        .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
+        /* 隱藏舊的 action-area, view-toolbar */
+        .old-hidden { display: none; }
 
+        /* --- [修改] 同步 LED 燈號系統 (Global Ticker) --- */
+        .led-dot { 
+            width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; 
+            opacity: 0.2; /* 預設暗 */
+            transition: opacity 0.1s; /* 快速切換 */
+        }
+        
+        /* Body class 控制：
+           .tick-a -> 上亮下暗
+           .tick-b -> 上暗下亮
+        */
+        body.tick-a .led-dot.top { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
+        body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
+
+        /* --- 卡片樣式 --- */
         .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
 
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
-
         .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 6px; flex-wrap: nowrap; }
         .time-group { display: flex; flex-direction: column; align-items: center; }
         .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
-
-        /* [修正] 加大字體 */
-        .time-part { 
-            font-size: 1.8rem; /* 加大 */
-            font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; 
-        }
-        .ampm { 
-            font-size: 1rem; /* 加大 */
-            margin-right: 3px; color: #aaa; font-weight: normal; 
-        }
+        .time-part { font-size: 1.8rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; }
+        .ampm { font-size: 1rem; margin-right: 3px; color: #aaa; font-weight: normal; }
         .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
-
-        /* 小螢幕 (如 iPhone SE) 稍微縮小，避免換行 */
-        @media (max-width: 360px) { 
-            .time-part { font-size: 1.5rem; } 
-            .ampm { font-size: 0.85rem; } 
-        }
+        @media (max-width: 360px) { .time-part { font-size: 1.5rem; } .ampm { font-size: 0.85rem; } }
 
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
 
-        .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
-        @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-        .sk-line { background: #333; border-radius: 4px; }
-        .sk-title { height: 14px; width: 60%; margin-bottom: 12px; }
-        .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
-        .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
-
         .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
-        .led-dot { width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); }
-        .led-dot.top { animation: blink-primary 1s infinite step-end; }
-        .led-dot.bottom { animation: blink-secondary 1s infinite step-end; }
-        @keyframes blink-primary { 0%, 49% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } 50%, 100% { opacity: 0.2; box-shadow: none; } }
-        @keyframes blink-secondary { 0%, 49% { opacity: 0.2; box-shadow: none; } 50%, 100% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } }
-
+        
         .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
         .status-tag.departed { color: #888; border: 1px solid #555; background: #222; }
@@ -250,7 +188,14 @@
         .card.departed-card { opacity: 0.5; filter: grayscale(1); border-left-color: #555 !important; }
         .card.departed-card:active { transform: none; background-color: #151517; }
 
-        /* Modal Styles */
+        /* Skeleton & Modal (保留原樣) */
+        .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
+        @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        .sk-line { background: #333; border-radius: 4px; }
+        .sk-title { height: 14px; width: 60%; margin-bottom: 12px; }
+        .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
+        .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
+
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; position: sticky; top: -25px; background: #1c1c1e; z-index: 10; padding: 10px 0; border-bottom: 1px solid #333; }
@@ -259,13 +204,23 @@
         .menu-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; }
         .menu-btn:active { background: #3a3a3c; }
         .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
-        
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .modal-page { display: none; }
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* 回到頂端按鈕 */
+        .back-to-top {
+            position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px;
+            background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 90;
+            opacity: 0; transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; 
+        }
+        .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .back-to-top:active { transform: scale(0.9); background: #3d664b; }
+
+        /* 診斷樣式 (保留) */
         .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
         .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
@@ -295,9 +250,12 @@
         .btn-half { flex: 1; font-size: 0.9rem; }
         .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
         .btn-primary { background: #007AFF; color: white; }
+        
+        /* 隱藏舊的查詢按鈕 (在搜尋時使用) */
+        .btn-search-hidden { display: none; }
     </style>
 </head>
-<body>
+<body class="tick-a">
     <div id="inAppOverlay" onclick="this.style.display='none'">
         <div class="guide-icon">🌏</div>
         <div style="color:#fff; font-size:1.1rem; line-height:1.6;">請切換至瀏覽器開啟</div>
@@ -313,11 +271,12 @@
                 <div class="header-top">
                     <div class="app-title">TRAIN LIVE</div>
                     
-                    <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
-                        📲 加到桌面
-                    </button>
-
-                    <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
+                    <div class="top-actions">
+                        <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
+                            📲 加到桌面
+                        </button>
+                        <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
+                    </div>
                 </div>
 
                 <div class="search-row">
@@ -340,34 +299,35 @@
                         <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
                     </div>
                 </div>
+                
+                <button id="btnSearch" class="btn-search-hidden" onclick="doSearch()">🔍 查詢</button>
             </div>
 
             <div id="stickyHeader" class="header-sticky-part">
-                <div id="quickRouteArea" class="quick-route-area"></div>
+                <div id="quickRouteArea" class="quick-route-scroll-container"></div>
 
-                <div class="action-area">
-                    <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
-                    <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
+                <div class="toolbar-row">
+                    <button id="btnRefresh" class="toolbar-btn refresh" onclick="doRefresh()">🔄 更新</button>
+                    <button id="btnStar" class="toolbar-btn" onclick="toggleFavorite()">☆ 收藏</button>
+                    <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 顯示</button>
+                    <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 格式</button>
+                    
+                    <div class="hint-mini">
+                         <div class="hint-icon-group">
+                             <div class="led-dot top"></div>
+                             <div class="led-dot bottom"></div>
+                         </div>
+                         <span>進站中</span>
+                    </div>
                 </div>
 
-                <div class="view-toolbar">
-                    <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
-                        <span class="toggle-icon">☆</span> 收藏路線
-                    </button>
-                    <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
-                        <span class="toggle-icon">👁️</span> 顯示已駛離
-                    </button>
-                    <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
-                        <span class="toggle-icon">🕒</span> AM/PM
-                    </button>
-                </div>
-
-                <div class="status-container">
-                    <div id="statusMsg" class="status-msg"></div>
-                    <div id="updateTime" class="update-time"></div>
+                <div class="status-bar">
+                    <div id="statusMsg" class="status-left">等待輸入...</div>
+                    <div id="updateTime" class="status-right"></div>
                 </div>
             </div>
         </div>
+        
         <div id="cardList"></div>
     </div>
 
@@ -379,35 +339,28 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="pageMenu" class="modal-page active">
                 <div class="modal-header-row"><div class="modal-title">選單</div></div>
-                
                 <button class="menu-btn anim-gold-pulse" onclick="goToPage('Why')">設計理念</button>
-                
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
                 <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
                 <div style="height:10px"></div>
                 <button class="modal-close" onclick="closeModal()">關閉</button>
             </div>
-
             <div id="pageWhy" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
                 <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
             </div>
-
             <div id="pageHow" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
                 <div class="modal-text">
-                    <strong>雙按鈕機制：</strong><br><br>
-                    1. <strong>🔍 查詢路線 (左)：</strong><br>
-                    切換路線專用。若您點擊此按鈕但<strong>車站未變更</strong>，系統將視為「更新」處理。<br>
-                    若<strong>真的變更車站</strong>，每分鐘限查詢 3 次。<br><br>
-                    2. <strong>🔄 更新 (右)：</strong><br>
-                    刷新當前狀態。每次點擊後需等待 30 秒冷卻。<br><br>
-                    <strong>自動重試機制：</strong><br>
+                    <strong>操作邏輯：</strong><br><br>
+                    1. <strong>上方搜尋列：</strong>輸入站名快速切換。<br>
+                    2. <strong>常用路線 (橫條)：</strong>點擊快速載入收藏或歷史路線。<br>
+                    3. <strong>自動更新：</strong>系統每 15 秒會自動檢查「是否駛離」，不消耗流量。<br><br>
+                    <strong>重試機制：</strong><br>
                     錯誤或系統忙碌都會自動重試，請耐心等候。
                 </div>
             </div>
-
             <div id="pageReport" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
                 <div class="diag-section">
@@ -449,6 +402,7 @@
     </div>
 
     <script>
+        // --- 站點資料 (縮減以節省空間，請保持原有的完整清單) ---
         const STATION_DATA = {
             "基隆市": ["基隆", "三坑", "八堵", "七堵", "百福", "暖暖", "海科館"],
             "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "侯硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
@@ -480,7 +434,6 @@
         const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
         const searchInput=document.getElementById('searchInput');const searchTarget=document.getElementById('searchTarget');
         const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
-        const btnTimeFormat=document.getElementById('btnTimeFormat'); const btnShowAll=document.getElementById('btnShowAll');
         const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
         const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
 
@@ -495,6 +448,8 @@
         let isShowAll = false;
         let lastDiagnostics = { route_source: "--", route_quota: "--", delay_source: "--", delay_quota: "--" };
         let systemLogs=[]; let requestHistory=[];
+
+        let currentTrainData = null; // 用來儲存當前資料，供被動更新使用
 
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -519,6 +474,28 @@
             if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
         }
 
+        // --- 全域 Ticker (LED 同步與被動更新) ---
+        function startTicker() {
+            // LED 0.5s 同步
+            setInterval(() => {
+                if (document.body.classList.contains('tick-a')) {
+                    document.body.classList.remove('tick-a');
+                    document.body.classList.add('tick-b');
+                } else {
+                    document.body.classList.remove('tick-b');
+                    document.body.classList.add('tick-a');
+                }
+            }, 500);
+
+            // 被動重繪 15s (不打 API，只更新狀態)
+            setInterval(() => {
+                if (currentTrainData && !document.hidden) {
+                    // 重新渲染，自動將時間到的車變灰
+                    renderCards(currentTrainData);
+                }
+            }, 15000);
+        }
+
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
         function getSearchResetTime(){return parseInt(localStorage.getItem(LS_SEARCH_RESET)||"0");}
@@ -530,22 +507,11 @@
 
         function updateToggleBtns() {
             const btnTime = document.getElementById('btnTimeFormat');
-            
-            btnTime.innerHTML = '<span class="toggle-icon">🕒</span> AM/PM';
-            if (!is24Hour) {
-                btnTime.classList.add('active'); 
-            } else {
-                btnTime.classList.remove('active'); 
-            }
+            // btnTime.innerHTML = '🕒 格式'; // 簡化文字
+            if (!is24Hour) btnTime.classList.add('active'); else btnTime.classList.remove('active');
 
             const btnAll = document.getElementById('btnShowAll');
-            if (isShowAll) {
-                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 顯示全部';
-                btnAll.classList.add('active');
-            } else {
-                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 顯示已駛離';
-                btnAll.classList.remove('active');
-            }
+            if (isShowAll) btnAll.classList.add('active'); else btnAll.classList.remove('active');
         }
         function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); }
         function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); }
@@ -553,86 +519,52 @@
         function formatTime(t) {
             if(!t) return "";
             if(is24Hour) return t;
-
-            const p = t.split(':');
-            if(p.length < 2) return t;
-
-            let h = parseInt(p[0]);
-            let suffix = "上午";
-
-            if(h >= 12) { 
-                suffix = "下午"; 
-                if(h > 12) h -= 12; 
-            } else if(h === 0) {
-                h = 12;
-            }
-
+            const p = t.split(':'); if(p.length < 2) return t;
+            let h = parseInt(p[0]); let suffix = "AM";
+            if(h >= 12) { suffix = "PM"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; }
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // [關鍵修正] 1:1 跟手滑動邏輯 (Browser Address Bar Style)
-        let lastScroll = 0;
-        let currentTranslate = 0; // 追蹤懸浮欄的位移
-        
+        // --- Sticky Header Scroll Logic (1:1 跟手) ---
+        let lastScroll = 0; let currentTranslate = 0;
         window.addEventListener('scroll', () => {
             const current = window.scrollY;
             const sticky = document.getElementById('stickyHeader');
             const placeholder = document.getElementById('stickyPlaceholder');
             const backToTop = document.getElementById('btnBackToTop');
-            
             const staticPart = document.querySelector('.header-static-part');
+            
             const threshold = staticPart ? staticPart.offsetHeight : 150;
             const stickyHeight = sticky.offsetHeight || 150;
 
-            // 1. Back to Top Logic
-            if(current > 300) {
-                backToTop.classList.add('visible');
-            } else {
-                backToTop.classList.remove('visible');
-            }
+            if(current > 300) backToTop.classList.add('visible'); else backToTop.classList.remove('visible');
 
-            // 2. Sticky Logic
             if (current <= threshold) {
-                // Zone 1: 回到頂部區域 - 強制復原，避免重影
                 sticky.classList.remove('is-fixed');
-                sticky.style.transform = 'translateY(0)'; // 清除位移
+                sticky.style.transform = 'translateY(0)';
                 placeholder.style.display = 'none';
-                currentTranslate = 0; // 重置狀態
+                currentTranslate = 0;
             } else {
-                // Zone 2: 捲動區域 - 啟動 Fixed 模式
                 if (!sticky.classList.contains('is-fixed')) {
                      placeholder.style.display = 'block';
                      placeholder.style.height = stickyHeight + 'px'; 
                      sticky.classList.add('is-fixed');
                 }
-
-                // 計算滑動差值 (Delta)
                 const diff = current - lastScroll;
-                
-                // 核心算法：currentTranslate 減去 diff，並限制在 [-stickyHeight, 0] 之間
                 currentTranslate -= diff;
-                
-                // Clamp (限制範圍)
                 if (currentTranslate > 0) currentTranslate = 0;
                 if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
-
-                // [安全鎖] 如果目前捲動位置還在「危險邊緣」(靜態欄剛結束的地方)
-                // 強制動態欄展開，避免快速滑動時的縫隙
-                if (current < threshold + stickyHeight + 10) {
-                    currentTranslate = 0;
-                }
-
-                // 直接應用樣式 (1:1 跟手)
-                // 補上 translateX(-50%) 因為 CSS 用了 left: 50%
+                if (current < threshold + stickyHeight + 10) currentTranslate = 0;
                 sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
             }
-            
-            // 防止 iOS 彈性滾動導致的負值問題
             lastScroll = current <= 0 ? 0 : current;
         });
 
         function init() {
-            logSystem("Init","App Started"); updateToggleBtns();
+            logSystem("Init","App Started"); 
+            startTicker(); // 啟動全域計時器
+            updateToggleBtns();
+            
             const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
             const savedSR = localStorage.getItem(PREF_START_R_KEY);
             if (savedSR) {
@@ -694,12 +626,13 @@
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
         
-        // 只有當有資料時才重新渲染
         function reRenderLocal() {
-            const c=localStorage.getItem(getCacheKey());
-            if(c) {
-                renderCards(JSON.parse(c).payload); 
+            if (currentTrainData) {
+                renderCards(currentTrainData);
+                return;
             }
+            const c=localStorage.getItem(getCacheKey());
+            if(c) renderCards(JSON.parse(c).payload); 
         }
         
         function attemptLoadCache(isInit) {
@@ -709,16 +642,16 @@
                 const d=JSON.parse(c);
                 if(Date.now()-d.timestamp < 60000) {
                     if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
-                    renderCards(d.payload); setUpdateText(`更新於(快取): ${d.payload.update_time}`);
-                    statusMsg.innerText=""; statusMsg.className="status-msg"; list.style.opacity="1"; 
+                    renderCards(d.payload); setUpdateText(`${d.payload.update_time}`);
+                    statusMsg.innerText=""; statusMsg.className="status-left"; list.style.opacity="1"; 
                     lastFetchedPair={start:startStation.value,end:endStation.value}; hit=true;
                 }
             }
             if(!hit) {
                 if(isInit) {
-                    statusMsg.innerText="請按「查詢」開始使用"; list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
+                    statusMsg.innerText="等待查詢"; list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
                 } else {
-                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更，請按「查詢」"; statusMsg.className="status-msg unsync";
+                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更"; statusMsg.className="status-left warning";
                 }
             }
             updateButtonMode();
@@ -731,7 +664,7 @@
 
         function doSearch() {
             const sS=startStation.value; const eS=endStation.value;
-            if(!sS||!eS) { statusMsg.innerText="請先選擇起點與終點"; statusMsg.className="status-msg alert"; setTimeout(()=>statusMsg.innerText="",2000); return; }
+            if(!sS||!eS) { statusMsg.innerText="請先選擇起點與終點"; statusMsg.className="status-left alert"; setTimeout(()=>statusMsg.innerText="",2000); return; }
             markAsChanged();
             if(sS===lastFetchedPair.start&&eS===lastFetchedPair.end) { doRefresh(); return; }
             const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime();
@@ -755,18 +688,15 @@
             fetchData("refresh");
         }
 
-        function parseDiag(str, isCdn) {
-            let source = "TDX API"; let quota = "--";
-            if (isCdn) source = "Vercel CDN";
-            else if (str.includes("Hit") || str.includes("Cache")) source = "Redis DB";
-            else if (str.includes("API")) source = "TDX API";
-            else source = "Unknown";
-            const match = str.match(/\(剩:\s*(\d+)\)/);
-            if (match) quota = match[1];
-            return { source, quota };
-        }
-
         function parseDiagnostics(diag, isCdn) {
+            const parseDiag = (str, isC) => {
+                let source = "TDX API"; let quota = "--";
+                if (isC) source = "Vercel CDN";
+                else if (str.includes("Hit") || str.includes("Cache")) source = "Redis DB";
+                else if (str.includes("API")) source = "TDX API";
+                const match = str.match(/\(剩:\s*(\d+)\)/); if (match) quota = match[1];
+                return { source, quota };
+            };
             const rInfo = parseDiag(diag.route_status, isCdn);
             const dInfo = diag.delay_status ? parseDiag(diag.delay_status, isCdn) : { source: "--", quota: "--" };
             lastDiagnostics = { route_source: rInfo.source, route_quota: rInfo.quota, delay_source: dInfo.source, delay_quota: dInfo.quota };
@@ -774,25 +704,17 @@
         }
 
         function getSkeletonHTML() {
-            let html = '';
-            for(let i=0; i<3; i++) {
-                html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
-            }
+            let html = ''; for(let i=0; i<3; i++) html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
             return html;
         }
 
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
-
-            list.innerHTML = getSkeletonHTML();
-            list.style.opacity="1";
-            statusMsg.innerText=""; 
-
+            list.innerHTML = getSkeletonHTML(); list.style.opacity="1"; statusMsg.innerText="載入中..."; 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
-            const s=startStation.value; const e=endStation.value; 
 
-            const cacheKey = getCacheKey();
-            const cached = localStorage.getItem(cacheKey);
+            const s=startStation.value; const e=endStation.value; 
+            const cacheKey = getCacheKey(); const cached = localStorage.getItem(cacheKey);
 
             if (cached) {
                 const d = JSON.parse(cached);
@@ -800,10 +722,9 @@
                     await new Promise(r => setTimeout(r, 200)); 
                     if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false);
                     renderCards(d.payload);
-                    setUpdateText(`更新於: ${d.payload.update_time} (資料未過期)`);
+                    setUpdateText(`${d.payload.update_time}`);
                     lastFetchedPair={start:s,end:e};
                     logSystem("Cache", "Hit local (Age < 60s)");
-
                     const now = Date.now();
                     if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false, 500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                     if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
@@ -816,62 +737,53 @@
                 const res=await fetch(`/api/index?start=${s}&end=${e}`);
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
-
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
+                
                 lastFetchedPair={start:s,end:e};
-
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
-                const displayQuota = (rInfo.quota !== "--") ? rInfo.quota : dInfo.quota;
-                logSystem("Status", `狀態: ${rInfo.source} / ${dInfo.source} (剩: ${displayQuota})`);
+                logSystem("Status", `狀態: ${rInfo.source} / ${dInfo.source}`);
 
                 if(json.delay_failed) {
-                    scheduleRetry("誤點資訊無法取得", "status-msg warning");
-                    setUpdateText(`更新於: ${json.update_time} (僅時刻表)`);
+                    scheduleRetry("誤點資料失敗", "status-left warning");
+                    setUpdateText(`${json.update_time} (僅時刻)`);
                 } else {
-                    setUpdateText(`更新於: ${json.update_time}`);
+                    setUpdateText(`${json.update_time}`);
+                    statusMsg.innerText = "更新完成";
+                    setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
                 }
                 const now=Date.now();
                 if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                 if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
-                scheduleRetry("連線發生問題", "status-msg alert");
+                scheduleRetry("連線錯誤", "status-left alert");
                 list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`;
             }
         }
 
         function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
 
-        function scheduleRetry(msg="誤點資訊無法取得", cls="status-msg warning") {
+        function scheduleRetry(msg="誤點資訊無法取得", cls="status-left warning") {
             let c=30; 
             if(retryTimer) clearInterval(retryTimer);
-            statusMsg.className = cls; 
-            statusMsg.innerText = `${msg} (30s 後重試)`;
-
+            statusMsg.className = cls; statusMsg.innerText = `${msg} (30s)`;
             retryTimer=setInterval(()=>{
-                c--; 
-                statusMsg.innerText=`${msg} (${c}s 後重試)`;
-                if(c<=0){
-                    clearInterval(retryTimer);
-                    retryTimer=null;
-                    doRefresh(true);
-                }
+                c--; statusMsg.innerText=`${msg} (${c}s)`;
+                if(c<=0){ clearInterval(retryTimer); retryTimer=null; doRefresh(true); }
             },1000);
         }
 
         function lockSearchButton(s) {
             if(searchLockTimer) clearInterval(searchLockTimer);
-            statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-msg alert";
-            btnSearch.classList.add('error'); btnSearch.disabled=true;
+            statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-left alert";
+            btnSearch.disabled=true; // search is now hidden, but logic remains
             const t=()=>{
-                btnSearch.innerText=`頻繁操作 (${s})`;
                 if(s<=0){
                     clearInterval(searchLockTimer); btnSearch.disabled=false;
-                    btnSearch.classList.remove('error'); btnSearch.innerText="🔍 查詢路線";
                     statusMsg.innerText=""; setSearchLockedUntil(0);
                 } s--;
             }; t(); searchLockTimer=setInterval(t,1000);
@@ -880,7 +792,7 @@
             if(refreshTimer) clearInterval(refreshTimer);
             btnRefresh.disabled=true;
             const t=()=>{
-                btnRefresh.innerText=`更新 (${s})`;
+                btnRefresh.innerText=`${s}`;
                 if(s<=0){
                     clearInterval(refreshTimer); btnRefresh.disabled=false;
                     btnRefresh.innerText="🔄 更新"; setRefreshLockedUntil(0);
@@ -889,9 +801,11 @@
         }
 
         function renderCards(data) {
+            currentTrainData = data; // 儲存供被動更新使用
+
             if(data.trains && data.trains.length > 0) {
                 let cardsHtml = '';
-                let anyArriving = false; // 偵測是否有進站中的車
+                let anyArriving = false; 
 
                 let has = false;
                 let hasShownNextDayDivider = false;
@@ -903,11 +817,7 @@
                 data.trains.forEach((t, index) => {
                     const diffSec = t.sort_key - nowSec;
                     const diffMin = Math.floor(diffSec / 60);
-
-                    // 1. 已駛離 (diffMin < 0)
                     let isDeparted = diffSec < 0; 
-
-                    // 2. 進站中 (10分鐘內，且未駛離)
                     let isArriving = !isDeparted && diffMin <= 10;
                     if(isArriving) anyArriving = true;
 
@@ -930,6 +840,7 @@
                         foundFirstActive = true;
                     }
 
+                    // [修改] 使用新的同步 LED，只在進站中顯示
                     let leftIndicatorHtml = '';
                     if (isArriving) {
                         leftIndicatorHtml = `
@@ -949,7 +860,6 @@
                     }
 
                     const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-
                     let cardClass = "card";
                     if (isDeparted) cardClass += " departed-card";
 
@@ -974,33 +884,14 @@
                     </a>`;
                 });
 
-                // 根據是否有進站中列車，決定提示文字樣式
-                let hintHtml = `<div class="click-hint">
-                    <div class="hint-text-group ${anyArriving ? '' : 'only-text'}">
-                        <span class="hint-text">👆 點擊卡片查看</span>
-                        <span class="click-hint-sub">即時位置 & 完整停靠站</span>
-                    </div>`;
+                // 移除舊的 hintHtml，因為已經整合到 header
+
+                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
+
+                // 只有在非被動更新 (例如按鈕觸發) 時才滾動
+                // 這裡簡單判定：如果是因為 setInterval 呼叫的，不要滾動 (UX 考量)
+                // 但為了簡單起見，我們只在有 activeId 且頁面剛載入時滾動 (略過)
                 
-                if (anyArriving) {
-                    hintHtml += `
-                    <div class="hint-divider"></div>
-                    <div class="legend-row">
-                        <div class="indicator-icon">
-                            <div class="led-dot top"></div>
-                            <div class="led-dot bottom"></div>
-                        </div>
-                        <span>10分鐘內進站</span>
-                    </div>`;
-                }
-                hintHtml += `</div>`;
-
-                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : (hintHtml + cardsHtml);
-
-                setTimeout(() => {
-                    const el = document.getElementById("firstActive");
-                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                }, 300);
-
                 return;
             }
 
@@ -1018,36 +909,26 @@
         function goToPage(id){
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
-
             if(id==='Report'){
+                // (Report generation logic same as before)
                 const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
                 document.getElementById('statRpm').innerText=rpm;
                 document.getElementById('cardRpm').classList.toggle('danger', rpm>=5);
                 document.getElementById('statTotal').innerText=requestHistory.length;
                 const last=requestHistory[requestHistory.length-1];
                 document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
-
-                const getColor = (src) => {
-                    if(src.includes("Vercel")||src.includes("Redis")) return "green";
-                    if(src.includes("API")) return "yellow";
-                    return "red";
-                };
-
+                const getColor = (src) => { if(src.includes("Vercel")||src.includes("Redis")) return "green"; if(src.includes("API")) return "yellow"; return "red"; };
                 const displayQuota = (lastDiagnostics.route_quota !== "--") ? lastDiagnostics.route_quota : lastDiagnostics.delay_quota;
-
                 const elStatus = document.getElementById('diagStatus');
                 elStatus.innerHTML = `<span class="badge ${getColor(lastDiagnostics.route_source)}">${lastDiagnostics.route_source}</span> / <span class="badge ${getColor(lastDiagnostics.delay_source)}">${lastDiagnostics.delay_source}</span>`;
-
                 const elQuota = document.getElementById('diagQuota');
                 elQuota.innerHTML = `<span style="font-size:1.1rem; color:#fff;">${displayQuota}</span>`;
-
-                const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
+                const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone);
                 let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
                 r += `裝置: ${navigator.userAgent}\n畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
                 r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
                 r += `狀態: [${lastDiagnostics.route_source}] / [${lastDiagnostics.delay_source}]\n剩餘: ${displayQuota}\n`;
                 r += `--- Log ---\n${systemLogs.join("\n")}`;
-
                 document.getElementById('reportContent').value = r;
                 document.getElementById('terminalView').innerText = systemLogs.join("\n");
             }
@@ -1055,11 +936,7 @@
         function copyReportOnly() {
             let final = document.getElementById('reportContent').value;
             const uDesc = document.getElementById('userDesc').value; if(uDesc) final += `\n\nUser: ${uDesc}`;
-            navigator.clipboard.writeText(final).then(() => {
-                const btn=document.getElementById('btnCopyReport'); const original = btn.innerText;
-                btn.innerText = "✅ 已複製"; btn.style.background = "#4d7f5e";
-                setTimeout(()=>{ btn.innerText = original; btn.style.background = ""; }, 2000);
-            }).catch(e=>{alert('複製失敗');});
+            navigator.clipboard.writeText(final).then(() => { alert("已複製"); }).catch(e=>{alert('複製失敗');});
         }
         function openMailClient() {
             const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
@@ -1067,105 +944,53 @@
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
         }
 
-        // === 常用路線與歷史紀錄邏輯 ===
-        const LS_FAV = "tl_favorites";
-        const LS_HIST = "tl_history";
-        const MAX_HIST = 3;
-        const MAX_FAV = 6;
+        // === 常用路線與歷史紀錄 ===
+        const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
+        const MAX_HIST = 3; const MAX_FAV = 6;
         const btnStar = document.getElementById('btnStar');
         const quickArea = document.getElementById('quickRouteArea');
 
         function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
-
         function isFavorite(s, e) {
             const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
             return favs.some(f => f.start === s && f.end === e);
         }
-
         function toggleFavorite() {
-            const cur = getCurrentPair();
-            if (!cur.start || !cur.end) return;
-
+            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
             let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
             const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
-
-            if (idx >= 0) {
-                favs.splice(idx, 1); 
-                logSystem("Fav", "Removed");
-            } else {
-                if (favs.length >= MAX_FAV) { alert(`常用路線最多儲存 ${MAX_FAV} 組`); return; }
-                favs.unshift(cur); 
-                logSystem("Fav", "Added");
-            }
+            if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav", "Removed"); } 
+            else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav", "Added"); }
             localStorage.setItem(LS_FAV, JSON.stringify(favs));
-            updateStarState();
-            renderQuickRoutes();
+            updateStarState(); renderQuickRoutes();
         }
-
         function addToHistory() {
-            const cur = getCurrentPair();
-            if (!cur.start || !cur.end) return;
-
+            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
             let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
             hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
-            hist.unshift(cur);
-            if (hist.length > MAX_HIST) hist.pop();
-
+            hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop();
             localStorage.setItem(LS_HIST, JSON.stringify(hist));
             renderQuickRoutes();
         }
-
         function updateStarState() {
             const cur = getCurrentPair();
-            const btn = document.getElementById('btnStar');
-            if (isFavorite(cur.start, cur.end)) {
-                btn.innerHTML = '<span class="toggle-icon">★</span> 收藏路線';
-                btn.classList.add('fav-active');
-            } else {
-                btn.innerHTML = '<span class="toggle-icon">☆</span> 收藏路線';
-                btn.classList.remove('fav-active');
-            }
+            if (isFavorite(cur.start, cur.end)) { btnStar.innerText = '★ 已收藏'; btnStar.classList.add('fav-active'); } 
+            else { btnStar.innerText = '☆ 收藏'; btnStar.classList.remove('fav-active'); }
         }
-
         function loadRoute(s, e) {
-            const sR = STATION_INDEX[s];
-            const eR = STATION_INDEX[e];
+            const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
             if (sR && eR) {
-                setMenu('start', sR, s);
-                setMenu('end', eR, e);
-                localStorage.setItem(PREF_START_R_KEY, startRegion.value);
-                localStorage.setItem(PREF_START_S_KEY, startStation.value);
-                localStorage.setItem(PREF_END_R_KEY, endRegion.value);
-                localStorage.setItem(PREF_END_S_KEY, endStation.value);
-                updateStarState();
-                doSearch(); 
+                setMenu('start', sR, s); setMenu('end', eR, e);
+                markAsChanged(); doSearch(); 
             }
         }
-
         function renderQuickRoutes() {
             const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
             const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-
             let html = '';
-            favs.forEach(r => {
-                html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">
-                    ${r.start}<span class="chip-arrow">➔</span>${r.end}
-                </div>`;
-            });
-            hist.forEach(r => {
-                if (!isFavorite(r.start, r.end)) {
-                    html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">
-                        ${r.start}<span class="chip-arrow">➔</span>${r.end}
-                    </div>`;
-                }
-            });
-
-            if (html === '') {
-                quickArea.style.display = 'none';
-            } else {
-                quickArea.style.display = 'flex';
-                quickArea.innerHTML = html;
-            }
+            favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
+            hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
+            quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
         }
 
         init();
