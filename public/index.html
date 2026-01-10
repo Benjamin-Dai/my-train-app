@@ -68,18 +68,31 @@
         /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* [修改] 提示文字與圖例優化 */
+        /* [修改] 提示區塊樣式：改為左右排列 */
         .click-hint {
             display: flex;
-            flex-direction: column;
+            flex-direction: row; /* 左右排列 */
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 15px;
             padding: 12px 0 8px 0;
             color: #888;
             font-size: 0.85rem;
             animation: fadeIn 1s;
         }
+        
+        /* 左側文字群組 */
+        .hint-text-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; /* 靠右對齊分隔線 */
+            line-height: 1.3;
+        }
+        /* 如果只有文字沒有圖例，就置中 */
+        .hint-text-group.only-text {
+            align-items: center;
+        }
+
         .hint-text {
             color: #4d7f5e;
             font-weight: bold;
@@ -91,17 +104,25 @@
             font-weight: normal;
             color: #888;
         }
+
+        /* 中間分隔線 */
+        .hint-divider {
+            width: 1px;
+            height: 24px;
+            background: #333;
+        }
+
+        /* 右側圖例 */
         .legend-row {
             display: flex;
             align-items: center;
             gap: 8px;
             background: rgba(255, 255, 255, 0.08);
-            padding: 4px 12px;
+            padding: 4px 10px;
             border-radius: 20px;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #ccc;
         }
-        /* 用於圖例的燈號容器 (非絕對定位) */
         .indicator-icon {
             display: flex;
             flex-direction: column;
@@ -926,22 +947,9 @@
 
         function renderCards(data) {
             if(data.trains && data.trains.length > 0) {
-                // [修改] 增加燈號圖例
-                let html = `
-                <div class="click-hint">
-                    <div>
-                        <span class="hint-text">👆 點擊卡片查看</span> 
-                        <span class="click-hint-sub">即時位置 & 完整停靠站</span>
-                    </div>
-                    <div class="legend-row">
-                        <div class="indicator-icon">
-                            <div class="led-dot top"></div>
-                            <div class="led-dot bottom"></div>
-                        </div>
-                        <span>10分鐘內進站</span>
-                    </div>
-                </div>`;
-                
+                let cardsHtml = '';
+                let anyArriving = false; // 偵測是否有進站中的車
+
                 let has = false;
                 let hasShownNextDayDivider = false;
                 let lastTrainTs = 0;
@@ -958,6 +966,7 @@
 
                     // 2. 進站中 (10分鐘內，且未駛離)
                     let isArriving = !isDeparted && diffMin <= 10;
+                    if(isArriving) anyArriving = true;
 
                     if (!isShowAll && diffMin < -10) return;
 
@@ -965,7 +974,7 @@
                         const thisDate = new Date(t.sort_key * 1000);
                         const lastDate = new Date(lastTrainTs * 1000);
                         if (thisDate.getDate() !== lastDate.getDate()) {
-                             html += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:10px;">⬇ 次日班次 ⬇</div>`;
+                             cardsHtml += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:10px;">⬇ 次日班次 ⬇</div>`;
                              hasShownNextDayDivider = true;
                         }
                     }
@@ -1001,7 +1010,7 @@
                     let cardClass = "card";
                     if (isDeparted) cardClass += " departed-card";
 
-                    html += `<a href="${url}" target="_blank" ${activeId}>
+                    cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
                             ${leftIndicatorHtml}
                             <div class="status-badge-container">${rightBadgesHtml}</div>
@@ -1022,7 +1031,27 @@
                     </a>`;
                 });
 
-                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : html;
+                // 根據是否有進站中列車，決定提示文字樣式
+                let hintHtml = `<div class="click-hint">
+                    <div class="hint-text-group ${anyArriving ? '' : 'only-text'}">
+                        <span class="hint-text">👆 點擊卡片查看</span>
+                        <span class="click-hint-sub">即時位置 & 完整停靠站</span>
+                    </div>`;
+                
+                if (anyArriving) {
+                    hintHtml += `
+                    <div class="hint-divider"></div>
+                    <div class="legend-row">
+                        <div class="indicator-icon">
+                            <div class="led-dot top"></div>
+                            <div class="led-dot bottom"></div>
+                        </div>
+                        <span>10分鐘內進站</span>
+                    </div>`;
+                }
+                hintHtml += `</div>`;
+
+                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : (hintHtml + cardsHtml);
 
                 setTimeout(() => {
                     const el = document.getElementById("firstActive");
