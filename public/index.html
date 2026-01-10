@@ -28,17 +28,15 @@
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; position: relative; }
 
-        /* Header 容器 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative; overflow: visible; }
+        /* Header 基礎樣式 */
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative;}
 
         /* 區塊 A: 靜態區 */
         .header-static-part {
             padding: 15px 15px 5px 15px; 
             background: #151517;
             position: relative;
-            z-index: 10;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
+            z-index: 10; /* 確保層級 */
         }
 
         /* 區塊 B: 懸浮區 */
@@ -49,17 +47,19 @@
             border-bottom-right-radius: 12px;
             width: 100%;
             z-index: 100;
-            position: relative; 
             will-change: transform; 
+            /* 預設 relative */
+            position: relative; 
         }
 
-        /* 狀態二：懸浮模式 (Fixed) */
+        /* 懸浮時的狀態 */
         .header-sticky-part.is-fixed {
             position: fixed;
             top: 0; 
             width: calc(100% - 20px); 
             max-width: 500px; 
             left: 50%; 
+            /* 注意：translateX(-50%) 由 JS 動態控制，這裡寫是為了保險 */
             transform: translateX(-50%); 
             
             border-radius: 0 0 12px 12px; 
@@ -71,11 +71,11 @@
             padding-bottom: 8px;
         }
 
-        /* 懸浮時：隱藏大按鈕區 */
+        /* 懸浮時：隱藏原本的大按鈕區 */
         .header-sticky-part.is-fixed .action-area { display: none; }
         
         /* 懸浮時：顯示整合版更新鈕 */
-        .btn-refresh-sticky-wrapper { display: none; flex: 0 0 auto; min-width: 80px; }
+        .btn-refresh-sticky-wrapper { display: none; flex: 1.2; }
         .header-sticky-part.is-fixed .btn-refresh-sticky-wrapper { display: block; }
 
         .header-sticky-part.is-fixed .click-hint { margin-top: 6px; padding-top: 6px; }
@@ -83,7 +83,7 @@
         /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* 提示區塊 */
+        /* 提示區塊樣式 */
         .click-hint {
             display: flex; flex-direction: row; align-items: center; justify-content: center;
             gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem;
@@ -515,7 +515,6 @@
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         let statusTimer = null; 
         
-        // [新增] 自動捲動鎖定標記
         let isAutoScrolling = false;
 
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
@@ -607,10 +606,9 @@
         let currentTranslate = 0; 
         
         window.addEventListener('scroll', () => {
-            // [關鍵] 如果正在自動捲動，直接跳過邏輯，保持動態欄顯示
             if (isAutoScrolling) {
+                // 自動滾動時，強制解鎖並顯示動態欄
                 const sticky = document.getElementById('stickyHeader');
-                sticky.classList.remove('is-hidden'); 
                 sticky.style.transform = `translateX(-50%) translateY(0)`; 
                 return;
             }
@@ -630,9 +628,10 @@
                 backToTop.classList.remove('visible');
             }
 
+            // [關鍵] 嚴格防守區：只要小於 static height，強制 reset
             if (current <= threshold) {
                 sticky.classList.remove('is-fixed');
-                sticky.style.transform = 'translateY(0)'; 
+                sticky.style.transform = 'translateX(-50%) translateY(0)'; // Reset
                 placeholder.style.display = 'none';
                 currentTranslate = 0; 
             } else {
@@ -658,44 +657,42 @@
             lastScroll = current <= 0 ? 0 : current;
         });
 
-        // [新增] 專門處理「捲動到目標卡片」的函式
+        // [優化] 自動滾動：開啟無敵模式
         function scrollToActiveCard() {
             const el = document.getElementById("firstActive");
             if (!el) return;
 
-            // 1. 開啟鎖定，禁止 scroll 事件隱藏動態欄
             isAutoScrolling = true;
 
-            // 2. 強制顯示動態欄 (以防萬一)
             const sticky = document.getElementById('stickyHeader');
-            sticky.classList.remove('is-hidden'); 
+            // 強制展開
             sticky.style.transform = `translateX(-50%) translateY(0)`; 
+            currentTranslate = 0;
 
-            // 3. 計算精確位置
+            // 計算位置：目標元素頂部 - 動態欄高度 - 一點緩衝
             const headerHeight = sticky.offsetHeight || 150;
             const elementPosition = el.getBoundingClientRect().top + window.scrollY;
-            const offsetPosition = elementPosition - headerHeight - 10; // 留 10px 縫隙
+            const offsetPosition = elementPosition - headerHeight - 10; 
 
-            // 4. 執行捲動
             window.scrollTo({
                 top: offsetPosition,
                 behavior: "smooth"
             });
 
-            // 5. 解除鎖定 (給一點時間讓動畫跑完)
+            // 鎖定 800ms 讓動畫跑完，防止 scroll event 干擾
             setTimeout(() => {
                 isAutoScrolling = false;
-                lastScroll = window.scrollY; // 同步最後位置，避免下次滑動跳躍
-            }, 600);
+                lastScroll = window.scrollY; 
+            }, 800);
         }
 
-        // [新增] 強制重置動態欄狀態 (給搜尋/切換用)
+        // [優化] 重置動態欄 (搜尋/切換時使用)
         function resetStickyState() {
             const sticky = document.getElementById('stickyHeader');
             const placeholder = document.getElementById('stickyPlaceholder');
             
             sticky.classList.remove('is-fixed');
-            sticky.style.transform = 'translateY(0)';
+            sticky.style.transform = 'translateX(-50%) translateY(0)';
             placeholder.style.display = 'none';
             currentTranslate = 0;
             isAutoScrolling = false;
@@ -928,7 +925,6 @@
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
 
-            // [關鍵] 強制重置動態欄狀態，避免錯位
             resetStickyState();
 
             list.innerHTML = getSkeletonHTML();
@@ -1169,7 +1165,7 @@
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
 
-                // [修改] 呼叫自動捲動邏輯
+                // 呼叫自動捲動邏輯 (會觸發 isAutoScrolling 鎖定)
                 scrollToActiveCard();
 
                 return;
