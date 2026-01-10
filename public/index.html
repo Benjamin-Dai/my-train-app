@@ -12,130 +12,105 @@
     <link rel="icon" type="image/png" href="/icon.png">
 
     <style>
-        /* 防止寬度計算超出螢幕 */
+        /* --- 基礎設定 --- */
         *, *::before, *::after { box-sizing: border-box; }
-
-        /* 平滑捲動 */
         html { scroll-behavior: smooth; }
-
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; position: relative; }
 
-        /* Header 基礎樣式 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative; overflow: visible; }
+        /* --- Header 容器 --- */
+        .header { margin-bottom: 15px; position: relative; overflow: visible; }
 
-        /* 區塊 A: 靜態區 */
+        /* --- A. 靜態區 (上半部) --- */
         .header-static-part {
-            padding: 15px 15px 5px 15px; 
+            padding: 15px 15px 0 15px; /* 底部 0 padding 讓連接更緊密 */
             background: #151517;
             position: relative;
-            z-index: 10;
+            z-index: 10; /* 層級較低，被動態區蓋住邊緣 */
+            
+            /* 視覺無縫關鍵：只有上圓角、沒有底邊框 */
             border-top-left-radius: 12px;
             border-top-right-radius: 12px;
+            border: 1px solid #333;
+            border-bottom: none; 
         }
 
-        /* 區塊 B: 懸浮區 (修改版：使用 Sticky) */
+        /* --- B. 動態懸浮區 (下半部) --- */
         .header-sticky-part {
             padding: 5px 15px 10px 15px;
             background: #151517; 
+            width: 100%;
+            z-index: 100; /* 層級較高，確保蓋住接縫 */
+
+            /* 核心：Sticky 定位 */
+            position: -webkit-sticky;
+            position: sticky;
+            top: -1px; /* 【關鍵優化】向上推 1px，消除 1px 縫隙 */
+
+            /* 視覺無縫關鍵：只有下圓角、沒有頂邊框 */
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
-            width: 100%;
-            z-index: 100;
-            
-            /* --- 關鍵修改：Sticky 定位 --- */
-            position: -webkit-sticky; /* Safari 支援 */
-            position: sticky;
-            top: -1px; /* 設為 -1px 消除縫隙 */
-
-            /* 視覺設定 */
             border: 1px solid #333;
             border-top: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
             
-            /* 動畫效能優化 */
-            will-change: transform; 
-            transition: transform 0.1s linear; /* 讓跟隨手指更滑順 */
+            /* 預設無陰影，與上方合體 */
+            box-shadow: none;
+
+            will-change: transform;
+            transition: box-shadow 0.2s ease;
         }
 
-        /* --- 模式切換邏輯 (取代原本的 is-fixed) --- */
-        
-        /* 預設顯示大按鈕區 */
-        .action-area { margin-top: 5px; display: flex; gap: 8px; transition: opacity 0.2s; }
-        
-        /* 預設隱藏整合版更新鈕 */
-        .btn-refresh-sticky-wrapper { display: none; flex: 0 0 auto; min-width: 80px; }
-
-        /* [Compact Mode] 當 Header 收合時的樣式 */
-        .header-sticky-part.compact-mode .action-area { 
-            display: none; 
+        /* 當離開頂部懸浮時的樣式 */
+        .header-sticky-part.is-floating {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            /* 懸浮時補回頂部邊框，讓它看起來獨立 */
+            border-top: 1px solid #333;
+            border-radius: 0 0 12px 12px;
         }
+
+        /* --- 按鈕顯示邏輯 --- */
+        /* 預設：顯示大按鈕 */
+        .action-area { display: flex; gap: 8px; margin-top: 5px; }
+        .btn-refresh-sticky-wrapper { display: none; }
+
+        /* 精簡模式 (Compact Mode)：隱藏大按鈕，顯示小按鈕 */
+        .header-sticky-part.compact-mode .action-area { display: none; }
         .header-sticky-part.compact-mode .btn-refresh-sticky-wrapper { 
             display: block; 
+            flex: 0 0 auto; 
+            min-width: 80px; 
+            animation: fadeIn 0.3s;
         }
-        .header-sticky-part.compact-mode .click-hint { 
-            margin-top: 6px; padding-top: 6px; 
-        }
+        .header-sticky-part.compact-mode .click-hint { margin-top: 6px; padding-top: 6px; }
 
-        /* 提示區塊 */
-        .click-hint {
-            display: flex; flex-direction: row; align-items: center; justify-content: center;
-            gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem;
-            border-top: 1px solid #2c2c2e; margin-top: 10px;
-            opacity: 0; transition: opacity 0.3s;
-        }
+        /* --- 其他樣式 --- */
+        .click-hint { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem; border-top: 1px solid #2c2c2e; margin-top: 10px; opacity: 0; transition: opacity 0.3s; }
         .click-hint.visible { opacity: 1; }
-        
         .hint-text-group { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
         .hint-text-group.only-text { align-items: center; }
-
         .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.85rem; }
         .click-hint-sub { font-size: 0.75rem; opacity: 0.8; font-weight: normal; color: #888; }
-
         .hint-divider { width: 1px; height: 20px; background: #444; }
-
-        .legend-row {
-            display: flex; align-items: center; gap: 6px;
-            background: rgba(255, 255, 255, 0.05); padding: 3px 8px;
-            border-radius: 12px; font-size: 0.75rem; color: #ccc;
-        }
+        .legend-row { display: flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, 0.05); padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; color: #ccc; }
         .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
 
-        /* Back to Top */
-        .back-to-top {
-            position: fixed; bottom: 25px; right: 25px;
-            width: 50px; height: 50px; background: #4d7f5e; color: #fff;
-            border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; z-index: 90; opacity: 0;
-            transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; 
-        }
+        .back-to-top { position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 90; opacity: 0; transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; }
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
         .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
-
-        .install-btn-top {
-            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s;
-        }
+        .install-btn-top { background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s; }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
-
-        @keyframes pulse-white-gold {
-            0%, 100% { color: #fff; border-color: #444; }
-            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
-        }
-        .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
-
         .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
 
-        .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
+        .search-row { display: flex; gap: 8px; margin-bottom: 8px; width: 100%; } 
         .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
         .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
         .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
 
-        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; } 
         .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
         .select-group { flex: 1; display: flex; gap: 5px; }
         .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; text-align: center; }
@@ -143,20 +118,9 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        /* 橫向捲動 Chips */
-        .quick-route-area { 
-            margin: 5px 0 10px 0; 
-            display: flex; flex-wrap: nowrap; gap: 8px; 
-            min-height: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;
-            padding-right: 20px; scrollbar-width: none; 
-        }
+        .quick-route-area { margin: 5px 0 10px 0; display: flex; flex-wrap: nowrap; gap: 8px; min-height: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-right: 20px; scrollbar-width: none; }
         .quick-route-area::-webkit-scrollbar { display: none; }
-
-        .route-chip { 
-            display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
-            padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; 
-            user-select: none; white-space: nowrap; flex: 0 0 auto; 
-        }
+        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; white-space: nowrap; flex: 0 0 auto; }
         .route-chip:active { transform: scale(0.95); background: #333; }
         .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
@@ -169,38 +133,23 @@
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
         .btn.error { background: #d32f2f !important; color: white !important; }
 
-        /* 工具列橫向捲動設定 */
-        .view-toolbar { 
-            display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; 
-            overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-        }
+        .view-toolbar { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .view-toolbar::-webkit-scrollbar { display: none; }
 
-        .toggle-btn { 
-            flex: 0 0 auto; /* 禁止壓縮 */
-            background: #222; border: 1px solid #444; color: #888; 
-            padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; 
-            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; 
-        }
+        .toggle-btn { flex: 0 0 auto; background: #222; border: 1px solid #444; color: #888; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; }
         .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
         .toggle-btn.fav-active { background: rgba(230, 184, 0, 0.15); color: #e6b800; border-color: #e6b800; font-weight: bold; }
         .toggle-btn:active { transform: scale(0.98); }
         .toggle-icon { font-size: 1rem; line-height: 1; }
 
-        .btn-sticky-refresh {
-            width: 100%; height: 100%; background: #4d7f5e; color: #fff;
-            border: 1px solid #4d7f5e; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; font-weight: bold; white-space: nowrap;
-        }
+        .btn-sticky-refresh { width: 100%; height: 100%; background: #4d7f5e; color: #fff; border: 1px solid #4d7f5e; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; font-weight: bold; white-space: nowrap; }
         .btn-sticky-refresh:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
         .btn-sticky-refresh:active { transform: scale(0.98); }
 
         .status-container { text-align: center; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
-        
         .status-msg { display: none; font-size: 0.85rem; font-weight: bold; color: #aaa; margin-bottom: 2px; }
         .status-msg.alert { display: block; color: #ff4d4d; animation: fadeIn 0.5s; } 
         .status-msg.warning { display: block; color: #e6b800; animation: fadeIn 0.5s; } 
-        
         .update-time { font-size: 0.7rem; color: #555; font-family: monospace; min-height: 1em; }
 
         .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, opacity 0.5s; }
@@ -208,21 +157,13 @@
         .card:active { transform: scale(0.98); background-color: #222; }
 
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
-
         .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 6px; flex-wrap: nowrap; }
         .time-group { display: flex; flex-direction: column; align-items: center; }
         .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
-
-        .time-part { 
-            font-size: 1.8rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; 
-        }
-        .ampm { 
-            font-size: 1rem; margin-right: 3px; color: #aaa; font-weight: normal; 
-        }
+        .time-part { font-size: 1.8rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; }
+        .ampm { font-size: 1rem; margin-right: 3px; color: #aaa; font-weight: normal; }
         .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
-
         @media (max-width: 360px) { .time-part { font-size: 1.5rem; } .ampm { font-size: 0.85rem; } }
-
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
@@ -235,24 +176,11 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
-        /* 全域 LED 系統 */
-        .left-indicator { 
-            position: absolute; left: 12px; top: 50%; transform: translateY(-50%); 
-            display: flex; flex-direction: column; gap: 6px; 
-            opacity: 0; transition: opacity 0.5s;
-        }
+        .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; opacity: 0; transition: opacity 0.5s; }
         .card.is-arriving .left-indicator { opacity: 1; }
-
-        .led-dot { 
-            width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; 
-            transition: opacity 0.1s, box-shadow 0.1s; 
-        }
-
-        body.led-phase-0 .led-dot.top,
-        body.led-phase-1 .led-dot.bottom { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
-
-        body.led-phase-0 .led-dot.bottom,
-        body.led-phase-1 .led-dot.top { opacity: 0.2; box-shadow: none; }
+        .led-dot { width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; transition: opacity 0.1s, box-shadow 0.1s; }
+        body.led-phase-0 .led-dot.top, body.led-phase-1 .led-dot.bottom { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
+        body.led-phase-0 .led-dot.bottom, body.led-phase-1 .led-dot.top { opacity: 0.2; box-shadow: none; }
 
         .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
@@ -306,6 +234,12 @@
         .btn-half { flex: 1; font-size: 0.9rem; }
         .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
         .btn-primary { background: #007AFF; color: white; }
+        
+        @keyframes pulse-white-gold {
+            0%, 100% { color: #fff; border-color: #444; }
+            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
+        }
+        .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
     </style>
 </head>
 <body>
@@ -592,45 +526,46 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // === 新的動態選單邏輯 (Sticky + Transform) ===
+        // === 最終版 Smart Sticky 邏輯 (大按鈕僅限頂部) ===
+
         let lastScrollY = window.scrollY;
         let currentTranslateY = 0;
         const stickyHeader = document.getElementById('stickyHeader');
+        const staticPart = document.querySelector('.header-static-part');
 
         window.addEventListener('scroll', () => {
-            if (isAutoScrolling) return; // 自動捲動時暫停互動
-
             const currentScrollY = window.scrollY;
             const diff = currentScrollY - lastScrollY;
             const headerHeight = stickyHeader.offsetHeight;
+            const staticHeight = staticPart ? staticPart.offsetHeight : 130;
 
-            // 取得靜態區的高度，用來判斷何時開始計算
-            const staticPart = document.querySelector('.header-static-part');
-            const staticHeight = staticPart ? staticPart.offsetHeight : 100;
-
-            // 1. 處理「展開/收起」的位移 (Transform)
-            if (currentScrollY > staticHeight) {
-                currentTranslateY -= diff;
-
-                // 限制位移範圍
-                if (currentTranslateY > 0) currentTranslateY = 0;
-                if (currentTranslateY < -headerHeight) currentTranslateY = -headerHeight;
+            // 1. 處理位移 (如果正在自動捲動，強制不收起)
+            if (!isAutoScrolling) {
+                if (currentScrollY > staticHeight) {
+                    currentTranslateY -= diff;
+                    if (currentTranslateY > 0) currentTranslateY = 0;
+                    if (currentTranslateY < -headerHeight) currentTranslateY = -headerHeight;
+                } else {
+                    currentTranslateY = 0;
+                }
             } else {
-                // 如果還在頂部靜態區，強制展開歸零
+                // 自動捲動中，強制展開
                 currentTranslateY = 0;
             }
 
-            // 2. 套用位移
-            stickyHeader.style.transform = `translateY(${currentTranslateY}px)`;
-
-            // 3. 切換內容模式 (Compact Mode)
-            if (currentScrollY > staticHeight + 20) { 
-                stickyHeader.classList.add('compact-mode');
+            // 2. 狀態與模式切換 (無論是否自動捲動，視覺狀態都要正確)
+            if (currentScrollY > staticHeight + 10) {
+                stickyHeader.classList.add('is-floating');
+                stickyHeader.classList.add('compact-mode'); // 離開頂部就精簡模式
             } else {
-                stickyHeader.classList.remove('compact-mode');
+                stickyHeader.classList.remove('is-floating');
+                stickyHeader.classList.remove('compact-mode'); // 回到頂部就大按鈕
             }
 
-            // 4. Back to Top 按鈕顯示邏輯
+            // 3. 套用位移
+            stickyHeader.style.transform = `translateY(${currentTranslateY}px)`;
+
+            // 4. Back to Top 按鈕
             const backToTop = document.getElementById('btnBackToTop');
             if (currentScrollY > 300) {
                 backToTop.classList.add('visible');
@@ -641,40 +576,42 @@
             lastScrollY = currentScrollY;
         });
 
-        // [優化] 自動捲動：開啟無敵模式 + 強制歸位
+        // 修改後的 scrollToActiveCard (加入強制展開邏輯)
         function scrollToActiveCard() {
             const el = document.getElementById("firstActive");
             if (!el) return;
 
             isAutoScrolling = true;
 
-            // 強制完全展開
+            // 1. 強制展開與重置位置
             currentTranslateY = 0;
             stickyHeader.style.transform = `translateY(0px)`;
-            stickyHeader.classList.remove('compact-mode'); // 確保顯示完整按鈕
-
+            
+            // 2. 計算目標位置
             const headerHeight = stickyHeader.offsetHeight || 150;
             const elementPosition = el.getBoundingClientRect().top + window.scrollY;
             const offsetPosition = elementPosition - headerHeight - 10; 
 
+            // 3. 執行捲動
             window.scrollTo({
                 top: offsetPosition,
                 behavior: "smooth"
             });
 
-            // 鎖定稍長時間，防止慣性滾動干擾
+            // 4. 解除鎖定
             setTimeout(() => {
                 isAutoScrolling = false;
                 lastScrollY = window.scrollY; 
             }, 800);
         }
 
-        // [優化] 重置動態欄 (搜尋/切換時使用)
+        // 重置 Header 狀態 (搜尋/刷新用)
         function resetHeaderState() {
             currentTranslateY = 0;
             if(stickyHeader) {
                 stickyHeader.style.transform = 'translateY(0)';
                 stickyHeader.classList.remove('compact-mode');
+                stickyHeader.classList.remove('is-floating');
             }
             isAutoScrolling = false;
         }
@@ -757,7 +694,7 @@
                     }
                 } else {
                     if (cardDiv.classList.contains('departed-card')) {
-                            cardDiv.classList.remove('departed-card', 'past');
+                         cardDiv.classList.remove('departed-card', 'past');
                     }
                     
                     if (isArriving) {
@@ -769,7 +706,6 @@
                 }
             });
 
-            // [修改] 只有當狀態真的改變時才更新 Hint UI，避免閃爍
             const currentHintState = hintContainer.getAttribute('data-arriving') === 'true';
             if (currentHintState !== anyArriving) {
                 updateHintUI(anyArriving);
@@ -819,7 +755,6 @@
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
         
-        // 只有當有資料時才重新渲染
         function reRenderLocal() {
             const c=localStorage.getItem(getCacheKey());
             if(c) {
@@ -910,12 +845,12 @@
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
 
-            resetHeaderState(); // 使用新的重置函數
+            resetHeaderState();
 
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
             statusMsg.innerText=""; 
-            statusMsg.className = "status-msg"; // Reset class
+            statusMsg.className = "status-msg"; 
             hintContainer.innerHTML = ""; 
 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
@@ -1013,7 +948,7 @@
                 if(s<=0){
                     clearInterval(searchLockTimer); btnSearch.disabled=false;
                     btnSearch.classList.remove('error'); btnSearch.innerText="🔍 查詢路線";
-                    statusMsg.innerText=""; statusMsg.className="status-msg"; // Reset
+                    statusMsg.innerText=""; statusMsg.className="status-msg"; 
                     setSearchLockedUntil(0);
                 } s--;
             }; t(); searchLockTimer=setInterval(t,1000);
@@ -1150,7 +1085,6 @@
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
 
-                // 呼叫自動捲動邏輯 (會觸發 isAutoScrolling 鎖定)
                 scrollToActiveCard();
 
                 return;
@@ -1221,7 +1155,6 @@
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
         }
 
-        // === 常用路線與歷史紀錄邏輯 ===
         const LS_FAV = "tl_favorites";
         const LS_HIST = "tl_history";
         const MAX_HIST = 3;
