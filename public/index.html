@@ -88,11 +88,14 @@
         .card:active { transform: scale(0.98); background-color: #222; }
         
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
-        /* 【新增】日期標籤：在時間正上方 */
-        .date-label { text-align: center; font-size: 0.75rem; color: #666; margin-bottom: -4px; letter-spacing: 1px;}
         
-        .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; padding: 6px 0; }
-        .arrow { margin: 0 6px; color: #666; font-size: 0.8rem; }
+        /* 【修改點】時間顯示區塊 */
+        .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 10px; }
+        .time-group { display: flex; flex-direction: column; align-items: center; }
+        .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
+        .time-part { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+        .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; } /* 箭頭對齊時間 */
+
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
@@ -162,14 +165,13 @@
         #btnStar.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); text-shadow: 0 0 5px rgba(77, 127, 94, 0.5); }
 
         /* === 左側燈號與狀態標籤 === */
-        /* 【修改點】加大圓點尺寸與光暈，調整位置 */
         .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
         
         .led-dot { 
-            width: 10px; height: 10px; /* 加大 */
+            width: 10px; height: 10px; 
             background-color: #4d7f5e; 
             border-radius: 50%; 
-            box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); /* 增強光暈 */
+            box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); 
         }
         .led-dot.top { animation: blink-primary 1s infinite step-end; }
         .led-dot.bottom { animation: blink-secondary 1s infinite step-end; }
@@ -731,12 +733,16 @@
                                 ${t.type} ${t.no} 次
                             </div>
                             
-                            <div class="date-label">${t.date_str || ""}</div>
-
                             <div class="main-time">
-                                <span>${formatTime(t.act_dep)}</span>
+                                <div class="time-group">
+                                    <div class="time-date-label">${t.dep_date}</div>
+                                    <div class="time-part">${formatTime(t.act_dep)}</div>
+                                </div>
                                 <span class="arrow">➔</span>
-                                <span>${formatTime(t.act_arr)}</span>
+                                <div class="time-group">
+                                    <div class="time-date-label">${t.arr_date}</div>
+                                    <div class="time-part">${formatTime(t.act_arr)}</div>
+                                </div>
                             </div>
                             
                             <div class="sub-time">
