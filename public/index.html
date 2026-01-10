@@ -68,25 +68,44 @@
         /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* [修改] 提示文字優化 */
+        /* [修改] 提示文字與圖例優化 */
         .click-hint {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
-            padding: 10px 0;
-            color: #4d7f5e;
-            font-size: 0.9rem;
-            font-weight: bold;
-            line-height: 1.4;
-            text-align: center;
+            gap: 8px;
+            padding: 12px 0 8px 0;
+            color: #888;
+            font-size: 0.85rem;
             animation: fadeIn 1s;
+        }
+        .hint-text {
+            color: #4d7f5e;
+            font-weight: bold;
+            font-size: 0.9rem;
         }
         .click-hint-sub {
             font-size: 0.8rem;
             opacity: 0.8;
             font-weight: normal;
+            color: #888;
+        }
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #ccc;
+        }
+        /* 用於圖例的燈號容器 (非絕對定位) */
+        .indicator-icon {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         /* 回到頂端按鈕 */
@@ -907,11 +926,20 @@
 
         function renderCards(data) {
             if(data.trains && data.trains.length > 0) {
-                // [修改] 提示文字結構
+                // [修改] 增加燈號圖例
                 let html = `
                 <div class="click-hint">
-                    <div>👆 點擊卡片查看</div>
-                    <div class="click-hint-sub">即時位置 & 完整停靠站</div>
+                    <div>
+                        <span class="hint-text">👆 點擊卡片查看</span> 
+                        <span class="click-hint-sub">即時位置 & 完整停靠站</span>
+                    </div>
+                    <div class="legend-row">
+                        <div class="indicator-icon">
+                            <div class="led-dot top"></div>
+                            <div class="led-dot bottom"></div>
+                        </div>
+                        <span>10分鐘內進站</span>
+                    </div>
                 </div>`;
                 
                 let has = false;
