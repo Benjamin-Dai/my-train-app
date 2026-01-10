@@ -23,19 +23,21 @@
 
         /* --- A. 靜態區 (上半部) --- */
         .header-static-part {
-            padding: 15px 15px 10px 15px; /* 增加底部 padding */
+            padding: 15px 15px 15px 15px; /* 增加底部 padding 確保遮蓋 */
             background: #151517;
             position: relative;
             z-index: 20; /* 【關鍵】層級最高，蓋住動態欄 */
             
-            border-radius: 12px;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
             border: 1px solid #333;
-            /* 保持完整邊框，讓它看起來是主體 */
+            /* 保留底線，讓靜態區看起來是完整的，動態區從它後面滑出來 */
+            border-bottom: 1px solid #333; 
         }
 
         /* --- B. 動態懸浮區 (下半部) --- */
         .header-sticky-part {
-            padding: 0 15px 10px 15px; /* 頂部 padding 交給 margin 處理 */
+            padding: 0 15px 10px 15px;
             background: #151517; 
             width: 100%;
             z-index: 10; /* 層級較低，被靜態欄蓋住 */
@@ -44,34 +46,42 @@
             position: sticky;
             top: 0;
 
-            /* 【關鍵】向上負邊距，讓它"塞"進靜態欄下方，消除黑線 */
-            margin-top: -20px; 
+            /* 【關鍵】向上負邊距，讓它"塞"進靜態欄下方 */
+            margin-top: -15px; 
             padding-top: 20px; /* 補回空間 */
 
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
             border: 1px solid #333;
-            border-top: none; /* 無上邊框，因為被蓋住了 */
+            border-top: none; /* 無上邊框，因為被靜態區蓋住了 */
             
             box-shadow: none;
 
-            /* 【關鍵】完全移除高度動畫，只保留位移，解決速度不一致 */
+            /* 【關鍵】絕對不要加 transition transform，這會導致手感延遲 */
             will-change: transform;
             transition: box-shadow 0.2s ease; 
         }
 
-        /* 懸浮狀態：加上陰影，並讓頂部看起來像有邊界 */
+        /* 懸浮狀態：加上陰影 */
         .header-sticky-part.is-floating {
             box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-            /* 這裡我們不加 border-top，而是依靠 translateY 讓內容剛好切齊 */
+            /* 當懸浮時，我們可以把頂部邊框補回來，看起來像獨立個體 */
+            border-top: 1px solid #333;
+            border-radius: 0 0 12px 12px; 
         }
 
-        /* --- 內部區塊 --- */
+        /* --- 內容區 (永不隱藏，保持高度，避免瞬移) --- */
+        .quick-route-area { 
+            margin: 5px 0 10px 0; 
+            display: flex; flex-wrap: nowrap; gap: 8px; 
+            min-height: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; 
+            padding-right: 20px; scrollbar-width: none; 
+        }
+        .quick-route-area::-webkit-scrollbar { display: none; }
+
         /* 大按鈕區 */
         .action-area { 
-            display: flex; gap: 8px; margin-top: 10px; 
-            overflow: hidden;
-            /* 我們不隱藏它，保持高度撐開，防止瞬移 */
+            display: flex; gap: 8px; margin-top: 5px; 
         }
 
         /* 工具列區 */
@@ -79,33 +89,19 @@
             display: flex; gap: 8px; margin-top: 12px; 
             border-top: 1px solid #333; padding-top: 12px; 
             overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-            background: #151517; /* 確保背景遮擋 */
         }
         .view-toolbar::-webkit-scrollbar { display: none; }
 
-        /* 小更新按鈕：預設隱藏 */
-        .btn-refresh-sticky-wrapper { 
-            display: none; 
-            flex: 0 0 auto; 
-            min-width: 80px; 
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
+        /* 這次我們不需要小按鈕了，因為整塊都會滑出來 */
+        .btn-refresh-sticky-wrapper { display: none; }
 
-        /* 當進入【視覺精簡模式】時顯示小按鈕 */
-        /* 注意：我們不改變 DOM 高度，只改變顯示內容 */
-        .header-sticky-part.visual-compact .btn-refresh-sticky-wrapper {
-            display: block;
-            opacity: 1;
-        }
+        /* --- 其他樣式保持不變 --- */
+        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; white-space: nowrap; flex: 0 0 auto; }
+        .route-chip:active { transform: scale(0.95); background: #333; }
+        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
+        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
+        .route-chip.hist { border-style: dashed; }
 
-        /* 當進入視覺精簡模式時，大按鈕可以淡出，但高度保留 */
-        .header-sticky-part.visual-compact .action-area {
-            visibility: hidden; /* 保留空間，不讓版面跳動 */
-            transition: visibility 0s 0.2s; /* 延遲隱藏 */
-        }
-
-        /* --- 其他元件樣式 (保持不變) --- */
         .click-hint { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem; border-top: 1px solid #2c2c2e; margin-top: 10px; opacity: 0; transition: opacity 0.3s; }
         .click-hint.visible { opacity: 1; }
         .hint-text-group { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
@@ -140,23 +136,12 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
-        .quick-route-area { margin: 5px 0 10px 0; display: flex; flex-wrap: nowrap; gap: 8px; min-height: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-right: 20px; scrollbar-width: none; }
-        .quick-route-area::-webkit-scrollbar { display: none; }
-        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; white-space: nowrap; flex: 0 0 auto; }
-        .route-chip:active { transform: scale(0.95); background: #333; }
-        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
-        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
-        .route-chip.hist { border-style: dashed; }
-
         .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
         .btn-search { flex: 2; background: #fff; color: #000; }
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
         .btn.error { background: #d32f2f !important; color: white !important; }
-
-        .view-toolbar { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .view-toolbar::-webkit-scrollbar { display: none; }
 
         .toggle-btn { flex: 0 0 auto; background: #222; border: 1px solid #444; color: #888; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; }
         .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
@@ -317,10 +302,7 @@
 
                 <div class="view-toolbar">
                     <div class="btn-refresh-sticky-wrapper">
-                        <button class="btn-sticky-refresh btn-refresh-sync" onclick="doRefresh()">
-                            <span class="toggle-icon">🔄</span> 更新
-                        </button>
-                    </div>
+                        </div>
 
                     <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
                         <span class="toggle-icon">☆</span> 收藏
@@ -352,9 +334,7 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="pageMenu" class="modal-page active">
                 <div class="modal-header-row"><div class="modal-title">選單</div></div>
-                
                 <button class="menu-btn anim-gold-pulse" onclick="goToPage('Why')">設計理念</button>
-                
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
                 <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
@@ -548,44 +528,39 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // === 全新動態欄邏輯 (無高度變化 = 無瞬移) ===
+        // === 最終版核心邏輯：直球對決 ===
 
         let lastScrollY = window.scrollY;
         let currentTranslateY = 0;
         const stickyHeader = document.getElementById('stickyHeader');
-        const actionArea = document.getElementById('actionArea');
         const staticPart = document.querySelector('.header-static-part');
 
         window.addEventListener('scroll', () => {
             const currentScrollY = window.scrollY;
             const diff = currentScrollY - lastScrollY;
             
-            // 取得各區塊高度
+            // 取得高度
             const staticHeight = staticPart ? staticPart.offsetHeight : 130;
             const headerHeight = stickyHeader.offsetHeight;
-            const actionHeight = actionArea.offsetHeight; // 大按鈕區高度 (~50-60px)
 
             // --- 核心位移邏輯 ---
             if (!isAutoScrolling) {
                 
-                // 1. 下滑 (隱藏)
-                // 只有離開頂部區域才開始隱藏
+                // 1. 只有當 "靜態區" 已經完全離開畫面，動態區黏在頂部時，才開始計算推擠位移
+                // 這樣可以避免「雙重速度」的問題
                 if (currentScrollY > staticHeight) {
+                    
+                    // 減去 diff (下滑時 diff>0 -> translateY 變負 -> 往上推)
                     currentTranslateY -= diff;
                     
-                    // 限制：不能拉超過 0 (完全展開)
+                    // 2. 限制：絕對不能拉超過 0 (完全展開)
                     if (currentTranslateY > 0) currentTranslateY = 0;
                     
-                    // 限制：
-                    // 如果是在"深處" (currentScrollY > 500)，我們希望最少露出工具列
-                    // 工具列的高度 = headerHeight - actionHeight
-                    // 所以我們最多隱藏到 -headerHeight，但如果要保留工具列，則是 -actionHeight
-                    
-                    const minTranslate = -headerHeight; // 完全隱藏
-                    if (currentTranslateY < minTranslate) currentTranslateY = minTranslate;
+                    // 3. 限制：絕對不能推超過 -headerHeight (完全收起)
+                    if (currentTranslateY < -headerHeight) currentTranslateY = -headerHeight;
 
                 } else {
-                    // 在頂部區域時，強制展開歸零
+                    // 如果還在頂部，強制歸零 (完全展開)
                     currentTranslateY = 0;
                 }
             } else {
@@ -593,34 +568,10 @@
             }
 
             // --- 視覺狀態切換 ---
-            // 1. 懸浮陰影狀態
             if (currentScrollY > staticHeight + 20) {
                 stickyHeader.classList.add('is-floating');
-                
-                // 2. 視覺精簡模式 (Visual Compact Mode)
-                // 當大按鈕被推上去超過一半時，視為進入精簡模式
-                // 我們只切換 class 來改變透明度，不改變 DOM 高度
-                if (currentTranslateY < -(actionHeight / 2)) {
-                    stickyHeader.classList.add('visual-compact');
-                } else {
-                    stickyHeader.classList.remove('visual-compact');
-                }
-
-                // 3. 深處回拉限制 (Smart Recall)
-                // 如果在深處往回拉 (diff < 0)，且目前是隱藏狀態
-                // 我們限制它不要展開到露出大按鈕，只露出工具列
-                // 判定：如果 currentScrollY 很大，且正在往回拉
-                if (currentScrollY > 600 && diff < 0) {
-                    // 限制最大展開高度只能到 -actionHeight (只看得到工具列)
-                    // 這樣大按鈕就不會跑出來，保持精簡
-                    if (currentTranslateY > -actionHeight) {
-                       currentTranslateY = -actionHeight;
-                    }
-                }
-
             } else {
                 stickyHeader.classList.remove('is-floating');
-                stickyHeader.classList.remove('visual-compact');
             }
 
             // 套用位移
@@ -645,9 +596,7 @@
             isAutoScrolling = true;
 
             // 強制重置
-            stickyHeader.classList.remove('visual-compact'); 
             stickyHeader.classList.remove('is-floating');
-            
             currentTranslateY = 0;
             stickyHeader.style.transform = `translateY(0px)`;
             
@@ -672,7 +621,6 @@
             currentTranslateY = 0;
             if(stickyHeader) {
                 stickyHeader.style.transform = 'translateY(0)';
-                stickyHeader.classList.remove('visual-compact');
                 stickyHeader.classList.remove('is-floating');
             }
             isAutoScrolling = false;
