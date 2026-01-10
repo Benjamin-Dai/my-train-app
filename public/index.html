@@ -82,12 +82,15 @@
         .status-msg.warning { color: #e6b800; } 
         .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
 
-        /* 卡片樣式調整：左邊 padding 加大，讓出空間給燈號 */
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 26px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
+        /* 卡片樣式 */
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
         
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+        /* 【新增】日期標籤：在時間正上方 */
+        .date-label { text-align: center; font-size: 0.75rem; color: #666; margin-bottom: -4px; letter-spacing: 1px;}
+        
         .main-time { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; padding: 6px 0; }
         .arrow { margin: 0 6px; color: #666; font-size: 0.8rem; }
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
@@ -95,7 +98,6 @@
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
 
-        /* 骨架屏動畫樣式 */
         .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
         @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .sk-line { background: #333; border-radius: 4px; }
@@ -150,28 +152,36 @@
         @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
         .guide-highlight { color: #e6b800; font-weight: bold; font-size: 1.3rem; margin: 20px 0; border: 2px dashed #444; padding: 15px; border-radius: 12px; background: #222; }
 
-        /* === 常用路線與歷史紀錄樣式 (綠色風格) === */
         .quick-route-area { margin: 10px 0 15px 0; display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; }
         .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; }
         .route-chip:active { transform: scale(0.95); background: #333; }
         .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
-        /* 收藏的路線樣式 (綠色主題) */
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
-        /* 歷史紀錄樣式 (虛線) */
         .route-chip.hist { border-style: dashed; }
-        /* 星星按鈕樣式 */
         #btnStar { font-size: 1.1rem; padding: 2px 8px; }
-        /* 啟用狀態的星星 */
         #btnStar.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); text-shadow: 0 0 5px rgba(77, 127, 94, 0.5); }
 
         /* === 左側燈號與狀態標籤 === */
-        .left-indicator { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 4px; }
+        /* 【修改點】加大圓點尺寸與光暈，調整位置 */
+        .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
         
-        .led-dot { width: 6px; height: 6px; background-color: #4d7f5e; border-radius: 50%; box-shadow: 0 0 2px rgba(77, 127, 94, 0.5); }
+        .led-dot { 
+            width: 10px; height: 10px; /* 加大 */
+            background-color: #4d7f5e; 
+            border-radius: 50%; 
+            box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); /* 增強光暈 */
+        }
         .led-dot.top { animation: blink-primary 1s infinite step-end; }
         .led-dot.bottom { animation: blink-secondary 1s infinite step-end; }
-        @keyframes blink-primary { 0%, 49% { opacity: 1; box-shadow: 0 0 5px #4d7f5e; } 50%, 100% { opacity: 0.2; box-shadow: none; } }
-        @keyframes blink-secondary { 0%, 49% { opacity: 0.2; box-shadow: none; } 50%, 100% { opacity: 1; box-shadow: 0 0 5px #4d7f5e; } }
+        
+        @keyframes blink-primary { 
+            0%, 49% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } 
+            50%, 100% { opacity: 0.2; box-shadow: none; } 
+        }
+        @keyframes blink-secondary { 
+            0%, 49% { opacity: 0.2; box-shadow: none; } 
+            50%, 100% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } 
+        }
 
         .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
@@ -721,6 +731,8 @@
                                 ${t.type} ${t.no} 次
                             </div>
                             
+                            <div class="date-label">${t.date_str || ""}</div>
+
                             <div class="main-time">
                                 <span>${formatTime(t.act_dep)}</span>
                                 <span class="arrow">➔</span>
