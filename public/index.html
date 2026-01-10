@@ -29,11 +29,14 @@
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
         /* Header 基礎樣式 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative;}
 
         /* 區塊 A: 靜態區 */
         .header-static-part {
             padding: 15px 15px 5px 15px; 
+            /* 關鍵：確保靜態區在 sticky 下方，避免穿幫 */
+            position: relative;
+            z-index: 10; 
         }
 
         /* 區塊 B: 懸浮區 */
@@ -42,9 +45,11 @@
             background: #151517; 
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
-            transition: transform 0.3s ease-in-out;
             width: 100%;
             z-index: 100;
+            /* 預設無動畫，避免初始化跳動 */
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); 
+            will-change: transform; /* 效能優化 */
         }
 
         /* 懸浮時的狀態 */
@@ -56,22 +61,22 @@
             border-radius: 0 0 12px 12px; 
             border: 1px solid #333;
             border-top: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            padding-top: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            padding-top: 15px; /* 補償視覺 */
         }
 
-        /* 往下滑時隱藏 */
+        /* 往下滑時隱藏 (往上收起) */
         .header-sticky-part.is-hidden {
-            transform: translateY(-100%);
+            transform: translateY(-110%); /* 多收一點確保完全隱藏 */
         }
 
         /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* [修改] 提示區塊樣式：改為左右排列 */
+        /* 提示區塊樣式：左右排列 */
         .click-hint {
             display: flex;
-            flex-direction: row; /* 左右排列 */
+            flex-direction: row; 
             align-items: center;
             justify-content: center;
             gap: 15px;
@@ -81,17 +86,13 @@
             animation: fadeIn 1s;
         }
         
-        /* 左側文字群組 */
         .hint-text-group {
             display: flex;
             flex-direction: column;
-            align-items: flex-end; /* 靠右對齊分隔線 */
+            align-items: flex-end; 
             line-height: 1.3;
         }
-        /* 如果只有文字沒有圖例，就置中 */
-        .hint-text-group.only-text {
-            align-items: center;
-        }
+        .hint-text-group.only-text { align-items: center; }
 
         .hint-text {
             color: #4d7f5e;
@@ -105,14 +106,12 @@
             color: #888;
         }
 
-        /* 中間分隔線 */
         .hint-divider {
             width: 1px;
             height: 24px;
             background: #333;
         }
 
-        /* 右側圖例 */
         .legend-row {
             display: flex;
             align-items: center;
@@ -644,9 +643,21 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // [修正] 滾動邏輯 - 解決重影問題
+        // [修正] 滾動邏輯 - 解決重影問題並優化反應
         let lastScroll = 0;
+        let ticking = false; // 用於 requestAnimationFrame
+
         window.addEventListener('scroll', () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    handleScroll();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
+
+        function handleScroll() {
             const current = window.scrollY;
             const sticky = document.getElementById('stickyHeader');
             const placeholder = document.getElementById('stickyPlaceholder');
@@ -654,6 +665,7 @@
             
             // 取得靜態區塊的高度，作為切換閾值
             const staticPart = document.querySelector('.header-static-part');
+            // 如果還沒 render 出來，給個預設值
             const threshold = staticPart ? staticPart.offsetHeight : 150;
 
             // 1. Back to Top 按鈕
@@ -664,29 +676,33 @@
             }
 
             // 2. Sticky Header 邏輯
-            // 只有當捲動超過靜態區的高度時，才開始運作
+            
+            // 判斷：是否還在頂部區域 (包含彈性滾動的負值)
             if (current <= threshold) {
-                // 回到頂部區域：強制復原，避免重影
+                // 強制復原 (Reset)
                 sticky.classList.remove('is-fixed', 'is-hidden');
                 placeholder.style.display = 'none';
             } else {
                 // 進入懸浮模式
+                // 先把佔位符撐開，避免內容跳動
                 if (!sticky.classList.contains('is-fixed')) {
                      placeholder.style.display = 'block';
-                     placeholder.style.height = sticky.offsetHeight + 'px'; 
+                     placeholder.style.height = sticky.getBoundingClientRect().height + 'px'; 
                      sticky.classList.add('is-fixed');
                 }
 
-                if (current > lastScroll && current > threshold + 50) {
-                    // 往下滑：隱藏
+                // 判斷捲動方向
+                // 往下捲且超過一定距離 -> 隱藏
+                if (current > lastScroll && current > threshold + 10) {
                     sticky.classList.add('is-hidden');
-                } else {
-                    // 往上滑：顯示
+                } 
+                // 往上捲 -> 顯示 (移除緩衝，讓反應更即時)
+                else if (current < lastScroll) {
                     sticky.classList.remove('is-hidden');
                 }
             }
             lastScroll = current;
-        });
+        }
 
         function init() {
             logSystem("Init","App Started"); updateToggleBtns();
