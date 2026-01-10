@@ -23,32 +23,53 @@
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
         .header { margin-bottom: 15px; background: #151517; padding: 15px; border-radius: 12px; border: 1px solid #333;}
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .app-title { font-size: 0.9rem; color: #888; letter-spacing: 1px; font-weight: bold; margin: 0; }
-
-        .header-actions { display: flex; gap: 8px; align-items: center; }
-
-        .tool-btn {
-            background: none; border: 1px solid #444; color: #666; 
-            padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; 
-            cursor: pointer; font-weight: bold; transition: all 0.2s;
+        
+        /* 1. 頂部優化 */
+        .header-top { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            min-height: 36px;
         }
-        .tool-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); }
-        .tool-btn:active { transform: scale(0.95); }
+
+        .app-title { 
+            font-size: 1.1rem; 
+            color: #fff;       
+            letter-spacing: 1.5px; 
+            font-weight: 900; 
+            margin: 0; 
+            font-style: italic; 
+        }
+
+        .header-actions { 
+            display: flex; 
+            gap: 12px; 
+            align-items: center; 
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.3rem;
+            padding: 4px;
+            cursor: pointer;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .icon-btn.active { color: #e6b800; text-shadow: 0 0 8px rgba(230, 184, 0, 0.6); } 
+        .icon-btn:active { transform: scale(0.9); }
 
         #btnInstall {
-            display: none; background: #4d7f5e; color: white; border: none; border-radius: 8px;
-            padding: 3px 8px; font-size: 0.75rem; font-weight: bold; cursor: pointer;
-            box-shadow: 0 0 10px rgba(77, 127, 94, 0.5); animation: popIn 0.5s;
+            display: none; background: #4d7f5e; color: white; border: none; border-radius: 20px;
+            padding: 4px 10px; font-size: 0.75rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 0 10px rgba(77, 127, 94, 0.5); margin-right: 5px; animation: popIn 0.5s;
         }
         @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
         @keyframes pulse-gold { 0%, 100% { color: #ccc; border-color: #555; } 50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); } }
-
-        .menu-btn-trigger { 
-            background: #333; border: 1px solid #555; color: #fff; width: 32px; height: 32px; 
-            border-radius: 8px; font-size: 1.1rem; cursor: pointer; display: flex; 
-            align-items: center; justify-content: center; font-weight: bold; animation: pulse-gold 3s infinite;
-        }
 
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
         .search-target { flex: 1; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
@@ -63,18 +84,27 @@
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
 
+        .quick-route-area { margin: 10px 0 15px 0; display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; }
+        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; }
+        .route-chip:active { transform: scale(0.95); background: #333; }
+        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
+        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
+        .route-chip.hist { border-style: dashed; }
+
         .action-area { margin-top: 15px; display: flex; gap: 10px; }
         .btn { border: none; padding: 12px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
-        
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
-
         .btn-search { flex: 2; background: #fff; color: #000; }
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; font-size: 0.9rem; }
-        .btn-half { flex: 1; font-size: 0.9rem; }
-        .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
-        .btn-primary { background: #007AFF; color: white; }
         .btn.error { background: #d32f2f !important; color: white !important; }
+
+        /* 3. 檢視設定列 */
+        .view-toolbar { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #333; padding-top: 15px; }
+        .toggle-btn { flex: 1; background: #222; border: 1px solid #444; color: #888; padding: 8px 0; border-radius: 8px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+        .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
+        .toggle-btn:active { transform: scale(0.98); }
+        .toggle-icon { font-size: 1rem; }
 
         .status-container { text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
         .status-msg { font-size: 0.8rem; color: #aaa; min-height: 1.2em; }
@@ -82,14 +112,13 @@
         .status-msg.warning { color: #e6b800; } 
         .update-time { font-size: 0.75rem; color: #666; font-family: monospace; min-height: 1em; }
 
-        /* 卡片樣式 */
+        /* 卡片 */
         .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
         
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
         
-        /* 時間顯示區塊 */
         .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 10px; }
         .time-group { display: flex; flex-direction: column; align-items: center; }
         .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
@@ -108,92 +137,70 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
+        .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
+        .led-dot { width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); }
+        .led-dot.top { animation: blink-primary 1s infinite step-end; }
+        .led-dot.bottom { animation: blink-secondary 1s infinite step-end; }
+        @keyframes blink-primary { 0%, 49% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } 50%, 100% { opacity: 0.2; box-shadow: none; } }
+        @keyframes blink-secondary { 0%, 49% { opacity: 0.2; box-shadow: none; } 50%, 100% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } }
+
+        .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
+        .status-tag.departed { color: #888; border: 1px solid #555; background: #222; }
+        .status-tag.delay { color: hsl(40, 100%, 50%); border: 1px solid hsl(40, 100%, 50%); }
+        .card.departed-card { opacity: 0.5; filter: grayscale(1); border-left-color: #555 !important; }
+        .card.departed-card:active { transform: none; background-color: #151517; }
+
+        /* Modal Styles */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; position: sticky; top: -25px; background: #1c1c1e; z-index: 10; padding: 10px 0; border-bottom: 1px solid #333; }
         .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
         .modal-title { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; flex: 1; }
-        
         .menu-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; }
         .menu-btn:active { background: #3a3a3c; }
         .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
         .menu-btn.special { animation: pulse-gold 3s infinite ease-in-out; }
-
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         .modal-close { background: #333; color: #fff; border: none; padding: 10px 0; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .modal-page { display: none; }
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
+        
         .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
         .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
         .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
         .stat-card.danger .stat-val { color: #ff4d4d; }
-
         .diag-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
         .diag-section:last-child { border-bottom: none; }
         .diag-title { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .info-item { background: #222; padding: 10px; border-radius: 8px; border: 1px solid #333; }
         .info-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
         .info-value { font-size: 0.85rem; color: #fff; font-family: monospace; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
         .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .badge.green { background: rgba(77, 127, 94, 0.2); color: #4d7f5e; border: 1px solid #4d7f5e; }
         .badge.yellow { background: rgba(230, 184, 0, 0.2); color: #e6b800; border: 1px solid #e6b800; }
         .badge.red { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
-
         .terminal-box { background: #0d0d0d; border: 1px solid #333; border-radius: 8px; color: #0f0; font-family: 'Consolas', monospace; font-size: 0.7rem; padding: 10px; height: 120px; overflow-y: auto; white-space: pre-wrap; box-shadow: inset 0 0 10px #000; }
         .ios-instruction { text-align: center; margin-top: 10px; }
         .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
         .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
-
+        
         #inAppOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.92); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
         .guide-icon { font-size: 3rem; color: #4d7f5e; margin-bottom: 20px; animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
         .guide-highlight { color: #e6b800; font-weight: bold; font-size: 1.3rem; margin: 20px 0; border: 2px dashed #444; padding: 15px; border-radius: 12px; background: #222; }
-
-        .quick-route-area { margin: 10px 0 15px 0; display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; }
-        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; }
-        .route-chip:active { transform: scale(0.95); background: #333; }
-        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
-        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
-        .route-chip.hist { border-style: dashed; }
-        #btnStar { font-size: 1.1rem; padding: 2px 8px; }
-        #btnStar.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77, 127, 94, 0.1); text-shadow: 0 0 5px rgba(77, 127, 94, 0.5); }
-
-        /* 左側燈號 */
-        .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
         
-        .led-dot { 
-            width: 10px; height: 10px; 
-            background-color: #4d7f5e; 
-            border-radius: 50%; 
-            box-shadow: 0 0 6px rgba(77, 127, 94, 0.8); 
+        /* 針對小按鈕 */
+        .menu-btn-trigger { 
+            background: none; border: none; color: #fff; font-size: 1.4rem; 
+            padding: 0; width: auto; height: auto; animation: none;
         }
-        .led-dot.top { animation: blink-primary 1s infinite step-end; }
-        .led-dot.bottom { animation: blink-secondary 1s infinite step-end; }
-        
-        @keyframes blink-primary { 
-            0%, 49% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } 
-            50%, 100% { opacity: 0.2; box-shadow: none; } 
-        }
-        @keyframes blink-secondary { 
-            0%, 49% { opacity: 0.2; box-shadow: none; } 
-            50%, 100% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; } 
-        }
-
-        .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-        .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
-        
-        .status-tag.departed { color: #888; border: 1px solid #555; background: #222; }
-        .status-tag.delay { color: hsl(40, 100%, 50%); border: 1px solid hsl(40, 100%, 50%); }
-
-        .card.departed-card { opacity: 0.5; filter: grayscale(1); border-left-color: #555 !important; }
-        .card.departed-card:active { transform: none; background-color: #151517; }
-        .delay-badge { display: none; }
+        .btn-half { flex: 1; font-size: 0.9rem; }
+        .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
+        .btn-primary { background: #007AFF; color: white; }
     </style>
 </head>
 <body>
@@ -209,17 +216,15 @@
             <div class="header-top">
                 <div class="app-title">TRAIN LIVE</div>
                 <div class="header-actions">
-                    <button id="btnInstall" onclick="handleInstall()">📲 安裝 App</button>
-                    <button id="btnShowAll" class="tool-btn" onclick="toggleShowAll()">全部</button>
-                    <button id="btnTimeFormat" class="tool-btn" onclick="toggleTimeFormat()">24H</button>
-                    <button id="btnStar" class="tool-btn" onclick="toggleFavorite()">☆</button>
+                    <button id="btnInstall" onclick="handleInstall()">📲 安裝</button>
+                    <button id="btnStar" class="icon-btn" onclick="toggleFavorite()">☆</button>
                     <button class="menu-btn-trigger" onclick="openModal()">☰</button>
                 </div>
             </div>
 
             <div class="search-row">
                 <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                <input type="text" id="searchInput" class="search-box" placeholder="🔍 輸入車站" oninput="handleSearch()">
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
             </div>
 
             <div class="selector-row">
@@ -243,6 +248,15 @@
             <div class="action-area">
                 <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
                 <button id="btnRefresh" class="btn btn-refresh" onclick="doRefresh()">🔄 更新</button>
+            </div>
+
+            <div class="view-toolbar">
+                <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
+                    <span class="toggle-icon">👁️</span> 顯示已駛離
+                </button>
+                <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
+                    <span class="toggle-icon">🕒</span> 12小時制
+                </button>
             </div>
 
             <div class="status-container">
@@ -405,8 +419,23 @@
         function setRefreshLockedUntil(v){localStorage.setItem(LS_REFRESH_LOCK,v);}
 
         function updateToggleBtns() {
-            btnTimeFormat.innerText = is24Hour ? "24H" : "12H";
-            btnShowAll.classList.toggle('active', isShowAll);
+            const btnTime = document.getElementById('btnTimeFormat');
+            if (is24Hour) {
+                btnTime.innerHTML = '<span class="toggle-icon">🕒</span> 24小時制';
+                btnTime.classList.add('active');
+            } else {
+                btnTime.innerHTML = '<span class="toggle-icon">🕒</span> 12小時制';
+                btnTime.classList.remove('active');
+            }
+
+            const btnAll = document.getElementById('btnShowAll');
+            if (isShowAll) {
+                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 顯示全部';
+                btnAll.classList.add('active');
+            } else {
+                btnAll.innerHTML = '<span class="toggle-icon">👁️</span> 顯示已駛離';
+                btnAll.classList.remove('active');
+            }
         }
         function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); }
         function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); }
@@ -573,7 +602,6 @@
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
             const s=startStation.value; const e=endStation.value; 
             
-            // 檢查快取 (60秒)
             const cacheKey = getCacheKey();
             const cached = localStorage.getItem(cacheKey);
 
@@ -685,13 +713,16 @@
                     const diffSec = t.sort_key - nowSec;
                     const diffMin = Math.floor(diffSec / 60);
 
+                    // 1. 已駛離 (diffMin < 0)
                     let isDeparted = diffSec < 0; 
+                    
+                    // 2. 進站中 (10分鐘內，且未駛離)
                     let isArriving = !isDeparted && diffMin <= 10;
 
-                    // 關鍵修改：如果沒開「顯示全部」且車已駛離，則不產生 HTML
-                    if (!isShowAll && isDeparted) return;
+                    // 【邏輯調整】只有當「沒按顯示全部」AND「車子已經走超過 10 分鐘」時，才隱藏
+                    // 這樣 10 分鐘內剛走的車還是看得到
+                    if (!isShowAll && diffMin < -10) return;
                     
-                    // 跨日分隔線邏輯
                     if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
                         const thisDate = new Date(t.sort_key * 1000);
                         const lastDate = new Date(lastTrainTs * 1000);
@@ -703,14 +734,12 @@
                     lastTrainTs = t.sort_key;
                     has = true;
 
-                    // 標記第一個未駛離的車，用於自動捲動
                     let activeId = "";
                     if (!isDeparted && !foundFirstActive) {
                         activeId = 'id="firstActive"';
                         foundFirstActive = true;
                     }
 
-                    // 左側燈號
                     let leftIndicatorHtml = '';
                     if (isArriving) {
                         leftIndicatorHtml = `
@@ -720,7 +749,6 @@
                         </div>`;
                     }
 
-                    // 右上角標籤
                     let rightBadgesHtml = '';
                     if (isDeparted) {
                         rightBadgesHtml = `<div class="status-tag departed">已駛離</div>`;
@@ -737,17 +765,9 @@
 
                     html += `<a href="${url}" target="_blank" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
-                            
                             ${leftIndicatorHtml}
-
-                            <div class="status-badge-container">
-                                ${rightBadgesHtml}
-                            </div>
-
-                            <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">
-                                ${t.type} ${t.no} 次
-                            </div>
-                            
+                            <div class="status-badge-container">${rightBadgesHtml}</div>
+                            <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">${t.type} ${t.no} 次</div>
                             <div class="main-time">
                                 <div class="time-group">
                                     <div class="time-date-label">${t.dep_date}</div>
@@ -759,18 +779,13 @@
                                     <div class="time-part">${formatTime(t.act_arr)}</div>
                                 </div>
                             </div>
-                            
-                            <div class="sub-time">
-                                原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}
-                            </div>
+                            <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
                         </div>
                     </a>`;
                 });
 
-                list.innerHTML = (!has) ? 
-                    `<div class="message">查無班次 ⚠️</div>` : html;
+                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : html;
                 
-                // 自動捲動到第一班未駛離的車
                 setTimeout(() => {
                     const el = document.getElementById("firstActive");
                     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -850,18 +865,13 @@
         const btnStar = document.getElementById('btnStar');
         const quickArea = document.getElementById('quickRouteArea');
 
-        // 取得目前的起訖站物件
-        function getCurrentPair() {
-            return { start: startStation.value, end: endStation.value };
-        }
+        function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
 
-        // 檢查是否已收藏
         function isFavorite(s, e) {
             const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
             return favs.some(f => f.start === s && f.end === e);
         }
 
-        // 切換收藏狀態 (星星按鈕)
         function toggleFavorite() {
             const cur = getCurrentPair();
             if (!cur.start || !cur.end) return;
@@ -870,11 +880,11 @@
             const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
 
             if (idx >= 0) {
-                favs.splice(idx, 1); // 移除
+                favs.splice(idx, 1); 
                 logSystem("Fav", "Removed");
             } else {
                 if (favs.length >= MAX_FAV) { alert(`常用路線最多儲存 ${MAX_FAV} 組`); return; }
-                favs.unshift(cur); // 加入最前面
+                favs.unshift(cur); 
                 logSystem("Fav", "Added");
             }
             localStorage.setItem(LS_FAV, JSON.stringify(favs));
@@ -882,26 +892,19 @@
             renderQuickRoutes();
         }
 
-        // 加入歷史紀錄 (在搜尋時呼叫)
         function addToHistory() {
             const cur = getCurrentPair();
             if (!cur.start || !cur.end) return;
 
             let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            // 移除重複 (若已存在，先刪除舊的)
             hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
-            
-            // 加入最前面
             hist.unshift(cur);
-            
-            // 限制數量
             if (hist.length > MAX_HIST) hist.pop();
             
             localStorage.setItem(LS_HIST, JSON.stringify(hist));
             renderQuickRoutes();
         }
 
-        // 更新星星按鈕的顯示狀態
         function updateStarState() {
             const cur = getCurrentPair();
             if (isFavorite(cur.start, cur.end)) {
@@ -913,32 +916,26 @@
             }
         }
 
-        // 點擊 Chip 後載入路線
         function loadRoute(s, e) {
             const sR = STATION_INDEX[s];
             const eR = STATION_INDEX[e];
             if (sR && eR) {
                 setMenu('start', sR, s);
                 setMenu('end', eR, e);
-                markAsChanged(); // 觸發儲存與 UI 更新
+                markAsChanged();
             }
         }
 
-        // 渲染快速路線區塊
         function renderQuickRoutes() {
             const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
             const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
             
             let html = '';
-
-            // 先顯示收藏 (綠色實線)
             favs.forEach(r => {
                 html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">
                     ${r.start}<span class="chip-arrow">➔</span>${r.end}
                 </div>`;
             });
-
-            // 再顯示歷史紀錄 (灰色虛線)，需排除已經在收藏裡的
             hist.forEach(r => {
                 if (!isFavorite(r.start, r.end)) {
                     html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">
