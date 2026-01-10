@@ -29,7 +29,7 @@
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
         /* Header 基礎樣式 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative;}
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
 
         /* 區塊 A: 靜態區 */
         .header-static-part {
@@ -51,11 +51,11 @@
             will-change: transform; 
         }
 
-        /* 懸浮時的狀態 - [修正] 寬度計算對齊 Container */
+        /* 懸浮時的狀態 - 精確寬度計算 */
         .header-sticky-part.is-fixed {
             position: fixed;
             top: 0; 
-            /* 寬度 = 100% - Body Padding(20px) - 不需扣除 Border */
+            /* 寬度 = 100% - Body Padding(20px) */
             width: calc(100% - 20px); 
             /* 最大寬度 = Container(500px) */
             max-width: 500px; 
@@ -207,11 +207,22 @@
         .time-group { display: flex; flex-direction: column; align-items: center; }
         .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
 
-        .time-part { font-size: 1.4rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; }
-        .ampm { font-size: 0.85rem; margin-right: 3px; color: #aaa; font-weight: normal; }
+        /* [修正] 加大字體 */
+        .time-part { 
+            font-size: 1.8rem; /* 加大 */
+            font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; 
+        }
+        .ampm { 
+            font-size: 1rem; /* 加大 */
+            margin-right: 3px; color: #aaa; font-weight: normal; 
+        }
         .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
 
-        @media (max-width: 360px) { .time-part { font-size: 1.25rem; } .ampm { font-size: 0.75rem; } }
+        /* 小螢幕 (如 iPhone SE) 稍微縮小，避免換行 */
+        @media (max-width: 360px) { 
+            .time-part { font-size: 1.5rem; } 
+            .ampm { font-size: 0.85rem; } 
+        }
 
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
