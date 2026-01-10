@@ -54,7 +54,7 @@
             width: calc(100% - 20px); 
             max-width: 500px; 
             left: 50%; 
-            /* 注意：transform 由 JS 控制，這裡只設初始值 */
+            /* 注意：transform 由 JS 控制，這裡只設初始值，必須包含 translateX(-50%) */
             transform: translateX(-50%); 
             
             border-radius: 0 0 12px 12px; 
@@ -645,7 +645,7 @@
                 backToTop.classList.remove('visible');
             }
 
-            // [保護區]：只要靜態區還在畫面上 (current <= threshold)，強制 Reset
+            // [保護區]：只要靜態區還在畫面上，強制 Reset
             if (current <= threshold) {
                 setStickyState(false);
                 currentTranslate = 0; 
