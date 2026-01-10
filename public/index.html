@@ -34,7 +34,7 @@
             border-top-right-radius: 12px;
         }
 
-        /* 區塊 B: 懸浮區 */
+        /* 區塊 B: 懸浮區 (修改版：使用 Sticky) */
         .header-sticky-part {
             padding: 5px 15px 10px 15px;
             background: #151517; 
@@ -42,41 +42,40 @@
             border-bottom-right-radius: 12px;
             width: 100%;
             z-index: 100;
-            position: relative; /* 預設靜態 */
-            will-change: transform; 
-        }
-
-        /* 狀態二：懸浮模式 (Fixed) */
-        .header-sticky-part.is-fixed {
-            position: fixed;
-            top: 0; 
-            /* 寬度計算：100% - Body Padding(20px) */
-            width: calc(100% - 20px); 
-            max-width: 500px; 
-            left: 50%; 
-            /* 注意：transform 由 JS 控制，這裡只設初始值 */
-            transform: translateX(-50%); 
             
-            border-radius: 0 0 12px 12px; 
+            /* --- 關鍵修改：Sticky 定位 --- */
+            position: -webkit-sticky; /* Safari 支援 */
+            position: sticky;
+            top: -1px; /* 設為 -1px 消除縫隙 */
+
+            /* 視覺設定 */
             border: 1px solid #333;
             border-top: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.9);
             
-            padding-top: 10px; 
-            padding-bottom: 8px;
+            /* 動畫效能優化 */
+            will-change: transform; 
+            transition: transform 0.1s linear; /* 讓跟隨手指更滑順 */
         }
 
-        /* 懸浮時：隱藏大按鈕區 */
-        .header-sticky-part.is-fixed .action-area { display: none; }
+        /* --- 模式切換邏輯 (取代原本的 is-fixed) --- */
         
-        /* 懸浮時：顯示整合版更新鈕 */
+        /* 預設顯示大按鈕區 */
+        .action-area { margin-top: 5px; display: flex; gap: 8px; transition: opacity 0.2s; }
+        
+        /* 預設隱藏整合版更新鈕 */
         .btn-refresh-sticky-wrapper { display: none; flex: 0 0 auto; min-width: 80px; }
-        .header-sticky-part.is-fixed .btn-refresh-sticky-wrapper { display: block; }
 
-        .header-sticky-part.is-fixed .click-hint { margin-top: 6px; padding-top: 6px; }
-
-        /* 佔位符 */
-        #stickyPlaceholder { display: none; }
+        /* [Compact Mode] 當 Header 收合時的樣式 */
+        .header-sticky-part.compact-mode .action-area { 
+            display: none; 
+        }
+        .header-sticky-part.compact-mode .btn-refresh-sticky-wrapper { 
+            display: block; 
+        }
+        .header-sticky-part.compact-mode .click-hint { 
+            margin-top: 6px; padding-top: 6px; 
+        }
 
         /* 提示區塊 */
         .click-hint {
@@ -99,7 +98,6 @@
             display: flex; align-items: center; gap: 6px;
             background: rgba(255, 255, 255, 0.05); padding: 3px 8px;
             border-radius: 12px; font-size: 0.75rem; color: #ccc;
-            /* 移除 animation 避免重繪閃爍 */
         }
         .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
 
@@ -164,7 +162,6 @@
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
         .route-chip.hist { border-style: dashed; }
 
-        .action-area { margin-top: 5px; display: flex; gap: 8px; }
         .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
@@ -320,8 +317,6 @@
     </div>
 
     <div class="container">
-        <div id="stickyPlaceholder"></div>
-
         <div class="header">
             <div class="header-static-part">
                 <div class="header-top">
@@ -597,69 +592,53 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        let lastScroll = 0;
-        let currentTranslate = 0; 
+        // === 新的動態選單邏輯 (Sticky + Transform) ===
+        let lastScrollY = window.scrollY;
+        let currentTranslateY = 0;
+        const stickyHeader = document.getElementById('stickyHeader');
 
-        // [關鍵修改] 統一管理動態欄狀態，修復左側錯位與鬼影
-        function setStickyState(isFixed, translate = 0) {
-            const sticky = document.getElementById('stickyHeader');
-            const placeholder = document.getElementById('stickyPlaceholder');
-            
-            if (isFixed) {
-                if (!sticky.classList.contains('is-fixed')) {
-                    placeholder.style.display = 'block';
-                    placeholder.style.height = (sticky.offsetHeight || 150) + 'px'; 
-                    sticky.classList.add('is-fixed');
-                }
-                // [修復] 強制加上 translateX(-50%)，防止左偏
-                sticky.style.transform = `translateX(-50%) translateY(${translate}px)`;
-            } else {
-                sticky.classList.remove('is-fixed');
-                // [修復] 靜態時清除所有 transform
-                sticky.style.transform = 'none'; 
-                placeholder.style.display = 'none';
-            }
-        }
-        
         window.addEventListener('scroll', () => {
-            if (isAutoScrolling) return; // 自動捲動時，交給 scrollToActiveCard 控制
+            if (isAutoScrolling) return; // 自動捲動時暫停互動
 
-            const current = window.scrollY;
-            const sticky = document.getElementById('stickyHeader');
-            const backToTop = document.getElementById('btnBackToTop');
-            
+            const currentScrollY = window.scrollY;
+            const diff = currentScrollY - lastScrollY;
+            const headerHeight = stickyHeader.offsetHeight;
+
+            // 取得靜態區的高度，用來判斷何時開始計算
             const staticPart = document.querySelector('.header-static-part');
-            const threshold = staticPart ? staticPart.offsetHeight : 150;
-            const stickyHeight = sticky.offsetHeight || 150;
+            const staticHeight = staticPart ? staticPart.offsetHeight : 100;
 
-            if(current > 300) {
+            // 1. 處理「展開/收起」的位移 (Transform)
+            if (currentScrollY > staticHeight) {
+                currentTranslateY -= diff;
+
+                // 限制位移範圍
+                if (currentTranslateY > 0) currentTranslateY = 0;
+                if (currentTranslateY < -headerHeight) currentTranslateY = -headerHeight;
+            } else {
+                // 如果還在頂部靜態區，強制展開歸零
+                currentTranslateY = 0;
+            }
+
+            // 2. 套用位移
+            stickyHeader.style.transform = `translateY(${currentTranslateY}px)`;
+
+            // 3. 切換內容模式 (Compact Mode)
+            if (currentScrollY > staticHeight + 20) { 
+                stickyHeader.classList.add('compact-mode');
+            } else {
+                stickyHeader.classList.remove('compact-mode');
+            }
+
+            // 4. Back to Top 按鈕顯示邏輯
+            const backToTop = document.getElementById('btnBackToTop');
+            if (currentScrollY > 300) {
                 backToTop.classList.add('visible');
             } else {
                 backToTop.classList.remove('visible');
             }
 
-            // [保護區]：只要靜態區還在畫面上，強制 Reset
-            if (current <= threshold) {
-                setStickyState(false);
-                currentTranslate = 0; 
-            } else {
-                // 計算滑動差值
-                const diff = current - lastScroll;
-                currentTranslate -= diff;
-                
-                // Clamp
-                if (currentTranslate > 0) currentTranslate = 0;
-                if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
-
-                // 安全鎖
-                if (current < threshold + stickyHeight + 10) {
-                    currentTranslate = 0;
-                }
-
-                setStickyState(true, currentTranslate);
-            }
-            
-            lastScroll = current <= 0 ? 0 : current;
+            lastScrollY = currentScrollY;
         });
 
         // [優化] 自動捲動：開啟無敵模式 + 強制歸位
@@ -670,11 +649,11 @@
             isAutoScrolling = true;
 
             // 強制完全展開
-            setStickyState(true, 0);
-            currentTranslate = 0;
+            currentTranslateY = 0;
+            stickyHeader.style.transform = `translateY(0px)`;
+            stickyHeader.classList.remove('compact-mode'); // 確保顯示完整按鈕
 
-            const sticky = document.getElementById('stickyHeader');
-            const headerHeight = sticky.offsetHeight || 150;
+            const headerHeight = stickyHeader.offsetHeight || 150;
             const elementPosition = el.getBoundingClientRect().top + window.scrollY;
             const offsetPosition = elementPosition - headerHeight - 10; 
 
@@ -686,14 +665,17 @@
             // 鎖定稍長時間，防止慣性滾動干擾
             setTimeout(() => {
                 isAutoScrolling = false;
-                lastScroll = window.scrollY; 
+                lastScrollY = window.scrollY; 
             }, 800);
         }
 
         // [優化] 重置動態欄 (搜尋/切換時使用)
-        function resetStickyState() {
-            setStickyState(false);
-            currentTranslate = 0;
+        function resetHeaderState() {
+            currentTranslateY = 0;
+            if(stickyHeader) {
+                stickyHeader.style.transform = 'translateY(0)';
+                stickyHeader.classList.remove('compact-mode');
+            }
             isAutoScrolling = false;
         }
 
@@ -775,7 +757,7 @@
                     }
                 } else {
                     if (cardDiv.classList.contains('departed-card')) {
-                         cardDiv.classList.remove('departed-card', 'past');
+                            cardDiv.classList.remove('departed-card', 'past');
                     }
                     
                     if (isArriving) {
@@ -928,7 +910,7 @@
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
 
-            resetStickyState();
+            resetHeaderState(); // 使用新的重置函數
 
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
