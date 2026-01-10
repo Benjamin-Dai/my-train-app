@@ -18,63 +18,36 @@
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; position: relative; }
 
-        /* --- Header 容器 --- */
-        .header { margin-bottom: 15px; position: relative; overflow: visible; }
-
-        /* --- A. 靜態區 (上半部) --- */
-        .header-static-part {
-            padding: 15px 15px 15px 15px; 
-            background: #151517;
-            position: relative;
-            z-index: 20; /* 層級高，負責遮擋 */
-            
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-            border: 1px solid #333;
-            /* 這裡保留底線，確保靜態區是完整的 */
-            border-bottom: 1px solid #333; 
-        }
-
-        /* --- B. 動態懸浮區 (下半部) --- */
-        .header-sticky-part {
-            padding: 0 15px 10px 15px;
+        /* --- 單一靜態 Header (最穩定) --- */
+        .header { 
+            margin-bottom: 15px; 
             background: #151517; 
-            width: 100%;
-            z-index: 10; 
-
-            /* Sticky 核心 */
-            position: -webkit-sticky;
-            position: sticky;
-            top: 0;
-
-            /* 結構重置：不再使用負 margin，避免計算混亂 */
-            margin-top: 0; 
-            padding-top: 10px; 
-
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
-            border: 1px solid #333;
-            border-top: none; /* 與上方無縫 */
-            
-            /* 【黑線終極解法】用陰影向上長出 2px 的黑色遮罩，蓋住接縫 */
-            box-shadow: 0 -2px 0 0 #151517; 
-
-            /* 移除 transform 動畫，確保 1:1 手感 */
-            will-change: transform;
-            transition: box-shadow 0.2s ease;
+            border-radius: 12px; 
+            border: 1px solid #333; 
+            position: relative; 
+            padding: 15px;
+            /* 移除所有 sticky/fixed 設定 */
         }
 
-        /* 懸浮狀態：加上深色陰影 */
-        .header-sticky-part.is-floating {
-            /* 陰影向下投射 */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-            
-            /* 懸浮時加上頂部邊框，看起來像獨立個體 */
-            border-top: 1px solid #333;
-            border-radius: 0 0 12px 12px; 
-        }
+        /* --- 內部排版 --- */
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
+        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
+        
+        .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
+        .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
+        .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
+        .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
 
-        /* --- 內部元件 (保持高度撐開，防止瞬移) --- */
+        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
+        .select-group { flex: 1; display: flex; gap: 5px; }
+        .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; text-align: center; }
+        .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
+        
+        .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
+        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
+
+        /* 快速路線 Chips */
         .quick-route-area { 
             margin: 5px 0 10px 0; 
             display: flex; flex-wrap: nowrap; gap: 8px; 
@@ -82,20 +55,39 @@
             padding-right: 20px; scrollbar-width: none; 
         }
         .quick-route-area::-webkit-scrollbar { display: none; }
-
-        .action-area { display: flex; gap: 8px; margin-top: 5px; }
         
-        .view-toolbar { 
-            display: flex; gap: 8px; margin-top: 12px; 
-            border-top: 1px solid #333; padding-top: 12px; 
-            overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-        }
+        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; white-space: nowrap; flex: 0 0 auto; }
+        .route-chip:active { transform: scale(0.95); background: #333; }
+        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
+        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
+        .route-chip.hist { border-style: dashed; }
+
+        /* 按鈕區 */
+        .action-area { display: flex; gap: 8px; margin-top: 5px; }
+        .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
+        .btn-search { flex: 2; background: #fff; color: #000; }
+        .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
+        .btn.error { background: #d32f2f !important; color: white !important; }
+
+        /* 工具列 */
+        .view-toolbar { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .view-toolbar::-webkit-scrollbar { display: none; }
 
-        /* 這次不需要小按鈕 */
-        .btn-refresh-sticky-wrapper { display: none; }
+        .toggle-btn { flex: 0 0 auto; background: #222; border: 1px solid #444; color: #888; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; }
+        .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
+        .toggle-btn.fav-active { background: rgba(230, 184, 0, 0.15); color: #e6b800; border-color: #e6b800; font-weight: bold; }
+        .toggle-btn:active { transform: scale(0.98); }
+        .toggle-icon { font-size: 1rem; line-height: 1; }
 
-        /* --- 其他樣式 --- */
+        /* 狀態與提示 */
+        .status-container { text-align: center; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+        .status-msg { display: none; font-size: 0.85rem; font-weight: bold; color: #aaa; margin-bottom: 2px; }
+        .status-msg.alert { display: block; color: #ff4d4d; animation: fadeIn 0.5s; } 
+        .status-msg.warning { display: block; color: #e6b800; animation: fadeIn 0.5s; } 
+        .update-time { font-size: 0.7rem; color: #555; font-family: monospace; min-height: 1em; }
+
         .click-hint { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem; border-top: 1px solid #2c2c2e; margin-top: 10px; opacity: 0; transition: opacity 0.3s; }
         .click-hint.visible { opacity: 1; }
         .hint-text-group { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
@@ -106,60 +98,18 @@
         .legend-row { display: flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, 0.05); padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; color: #ccc; }
         .legend-icon { display: flex; flex-direction: column; gap: 4px; } 
 
+        /* Back to Top */
         .back-to-top { position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 90; opacity: 0; transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; }
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
-        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
+        /* 通用元件 */
         .install-btn-top { background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s; }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
         .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
 
-        .search-row { display: flex; gap: 8px; margin-bottom: 8px; width: 100%; } 
-        .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
-        .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
-        .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
-
-        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; } 
-        .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
-        .select-group { flex: 1; display: flex; gap: 5px; }
-        .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; text-align: center; }
-        .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
-        .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
-        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
-
-        .route-chip { display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; user-select: none; white-space: nowrap; flex: 0 0 auto; }
-        .route-chip:active { transform: scale(0.95); background: #333; }
-        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
-        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
-        .route-chip.hist { border-style: dashed; }
-
-        .btn { border: none; padding: 10px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; }
-        .btn:active { transform: scale(0.98); }
-        .btn:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
-        .btn-search { flex: 2; background: #fff; color: #000; }
-        .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
-        .btn.error { background: #d32f2f !important; color: white !important; }
-
-        .toggle-btn { flex: 0 0 auto; background: #222; border: 1px solid #444; color: #888; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; }
-        .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
-        .toggle-btn.fav-active { background: rgba(230, 184, 0, 0.15); color: #e6b800; border-color: #e6b800; font-weight: bold; }
-        .toggle-btn:active { transform: scale(0.98); }
-        .toggle-icon { font-size: 1rem; line-height: 1; }
-
-        .btn-sticky-refresh { width: 100%; height: 100%; background: #4d7f5e; color: #fff; border: 1px solid #4d7f5e; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; font-weight: bold; white-space: nowrap; }
-        .btn-sticky-refresh:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
-        .btn-sticky-refresh:active { transform: scale(0.98); }
-
-        .status-container { text-align: center; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
-        .status-msg { display: none; font-size: 0.85rem; font-weight: bold; color: #aaa; margin-bottom: 2px; }
-        .status-msg.alert { display: block; color: #ff4d4d; animation: fadeIn 0.5s; } 
-        .status-msg.warning { display: block; color: #e6b800; animation: fadeIn 0.5s; } 
-        .update-time { font-size: 0.7rem; color: #555; font-family: monospace; min-height: 1em; }
-
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, opacity 0.5s; }
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s, opacity 0.5s; scroll-margin-top: 10px; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
 
@@ -259,70 +209,64 @@
 
     <div class="container">
         <div class="header">
-            <div class="header-static-part">
-                <div class="header-top">
-                    <div class="app-title">TRAIN LIVE</div>
-                    
-                    <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
-                        📲 加到桌面
-                    </button>
+            <div class="header-top">
+                <div class="app-title">TRAIN LIVE</div>
+                
+                <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
+                    📲 加到桌面
+                </button>
 
-                    <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
-                </div>
+                <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
+            </div>
 
-                <div class="search-row">
-                    <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
-                </div>
+            <div class="search-row">
+                <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
+            </div>
 
-                <div class="selector-row">
-                    <div class="selector-label">起點</div>
-                    <div class="select-group">
-                        <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
-                        <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
-                    </div>
+            <div class="selector-row">
+                <div class="selector-label">起點</div>
+                <div class="select-group">
+                    <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
+                    <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
                 </div>
-                <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
-                <div class="selector-row">
-                    <div class="selector-label">終點</div>
-                    <div class="select-group">
-                        <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
-                        <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
-                    </div>
+            </div>
+            <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
+            <div class="selector-row">
+                <div class="selector-label">終點</div>
+                <div class="select-group">
+                    <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
+                    <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
                 </div>
             </div>
 
-            <div id="stickyHeader" class="header-sticky-part">
-                <div id="quickRouteArea" class="quick-route-area"></div>
+            <div id="quickRouteArea" class="quick-route-area"></div>
 
-                <div class="action-area">
-                    <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
-                    <button id="btnRefresh" class="btn btn-refresh btn-refresh-sync" onclick="doRefresh()">🔄 更新</button>
-                </div>
-
-                <div class="view-toolbar">
-                    <div class="btn-refresh-sticky-wrapper">
-                        </div>
-
-                    <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
-                        <span class="toggle-icon">☆</span> 收藏
-                    </button>
-                    <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
-                        已駛離
-                    </button>
-                    <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
-                        AM/PM
-                    </button>
-                </div>
-
-                <div class="status-container">
-                    <div id="statusMsg" class="status-msg"></div>
-                    <div id="updateTime" class="update-time"></div>
-                </div>
-
-                <div id="hintContainer"></div>
+            <div class="action-area">
+                <button id="btnSearch" class="btn btn-search" onclick="doSearch()">🔍 查詢路線</button>
+                <button id="btnRefresh" class="btn btn-refresh btn-refresh-sync" onclick="doRefresh()">🔄 更新</button>
             </div>
+
+            <div class="view-toolbar">
+                <button id="btnStar" class="toggle-btn" onclick="toggleFavorite()">
+                    <span class="toggle-icon">☆</span> 收藏
+                </button>
+                <button id="btnShowAll" class="toggle-btn" onclick="toggleShowAll()">
+                    已駛離
+                </button>
+                <button id="btnTimeFormat" class="toggle-btn" onclick="toggleTimeFormat()">
+                    AM/PM
+                </button>
+            </div>
+
+            <div class="status-container">
+                <div id="statusMsg" class="status-msg"></div>
+                <div id="updateTime" class="update-time"></div>
+            </div>
+
+            <div id="hintContainer"></div>
         </div>
+
         <div id="cardList"></div>
     </div>
 
@@ -441,7 +385,8 @@
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         let statusTimer = null; 
         
-        let isAutoScrolling = false;
+        // 移除自動捲動邏輯，回歸單純
+        let isAutoScrolling = false; 
 
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
@@ -528,112 +473,21 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // === 最終修正版 Scroll 邏輯 (解決速度、展開問題) ===
+        // --- 核心捲動：僅單純捲動到卡片，無任何 Header 縮放邏輯 ---
+        function scrollToActiveCard() {
+            const el = document.getElementById("firstActive");
+            if (!el) return;
+            // 簡單平滑捲動，讓瀏覽器自己處理
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
 
-        let lastScrollY = window.scrollY;
-        let currentTranslateY = 0;
-        const stickyHeader = document.getElementById('stickyHeader');
-        const staticPart = document.querySelector('.header-static-part');
-
+        // 監聽滾動只為了 Back to Top
         window.addEventListener('scroll', () => {
             const currentScrollY = window.scrollY;
-            
-            // 忽略 iOS 回彈負值，避免計算錯誤
-            if (currentScrollY < 0) return;
-
-            const diff = currentScrollY - lastScrollY;
-            const headerHeight = stickyHeader.offsetHeight;
-            
-            // 【關鍵修正】起跑線：只有靜態區完全離開後，動態區才開始移動
-            // 這樣就解決了 "兩倍速" 的問題，因為重疊時程式不會介入
-            const startThreshold = staticPart.offsetHeight; 
-
-            // 如果正在自動捲動，我們不處理「收起」邏輯，但允許「手動干預」
-            // 這裡的邏輯是：只要你是在往上滑 (diff < 0)，我就讓你動，不管是不是 autoScroll
-            if (!isAutoScrolling || diff < 0) {
-                
-                // 只有當 header 真正黏在頂端後，才開始計算位移
-                if (currentScrollY > startThreshold) {
-                    
-                    // 下滑 (diff > 0)：currentTranslateY 變負 (收起)
-                    // 上滑 (diff < 0)：currentTranslateY 變正 (展開)
-                    currentTranslateY -= diff;
-
-                    // 限制範圍 (Clamp)
-                    if (currentTranslateY > 0) {
-                        currentTranslateY = 0; // 不能拉超過頂部
-                    }
-                    // 這裡限制最多只能縮到整個 Header 高度
-                    if (currentTranslateY < -headerHeight) {
-                        currentTranslateY = -headerHeight; 
-                    }
-
-                } else {
-                    // 如果還在頂部靜態區範圍內，強制歸零 (展開狀態)
-                    currentTranslateY = 0;
-                }
-            } else {
-                // 自動捲動且往下時，強制展開
-                currentTranslateY = 0;
-            }
-
-            // --- 視覺狀態 ---
-            // 當離開起跑線一段距離後，顯示陰影
-            if (currentScrollY > startThreshold + 10) {
-                stickyHeader.classList.add('is-floating');
-            } else {
-                stickyHeader.classList.remove('is-floating');
-            }
-
-            // 套用位移
-            stickyHeader.style.transform = `translateY(${currentTranslateY}px)`;
-
-            // 更新歷史位置
-            lastScrollY = currentScrollY;
-            
-            // Back to Top
             const backToTop = document.getElementById('btnBackToTop');
             if (currentScrollY > 300) backToTop.classList.add('visible');
             else backToTop.classList.remove('visible');
         });
-
-        // 修改後的 scrollToActiveCard
-        function scrollToActiveCard() {
-            const el = document.getElementById("firstActive");
-            if (!el) return;
-
-            isAutoScrolling = true;
-
-            // 強制重置
-            stickyHeader.classList.remove('is-floating');
-            currentTranslateY = 0;
-            stickyHeader.style.transform = `translateY(0px)`;
-            
-            // 預估高度 (Full Height)
-            const headerHeight = 150; 
-            const elementPosition = el.getBoundingClientRect().top + window.scrollY;
-            const offsetPosition = elementPosition - headerHeight - 10; 
-
-            window.scrollTo({
-                top: offsetPosition,
-                behavior: "smooth"
-            });
-
-            setTimeout(() => {
-                isAutoScrolling = false;
-                lastScrollY = window.scrollY; 
-            }, 1000);
-        }
-
-        // 修改 resetHeaderState
-        function resetHeaderState() {
-            currentTranslateY = 0;
-            if(stickyHeader) {
-                stickyHeader.style.transform = 'translateY(0)';
-                stickyHeader.classList.remove('is-floating');
-            }
-            isAutoScrolling = false;
-        }
 
         function init() {
             logSystem("Init","App Started"); updateToggleBtns();
@@ -864,7 +718,7 @@
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
 
-            resetHeaderState();
+            // 移除 resetHeaderState();
 
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
