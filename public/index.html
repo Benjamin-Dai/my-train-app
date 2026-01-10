@@ -26,10 +26,10 @@
         html { scroll-behavior: smooth; }
 
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
-        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
+        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; position: relative; }
 
-        /* Header 基礎樣式 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative;}
+        /* Header 容器 */
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative; overflow: visible; }
 
         /* 區塊 A: 靜態區 */
         .header-static-part {
@@ -37,6 +37,8 @@
             background: #151517;
             position: relative;
             z-index: 10;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
         }
 
         /* 區塊 B: 懸浮區 */
@@ -47,17 +49,18 @@
             border-bottom-right-radius: 12px;
             width: 100%;
             z-index: 100;
+            position: relative; 
             will-change: transform; 
         }
 
-        /* 懸浮時的狀態 */
+        /* 狀態二：懸浮模式 (Fixed) */
         .header-sticky-part.is-fixed {
             position: fixed;
             top: 0; 
             width: calc(100% - 20px); 
             max-width: 500px; 
             left: 50%; 
-            transform: translateX(-50%); /* JS 會覆蓋這個，但預設先寫著 */
+            transform: translateX(-50%); 
             
             border-radius: 0 0 12px 12px; 
             border: 1px solid #333;
@@ -68,11 +71,11 @@
             padding-bottom: 8px;
         }
 
-        /* 懸浮時：隱藏原本的大按鈕區 */
+        /* 懸浮時：隱藏大按鈕區 */
         .header-sticky-part.is-fixed .action-area { display: none; }
         
         /* 懸浮時：顯示整合版更新鈕 */
-        .btn-refresh-sticky-wrapper { display: none; flex: 1.2; }
+        .btn-refresh-sticky-wrapper { display: none; flex: 0 0 auto; min-width: 80px; }
         .header-sticky-part.is-fixed .btn-refresh-sticky-wrapper { display: block; }
 
         .header-sticky-part.is-fixed .click-hint { margin-top: 6px; padding-top: 6px; }
@@ -80,7 +83,7 @@
         /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* 提示區塊樣式 */
+        /* 提示區塊 */
         .click-hint {
             display: flex; flex-direction: row; align-items: center; justify-content: center;
             gap: 12px; padding: 10px 0 0 0; color: #888; font-size: 0.8rem;
@@ -174,17 +177,17 @@
         .btn-refresh { flex: 1; background: #4d7f5e; color: white; }
         .btn.error { background: #d32f2f !important; color: white !important; }
 
-        /* [關鍵] 工具列：不捲動，平均分配 */
+        /* 工具列橫向捲動設定 */
         .view-toolbar { 
             display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #333; padding-top: 12px; 
-            white-space: nowrap;
+            overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;
         }
+        .view-toolbar::-webkit-scrollbar { display: none; }
 
         .toggle-btn { 
-            flex: 1; /* 平均分配寬度 */
+            flex: 0 0 auto; /* 禁止壓縮 */
             background: #222; border: 1px solid #444; color: #888; 
-            padding: 8px 0; /* 縮小左右 padding 避免擠壓 */
-            border-radius: 8px; font-size: 0.8rem; cursor: pointer; 
+            padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; 
             display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; 
         }
         .toggle-btn.active { background: rgba(77, 127, 94, 0.15); color: #4d7f5e; border-color: #4d7f5e; font-weight: bold; }
@@ -192,10 +195,9 @@
         .toggle-btn:active { transform: scale(0.98); }
         .toggle-icon { font-size: 1rem; line-height: 1; }
 
-        /* 懸浮版專用更新按鈕 */
         .btn-sticky-refresh {
             width: 100%; height: 100%; background: #4d7f5e; color: #fff;
-            border: 1px solid #4d7f5e; padding: 8px 0; border-radius: 8px; font-size: 0.8rem; cursor: pointer;
+            border: 1px solid #4d7f5e; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; font-weight: bold; white-space: nowrap;
         }
         .btn-sticky-refresh:disabled { background: #333 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; }
@@ -241,7 +243,7 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
-        /* [關鍵] 全域 LED 系統 - 由 Body class 控制 */
+        /* 全域 LED 系統 */
         .left-indicator { 
             position: absolute; left: 12px; top: 50%; transform: translateY(-50%); 
             display: flex; flex-direction: column; gap: 6px; 
@@ -251,25 +253,14 @@
 
         .led-dot { 
             width: 10px; height: 10px; background-color: #4d7f5e; border-radius: 50%; 
-            transition: opacity 0.1s, box-shadow 0.1s; /* 平滑過渡 */
+            transition: opacity 0.1s, box-shadow 0.1s; 
         }
 
-        /* Phase 0: 上亮 (100% opacity + glow), 下暗 (20% opacity)
-           Phase 1: 上暗 (20% opacity), 下亮 (100% opacity + glow)
-        */
         body.led-phase-0 .led-dot.top,
-        body.led-phase-1 .led-dot.bottom {
-            opacity: 1;
-            box-shadow: 0 0 8px #4d7f5e;
-        }
+        body.led-phase-1 .led-dot.bottom { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
 
         body.led-phase-0 .led-dot.bottom,
-        body.led-phase-1 .led-dot.top {
-            opacity: 0.2;
-            box-shadow: none;
-        }
-
-        /* 原本的 keyframes 移除，全部交給 JS 控制 */
+        body.led-phase-1 .led-dot.top { opacity: 0.2; box-shadow: none; }
 
         .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
@@ -523,6 +514,9 @@
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         let statusTimer = null; 
+        
+        // [新增] 自動捲動鎖定標記
+        let isAutoScrolling = false;
 
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
@@ -609,11 +603,18 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // [關鍵修正] 滾動邏輯 - 1:1 跟手 + 嚴格保護區 + 滑動隱藏
         let lastScroll = 0;
         let currentTranslate = 0; 
         
         window.addEventListener('scroll', () => {
+            // [關鍵] 如果正在自動捲動，直接跳過邏輯，保持動態欄顯示
+            if (isAutoScrolling) {
+                const sticky = document.getElementById('stickyHeader');
+                sticky.classList.remove('is-hidden'); 
+                sticky.style.transform = `translateX(-50%) translateY(0)`; 
+                return;
+            }
+
             const current = window.scrollY;
             const sticky = document.getElementById('stickyHeader');
             const placeholder = document.getElementById('stickyPlaceholder');
@@ -629,48 +630,76 @@
                 backToTop.classList.remove('visible');
             }
 
-            // [保護區]：只要靜態區還在畫面上 (current <= threshold)，強制 Reset
             if (current <= threshold) {
                 sticky.classList.remove('is-fixed');
                 sticky.style.transform = 'translateY(0)'; 
                 placeholder.style.display = 'none';
                 currentTranslate = 0; 
             } else {
-                // 進入懸浮模式
                 if (!sticky.classList.contains('is-fixed')) {
                      placeholder.style.display = 'block';
                      placeholder.style.height = stickyHeight + 'px'; 
                      sticky.classList.add('is-fixed');
                 }
 
-                // 計算滑動差值 (Delta)
                 const diff = current - lastScroll;
-                
-                // 核心算法：currentTranslate 減去 diff
-                // 往下滑 (diff > 0) -> 值變小 (負值) -> 往上收
-                // 往上滑 (diff < 0) -> 值變大 (趨近0) -> 往下吐
                 currentTranslate -= diff;
                 
-                // Clamp (限制範圍)
-                // 上限：0 (完全顯示)
-                // 下限：-stickyHeight (完全隱藏)
                 if (currentTranslate > 0) currentTranslate = 0;
                 if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
 
-                // [安全鎖] 如果目前捲動位置還在「危險邊緣」(靜態欄剛結束的地方)
-                // 強制動態欄展開，避免快速滑動時的縫隙
                 if (current < threshold + stickyHeight + 10) {
                     currentTranslate = 0;
                 }
 
-                // 直接應用樣式 (1:1 跟手)
-                // 補上 translateX(-50%) 因為 CSS 用了 left: 50%
                 sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
             }
             
-            // 防止 iOS 彈性滾動導致的負值問題
             lastScroll = current <= 0 ? 0 : current;
         });
+
+        // [新增] 專門處理「捲動到目標卡片」的函式
+        function scrollToActiveCard() {
+            const el = document.getElementById("firstActive");
+            if (!el) return;
+
+            // 1. 開啟鎖定，禁止 scroll 事件隱藏動態欄
+            isAutoScrolling = true;
+
+            // 2. 強制顯示動態欄 (以防萬一)
+            const sticky = document.getElementById('stickyHeader');
+            sticky.classList.remove('is-hidden'); 
+            sticky.style.transform = `translateX(-50%) translateY(0)`; 
+
+            // 3. 計算精確位置
+            const headerHeight = sticky.offsetHeight || 150;
+            const elementPosition = el.getBoundingClientRect().top + window.scrollY;
+            const offsetPosition = elementPosition - headerHeight - 10; // 留 10px 縫隙
+
+            // 4. 執行捲動
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth"
+            });
+
+            // 5. 解除鎖定 (給一點時間讓動畫跑完)
+            setTimeout(() => {
+                isAutoScrolling = false;
+                lastScroll = window.scrollY; // 同步最後位置，避免下次滑動跳躍
+            }, 600);
+        }
+
+        // [新增] 強制重置動態欄狀態 (給搜尋/切換用)
+        function resetStickyState() {
+            const sticky = document.getElementById('stickyHeader');
+            const placeholder = document.getElementById('stickyPlaceholder');
+            
+            sticky.classList.remove('is-fixed');
+            sticky.style.transform = 'translateY(0)';
+            placeholder.style.display = 'none';
+            currentTranslate = 0;
+            isAutoScrolling = false;
+        }
 
         function init() {
             logSystem("Init","App Started"); updateToggleBtns();
@@ -692,7 +721,7 @@
             renderQuickRoutes();
             updateStarState();
             startStatusTimer(); 
-            initGlobalLedSync(); // [新增] 啟動全域 LED 指揮官
+            initGlobalLedSync(); 
         }
 
         function startStatusTimer() {
@@ -702,17 +731,11 @@
             }, 10000);
         }
 
-        // [新增] 全域 LED 同步指揮官
         function initGlobalLedSync() {
-            // 使用 requestAnimationFrame 來達到最高效能且不耗電的循環
             const loop = () => {
                 const now = Date.now();
-                // 每 1000ms 一個循環
-                // 前 500ms (0~499) -> Phase 0 (上亮)
-                // 後 500ms (500~999) -> Phase 1 (下亮)
-                const phase = Math.floor((now % 1000) / 500); // 0 or 1
+                const phase = Math.floor((now % 1000) / 500); 
                 
-                // 透過修改 Body 的 class 來一次控制全場
                 if (phase === 0) {
                     document.body.classList.add('led-phase-0');
                     document.body.classList.remove('led-phase-1');
@@ -726,7 +749,6 @@
             requestAnimationFrame(loop);
         }
 
-        // [優化] 安靜更新狀態，不重繪 DOM
         function updateRealtimeStatus() {
             const cards = document.querySelectorAll('#cardList .card-link');
             if (cards.length === 0) return;
@@ -747,7 +769,6 @@
                 const rightBadgeContainer = link.querySelector('.status-badge-container');
                 const infoDiv = link.querySelector('.train-info');
                 
-                // 更新狀態 (Class 切換，不重繪)
                 if (isDeparted) {
                     if (!cardDiv.classList.contains('departed-card')) {
                         cardDiv.classList.add('departed-card', 'past');
@@ -759,7 +780,6 @@
                 } else {
                     if (cardDiv.classList.contains('departed-card')) {
                          cardDiv.classList.remove('departed-card', 'past');
-                         // 注意：這裡無法輕易恢復原本顏色，除非刷新，但通常車只會變舊不會變新
                     }
                     
                     if (isArriving) {
@@ -907,6 +927,9 @@
 
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
+
+            // [關鍵] 強制重置動態欄狀態，避免錯位
+            resetStickyState();
 
             list.innerHTML = getSkeletonHTML();
             list.style.opacity="1";
@@ -1146,20 +1169,8 @@
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
 
-                // [關鍵] 強制顯示動態欄 (確保提示看得到)
-                const sticky = document.getElementById('stickyHeader');
-                const placeholder = document.getElementById('stickyPlaceholder');
-                const stickyHeight = sticky.offsetHeight || 150;
-                
-                // 強制重置位置
-                sticky.classList.remove('is-fixed'); 
-                sticky.style.transform = `translateX(-50%) translateY(0)`; 
-                currentTranslate = 0; // 重置 JS 狀態
-
-                setTimeout(() => {
-                    const el = document.getElementById("firstActive");
-                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                }, 300);
+                // [修改] 呼叫自動捲動邏輯
+                scrollToActiveCard();
 
                 return;
             }
