@@ -29,14 +29,14 @@
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
 
         /* Header 基礎樣式 */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; position: relative;}
+        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
 
         /* 區塊 A: 靜態區 */
         .header-static-part {
             padding: 15px 15px 5px 15px; 
-            /* 關鍵：確保靜態區在 sticky 下方，避免穿幫 */
+            background: #151517;
             position: relative;
-            z-index: 10; 
+            z-index: 10;
         }
 
         /* 區塊 B: 懸浮區 */
@@ -47,9 +47,8 @@
             border-bottom-right-radius: 12px;
             width: 100%;
             z-index: 100;
-            /* 預設無動畫，避免初始化跳動 */
-            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); 
-            will-change: transform; /* 效能優化 */
+            /* [關鍵] 移除 transition 以實現 1:1 跟手感 */
+            will-change: transform; 
         }
 
         /* 懸浮時的狀態 */
@@ -62,18 +61,13 @@
             border: 1px solid #333;
             border-top: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-            padding-top: 15px; /* 補償視覺 */
-        }
-
-        /* 往下滑時隱藏 (往上收起) */
-        .header-sticky-part.is-hidden {
-            transform: translateY(-110%); /* 多收一點確保完全隱藏 */
+            padding-top: 15px; 
         }
 
         /* 佔位符 */
         #stickyPlaceholder { display: none; }
 
-        /* 提示區塊樣式：左右排列 */
+        /* 提示區塊樣式 */
         .click-hint {
             display: flex;
             flex-direction: row; 
@@ -94,23 +88,10 @@
         }
         .hint-text-group.only-text { align-items: center; }
 
-        .hint-text {
-            color: #4d7f5e;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-        .click-hint-sub {
-            font-size: 0.8rem;
-            opacity: 0.8;
-            font-weight: normal;
-            color: #888;
-        }
+        .hint-text { color: #4d7f5e; font-weight: bold; font-size: 0.9rem; }
+        .click-hint-sub { font-size: 0.8rem; opacity: 0.8; font-weight: normal; color: #888; }
 
-        .hint-divider {
-            width: 1px;
-            height: 24px;
-            background: #333;
-        }
+        .hint-divider { width: 1px; height: 24px; background: #333; }
 
         .legend-row {
             display: flex;
@@ -122,11 +103,7 @@
             font-size: 0.75rem;
             color: #ccc;
         }
-        .indicator-icon {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
+        .indicator-icon { display: flex; flex-direction: column; gap: 6px; }
 
         /* 回到頂端按鈕 */
         .back-to-top {
@@ -158,37 +135,11 @@
         }
         .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
-        .header-top { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 15px; 
-            min-height: 36px;
-        }
-
-        .app-title { 
-            font-size: 1rem; 
-            color: #888;        
-            letter-spacing: 1px; 
-            font-weight: 800; 
-            margin: 0;
-            flex: 1; 
-        }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
+        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
 
         .install-btn-top {
-            background: #4d7f5e; 
-            color: #fff; 
-            border: none;
-            padding: 6px 12px; 
-            border-radius: 20px; 
-            font-size: 0.8rem; 
-            font-weight: bold;
-            cursor: pointer; 
-            display: none; 
-            align-items: center; 
-            gap: 4px;
-            margin-right: 8px;
-            animation: fadeIn 0.5s;
+            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; align-items: center; gap: 4px; margin-right: 8px; animation: fadeIn 0.5s;
         }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
 
@@ -196,25 +147,9 @@
             0%, 100% { color: #fff; border-color: #444; }
             50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
         }
-        .anim-gold-pulse { 
-            animation: pulse-white-gold 3s infinite ease-in-out !important; 
-            border-width: 1px;
-            border-style: solid;
-        }
+        .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
 
-        .menu-btn-trigger { 
-            background: #2c2c2e; 
-            border: 1px solid #444; 
-            color: #fff; 
-            width: 36px; height: 36px; 
-            border-radius: 8px; 
-            font-size: 1.2rem; 
-            cursor: pointer; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            transition: all 0.2s;
-        }
+        .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
 
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
@@ -264,38 +199,15 @@
 
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
 
-        .main-time { 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            padding: 6px 0; 
-            gap: 6px; 
-            flex-wrap: nowrap; 
-        }
+        .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 6px; flex-wrap: nowrap; }
         .time-group { display: flex; flex-direction: column; align-items: center; }
         .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
 
-        .time-part { 
-            font-size: 1.4rem; 
-            font-weight: 700; 
-            line-height: 1; 
-            white-space: nowrap; 
-            display: flex;
-            align-items: baseline;
-        }
-        .ampm {
-            font-size: 0.85rem;
-            margin-right: 3px;
-            color: #aaa;
-            font-weight: normal;
-        }
-
+        .time-part { font-size: 1.4rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; }
+        .ampm { font-size: 0.85rem; margin-right: 3px; color: #aaa; font-weight: normal; }
         .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
 
-        @media (max-width: 360px) {
-            .time-part { font-size: 1.25rem; }
-            .ampm { font-size: 0.75rem; }
-        }
+        @media (max-width: 360px) { .time-part { font-size: 1.25rem; } .ampm { font-size: 0.75rem; } }
 
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
@@ -643,66 +555,64 @@
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
-        // [修正] 滾動邏輯 - 解決重影問題並優化反應
+        // [關鍵修正] 1:1 跟手滑動邏輯 (Browser Address Bar Style)
         let lastScroll = 0;
-        let ticking = false; // 用於 requestAnimationFrame
-
+        let currentTranslate = 0; // 追蹤懸浮欄的位移
+        
         window.addEventListener('scroll', () => {
-            if (!ticking) {
-                window.requestAnimationFrame(() => {
-                    handleScroll();
-                    ticking = false;
-                });
-                ticking = true;
-            }
-        });
-
-        function handleScroll() {
             const current = window.scrollY;
             const sticky = document.getElementById('stickyHeader');
             const placeholder = document.getElementById('stickyPlaceholder');
             const backToTop = document.getElementById('btnBackToTop');
             
-            // 取得靜態區塊的高度，作為切換閾值
             const staticPart = document.querySelector('.header-static-part');
-            // 如果還沒 render 出來，給個預設值
             const threshold = staticPart ? staticPart.offsetHeight : 150;
+            const stickyHeight = sticky.offsetHeight || 150;
 
-            // 1. Back to Top 按鈕
+            // 1. Back to Top Logic
             if(current > 300) {
                 backToTop.classList.add('visible');
             } else {
                 backToTop.classList.remove('visible');
             }
 
-            // 2. Sticky Header 邏輯
-            
-            // 判斷：是否還在頂部區域 (包含彈性滾動的負值)
+            // 2. Sticky Logic
             if (current <= threshold) {
-                // 強制復原 (Reset)
-                sticky.classList.remove('is-fixed', 'is-hidden');
+                // Zone 1: 回到頂部區域 - 強制復原，避免重影
+                sticky.classList.remove('is-fixed');
+                sticky.style.transform = 'translateY(0)'; // 清除位移
                 placeholder.style.display = 'none';
+                currentTranslate = 0; // 重置狀態
             } else {
-                // 進入懸浮模式
-                // 先把佔位符撐開，避免內容跳動
+                // Zone 2: 捲動區域 - 啟動 Fixed 模式
                 if (!sticky.classList.contains('is-fixed')) {
                      placeholder.style.display = 'block';
-                     placeholder.style.height = sticky.getBoundingClientRect().height + 'px'; 
+                     placeholder.style.height = stickyHeight + 'px'; 
                      sticky.classList.add('is-fixed');
                 }
 
-                // 判斷捲動方向
-                // 往下捲且超過一定距離 -> 隱藏
-                if (current > lastScroll && current > threshold + 10) {
-                    sticky.classList.add('is-hidden');
-                } 
-                // 往上捲 -> 顯示 (移除緩衝，讓反應更即時)
-                else if (current < lastScroll) {
-                    sticky.classList.remove('is-hidden');
-                }
+                // 計算滑動差值 (Delta)
+                const diff = current - lastScroll;
+                
+                // 往下滑 (diff > 0): 隱藏 (translate 往負值走)
+                // 往上滑 (diff < 0): 顯示 (translate 往 0 走)
+                
+                // 核心算法：currentTranslate 減去 diff，並限制在 [-stickyHeight, 0] 之間
+                currentTranslate -= diff;
+                
+                // Clamp (限制範圍)
+                // 不能大於 0 (完全顯示)
+                // 不能小於 -stickyHeight (完全隱藏)
+                if (currentTranslate > 0) currentTranslate = 0;
+                if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
+
+                // 直接應用樣式 (1:1 跟手)
+                sticky.style.transform = `translateY(${currentTranslate}px)`;
             }
-            lastScroll = current;
-        }
+            
+            // 防止 iOS 彈性滾動導致的負值問題
+            lastScroll = current <= 0 ? 0 : current;
+        });
 
         function init() {
             logSystem("Init","App Started"); updateToggleBtns();
