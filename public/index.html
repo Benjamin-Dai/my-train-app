@@ -840,6 +840,16 @@
             }; t(); refreshTimer=setInterval(t,1000);
         }
 
+        // [重要] 新增 Helper Function: 取得台鐵營業日的日期字串
+        // 邏輯：如果時間是 00:00 ~ 03:59，算作前一天
+        function getRailwayDateStr(ts) {
+            const d = new Date(ts * 1000);
+            if (d.getHours() < 4) {
+                d.setDate(d.getDate() - 1);
+            }
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
         function renderCards(data) {
             currentTrainData = data; 
             
@@ -865,7 +875,9 @@
                 const nowSec = Math.floor(Date.now() / 1000);
 
                 const now = new Date();
-                const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+                // 取得「現在」的台鐵營業日期 (如果現在是 01:00，這會拿到昨天的日期)
+                // 用來比對是否為 "未來/明日" 的班次
+                const currentRailwayDate = getRailwayDateStr(nowSec);
 
                 data.trains.forEach((t, index) => {
                     const diffSec = t.sort_key - nowSec;
@@ -876,10 +888,11 @@
 
                     if (!isShowAll && diffMin < -10) return;
 
+                    // [修正] 分界線邏輯改用 "台鐵營業日" 判斷
                     if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
-                        const thisDate = new Date(t.sort_key * 1000);
-                        const lastDate = new Date(lastTrainTs * 1000);
-                        if (thisDate.getDate() !== lastDate.getDate()) {
+                        const thisRwDate = getRailwayDateStr(t.sort_key);
+                        const lastRwDate = getRailwayDateStr(lastTrainTs);
+                        if (thisRwDate !== lastRwDate) {
                              cardsHtml += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px;">⬇ 明日班次 ⬇</div>`;
                              hasShownNextDayDivider = true;
                         }
@@ -911,11 +924,16 @@
                     const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
                     let cardClass = "card"; if (isDeparted) cardClass += " departed-card";
 
-                    const depDateLabel = (t.dep_date !== todayStr) ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
-                    const arrDateLabel = (t.arr_date !== todayStr) ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
+                    // [修正] "明日" 標籤判斷：如果該班次的營業日 > 現在的營業日
+                    const trainRwDate = getRailwayDateStr(t.sort_key);
+                    const isFutureRwDate = trainRwDate > currentRailwayDate;
+
+                    const depDateLabel = isFutureRwDate ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
+                    const arrDateLabel = isFutureRwDate ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
 
                     let subTimeContent = '';
-                    if (!data.delay_failed && t.delay === 0) {
+                    // [修正] 如果是「未來營業日」的班次，強制不顯示「準點」，只顯示原定時間
+                    if (!isFutureRwDate && !data.delay_failed && t.delay === 0) {
                         subTimeContent = `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>`;
                     } else {
                         subTimeContent = `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`;
