@@ -24,6 +24,9 @@ DEFAULT_END = '潮州'
 API_BASE_V3 = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA"
 API_BASE_V2 = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA"
 
+# 強制設定台灣時區 UTC+8
+TW_TZ = timezone(timedelta(hours=8))
+
 # 初始化 Redis 連線
 redis_client = None
 if KV_URL:
@@ -54,7 +57,7 @@ class handler(BaseHTTPRequestHandler):
                 data = res.json()
                 token = data.get('access_token')
                 expires = data.get('expires_in', 86400)
-                
+
                 if redis_client and token:
                     try:
                         redis_client.set("tdx_token", token, ex=expires - 600)
@@ -75,7 +78,7 @@ class handler(BaseHTTPRequestHandler):
     # === 使用 Redis 存取誤點資訊 (V3 Key) ===
     def get_cached_delays(self, headers):
         cache_key = "v3_tra_delay_data"
-        
+
         if redis_client:
             try:
                 cached_data = redis_client.get(cache_key)
@@ -92,13 +95,13 @@ class handler(BaseHTTPRequestHandler):
             d_data = res.json()
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
-            
+
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(new_delays), ex=60)
                 except Exception as e:
                     print(f"Redis Write Error: {e}")
-            
+
             return (new_delays, status_str)
         else: 
             raise Exception(f"Delay API Error: {res.status_code}")
@@ -120,7 +123,7 @@ class handler(BaseHTTPRequestHandler):
         if res.status_code == 200:
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
-            
+
             if redis_client:
                 try:
                     redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
@@ -131,20 +134,20 @@ class handler(BaseHTTPRequestHandler):
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
     # === 核心處理邏輯 ===
-    def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=False):
+    def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, now, is_tomorrow=False, fix_crossing_night=False):
         processed = []
         for item in raw_list:
             info = item.get('TrainInfo', {})
             no = info.get('TrainNo')
             raw_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
             stop_times = item.get('StopTimes', [])
-            
+
             dep_time, arr_time = None, None
             for stop in stop_times:
                 s_id = stop.get('StationID')
                 if s_id == start_id: dep_time = stop.get('DepartureTime')
                 elif s_id == end_id: arr_time = stop.get('ArrivalTime')
-            
+
             if not dep_time or not arr_time: continue 
 
             display_type = raw_type
@@ -161,10 +164,10 @@ class handler(BaseHTTPRequestHandler):
                 delay = 0
             else:
                 delay = int(delays.get(no, 0))
-            
+
             dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
             arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
-            
+
             if fix_crossing_night:
                 if dep_time < "12:00": dep_dt += timedelta(days=1)
                 if arr_time < "12:00": arr_dt += timedelta(days=1)
@@ -176,15 +179,17 @@ class handler(BaseHTTPRequestHandler):
 
             is_past = real_dep < (now - timedelta(minutes=10))
 
-            real_dep_aware = real_dep.replace(tzinfo=tz_tw)
+            # 讓 real_dep 帶有時區資訊以便計算 timestamp
+            real_dep_aware = real_dep.replace(tzinfo=None).astimezone(TW_TZ)
 
+            # [修正點] 日期格式改為完整 YYYY-MM-DD，以便前端精準比對
             processed.append({
                 "no": no, "type": display_type, "delay": delay, "color": type_color,
                 "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
-                "dep_date": real_dep.strftime("%m/%d"),
-                "arr_date": real_arr.strftime("%m/%d"),
+                "dep_date": real_dep.strftime("%Y-%m-%d"),
+                "arr_date": real_arr.strftime("%Y-%m-%d"),
                 "sch_dep": dep_time, "sch_arr": arr_time,
-                "sort_key": real_dep_aware.timestamp(),
+                "sort_key": real_dep.timestamp(),
                 "is_past": is_past
             })
         return processed
@@ -203,22 +208,23 @@ class handler(BaseHTTPRequestHandler):
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
-        tz_tw = timezone(timedelta(hours=8))
-        now_aware = datetime.now(tz_tw)
-        now = datetime.now() + timedelta(hours=8)
-        
+        # [修正] 嚴格定義現在時間為 UTC+8
+        now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
+        now = now_aware.replace(tzinfo=None) # 轉為 naive time 以便與 strptime 產生的時間運算
+
         today_str = now.strftime('%Y-%m-%d')
         tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
-        
+
         headers = {'authorization': f'Bearer {token}'}
 
         try:
             raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
             raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
-            
+
             raw_yest = []
             status_yest = "Skipped"
-            if now_aware.hour < 4:
+            # 凌晨 4 點前查詢，可能需要昨天的跨夜車
+            if now.hour < 4:
                 yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
                 raw_yest, status_yest = self.get_route_timetable(start_id, end_id, yesterday_str, headers)
 
@@ -234,25 +240,23 @@ class handler(BaseHTTPRequestHandler):
                 delay_status = "Failed"
 
             processed = []
-            
+
             if raw_yest:
                 yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-                processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False, fix_crossing_night=True))
+                processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, now, is_tomorrow=False, fix_crossing_night=True))
 
-            processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
-            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, tz_tw, now, is_tomorrow=False))
+            processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, now, is_tomorrow=False))
+            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, now, is_tomorrow=False))
 
             unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
-            
+
             final_result = []
-            now_ts = now_aware.timestamp()
-            
-            # 【關鍵修改】放寬過去的限制，為了讓「全部」按鈕可以看到今天早上的車
+            now_ts = now.timestamp()
+
             # 取得「今天 00:00:00」的 timestamp
-            today_start = now_aware.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-            
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+
             # 視窗：從今天 00:00 起 ~ 未來 24 小時
-            # 這樣後端就會傳回今天整天的資料，剩下的交給前端過濾
             future_limit = now_ts + (24 * 3600) 
             past_limit = today_start 
 
@@ -262,7 +266,7 @@ class handler(BaseHTTPRequestHandler):
                     final_result.append(p)
 
             result = sorted(final_result, key=lambda x: x['sort_key'])
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -270,7 +274,7 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
 
             diag_route_status = f"{status_today} / {status_tmrw}"
-            if now_aware.hour < 4:
+            if now.hour < 4:
                 diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
 
             self.wfile.write(json.dumps({
@@ -279,6 +283,9 @@ class handler(BaseHTTPRequestHandler):
                 "end": end_station,
                 "delay_failed": delay_failed,
                 "trains": result,
+                "stats": {
+                    "original_count": len(final_result)
+                },
                 "diagnostics": {
                     "route_status": diag_route_status,
                     "delay_status": delay_status
