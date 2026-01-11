@@ -70,10 +70,10 @@
         }
         #stickyPlaceholder { display: none; }
 
-        /* Row 1: Quick Route + Fav Btn */
+        /* Row 1: Quick Route */
         .sticky-row-top { 
             display: flex; align-items: center; border-bottom: 1px solid #222; min-height: 50px; 
-            position: relative; /* For Overlay */
+            position: relative; 
         }
         .quick-route-scroll-container {
             flex: 1; overflow-x: auto; white-space: nowrap; padding: 5px 10px; height: 100%; display: flex; align-items: center;
@@ -81,12 +81,10 @@
         }
         .quick-route-scroll-container::-webkit-scrollbar { display: none; }
         
-        /* [新增] 滑動提示遮罩 (Fade Mask + Arrow) */
         .scroll-hint-overlay {
-            position: absolute; right: 85px; /* 避開右邊按鈕 */ top: 0; bottom: 0; width: 40px;
+            position: absolute; right: 85px; top: 0; bottom: 0; width: 40px;
             background: linear-gradient(to right, transparent, #151517);
-            pointer-events: none; /* 讓點擊穿透 */
-            display: flex; align-items: center; justify-content: flex-end;
+            pointer-events: none; display: flex; align-items: center; justify-content: flex-end;
             padding-right: 5px; opacity: 0; transition: opacity 0.3s;
         }
         .scroll-hint-arrow { color: #4d7f5e; font-weight: bold; font-size: 1.2rem; animation: bounce-x 1s infinite; }
@@ -134,18 +132,18 @@
         .status-left.warning { color: #e6b800; }
         .status-right { font-size: 0.75rem; color: #666; font-family: monospace; }
 
-        /* [修改] 底部固定提示欄 */
+        /* Footer Hints */
         .fixed-footer-hints {
             position: fixed; bottom: 0; left: 0; width: 100%;
             background: #1a1a1c; border-top: 1px solid #333;
-            display: none; /* JS 控制 */
+            display: none; 
             align-items: center; justify-content: center; gap: 20px; 
             padding: 10px 15px; font-size: 0.75rem; color: #666; 
             z-index: 200; 
             padding-bottom: max(10px, env(safe-area-inset-bottom));
             box-shadow: 0 -5px 20px rgba(0,0,0,0.8);
         }
-        .fixed-footer-hints.centered { justify-content: center; } /* 無左側提示時置中 */
+        .fixed-footer-hints.centered { justify-content: center; } 
         .hint-group { display: flex; align-items: center; gap: 8px; }
         .hint-text-col { display: flex; flex-direction: column; line-height: 1.2; }
         .hint-text-col span { font-weight: bold; color: #ccc; }
@@ -203,7 +201,7 @@
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Back to top (Adjusted) */
+        /* Back to top */
         .back-to-top {
             position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
             background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
@@ -315,7 +313,7 @@
             </div>
 
             <div id="stickyHeader" class="header-sticky-part">
-                <div class="sticky-row-top">
+                <div class="sticky-row-top" id="stickyRowTop">
                     <div id="quickRouteArea" class="quick-route-scroll-container"></div>
                     <div id="scrollHint" class="scroll-hint-overlay">
                         <span class="scroll-hint-arrow">›</span>
@@ -325,7 +323,7 @@
                     </div>
                 </div>
 
-                <div class="sticky-row-tools">
+                <div class="sticky-row-tools" id="stickyRowTools">
                     <button id="btnRefresh" class="toolbar-btn refresh" onclick="doRefresh()">🔄 更新</button>
                     <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 已駛離</button>
                     <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 AM/PM</button>
@@ -831,9 +829,16 @@
             const hintArrival = document.getElementById('hintArrival');
             const hintDivider = document.getElementById('hintDivider');
             
+            // [修改] 隱藏工具欄邏輯 (工具列 ID: stickyRowTools)
+            // 第一排 (常用路線) ID: stickyRowTop (要保留)
+            const toolsRow = document.getElementById('stickyRowTools');
+            const topRow = document.getElementById('stickyRowTop');
+            
             if(data.trains && data.trains.length > 0) {
-                // 有車次顯示 Footer
+                // 有車次 -> 顯示所有 UI
                 footerHints.style.display = 'flex';
+                toolsRow.style.display = 'flex';
+                topRow.style.display = 'flex';
 
                 let cardsHtml = '';
                 let anyArriving = false; 
@@ -908,125 +913,28 @@
                     </a>`;
                 });
                 
-                // [智慧提示切換邏輯]
+                // [智慧提示]
                 if (anyArriving) {
                     hintArrival.style.display = 'flex';
                     hintDivider.style.display = 'block';
-                    footerHints.classList.remove('centered'); // 恢復預設對齊
+                    footerHints.classList.remove('centered'); 
                 } else {
                     hintArrival.style.display = 'none';
                     hintDivider.style.display = 'none';
-                    footerHints.classList.add('centered'); // 置中
+                    footerHints.classList.add('centered'); 
                 }
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
                 return;
             }
             
-            // 無車次隱藏 Footer
+            // 無車次 -> 隱藏 Footer 與 工具欄，但保留 常用路線 (topRow)
             footerHints.style.display = 'none';
+            toolsRow.style.display = 'none';
+            // topRow.style.display = 'none'; // [修正] 註解掉這行，保留第一排
 
             const orig = data.stats ? data.stats.original_count : 0;
             list.innerHTML = orig > 0 ? `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : `<div class="message">查無此區間直達列車 ⚠️</div>`;
-        }
-
-        function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
-        function recordRequest(){requestHistory.push(Date.now());}
-        function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
-        function closeModal(){document.getElementById('aboutModal').style.display='none';}
-
-        function goToPage(id){
-            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
-            document.getElementById('page'+id).classList.add('active');
-            if(id==='Report'){
-                const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
-                document.getElementById('statRpm').innerText=rpm;
-                document.getElementById('cardRpm').classList.toggle('danger', rpm>=5);
-                document.getElementById('statTotal').innerText=requestHistory.length;
-                const last=requestHistory[requestHistory.length-1];
-                document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
-                const getColor = (src) => { if(src.includes("Vercel")||src.includes("Redis")) return "green"; if(src.includes("API")) return "yellow"; return "red"; };
-                const displayQuota = (lastDiagnostics.route_quota !== "--") ? lastDiagnostics.route_quota : lastDiagnostics.delay_quota;
-                const elStatus = document.getElementById('diagStatus');
-                elStatus.innerHTML = `<span class="badge ${getColor(lastDiagnostics.route_source)}">${lastDiagnostics.route_source}</span> / <span class="badge ${getColor(lastDiagnostics.delay_source)}">${lastDiagnostics.delay_source}</span>`;
-                const elQuota = document.getElementById('diagQuota');
-                elQuota.innerHTML = `<span style="font-size:1.1rem; color:#fff;">${displayQuota}</span>`;
-                const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone);
-                let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
-                r += `裝置: ${navigator.userAgent}\n畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
-                r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
-                r += `狀態: [${lastDiagnostics.route_source}] / [${lastDiagnostics.delay_source}]\n剩餘: ${displayQuota}\n`;
-                r += `--- Log ---\n${systemLogs.join("\n")}`;
-                document.getElementById('reportContent').value = r;
-                document.getElementById('terminalView').innerText = systemLogs.join("\n");
-            }
-        }
-        function copyReportOnly() {
-            let final = document.getElementById('reportContent').value;
-            const uDesc = document.getElementById('userDesc').value; if(uDesc) final += `\n\nUser: ${uDesc}`;
-            navigator.clipboard.writeText(final).then(() => { alert("已複製"); }).catch(e=>{alert('複製失敗');});
-        }
-        function openMailClient() {
-            const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
-            const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
-            window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
-        }
-
-        // === 常用路線與歷史紀錄 ===
-        const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
-        const MAX_HIST = 3; const MAX_FAV = 6;
-        const btnStar = document.getElementById('btnStar');
-        const quickArea = document.getElementById('quickRouteArea');
-
-        function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
-        function isFavorite(s, e) {
-            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            return favs.some(f => f.start === s && f.end === e);
-        }
-        function toggleFavorite() {
-            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
-            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
-            if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav", "Removed"); } 
-            else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav", "Added"); }
-            localStorage.setItem(LS_FAV, JSON.stringify(favs));
-            updateStarState(); renderQuickRoutes();
-        }
-        function addToHistory() {
-            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
-            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
-            hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop();
-            localStorage.setItem(LS_HIST, JSON.stringify(hist));
-            renderQuickRoutes();
-        }
-        function updateStarState() {
-            const cur = getCurrentPair();
-            if (isFavorite(cur.start, cur.end)) { 
-                btnStar.innerHTML = '★ 已收藏<br>路線'; 
-                btnStar.classList.add('fav-active'); 
-            } else { 
-                btnStar.innerHTML = '☆ 收藏<br>路線'; 
-                btnStar.classList.remove('fav-active'); 
-            }
-        }
-        function loadRoute(s, e) {
-            const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
-            if (sR && eR) {
-                setMenu('start', sR, s); setMenu('end', eR, e);
-                markAsChanged(); doSearch(); 
-            }
-        }
-        function renderQuickRoutes() {
-            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            let html = '';
-            favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
-            hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
-            quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
-            
-            // [新增] 檢查是否需要滑動提示
-            setTimeout(updateScrollHint, 100);
         }
 
         // [新增] 更新滑動提示顯示
@@ -1034,9 +942,7 @@
             const el = document.getElementById('quickRouteArea');
             const hint = document.getElementById('scrollHint');
             if (el.scrollWidth > el.clientWidth) {
-                // 如果內容長度大於容器寬度 -> 顯示提示
                 hint.style.opacity = '1';
-                // 監聽滾動，滾到底就隱藏
                 el.onscroll = () => {
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
                         hint.style.opacity = '0';
