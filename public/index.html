@@ -880,7 +880,7 @@
                         const thisDate = new Date(t.sort_key * 1000);
                         const lastDate = new Date(lastTrainTs * 1000);
                         if (thisDate.getDate() !== lastDate.getDate()) {
-                             cardsHtml += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:10px;">⬇ 次日班次 ⬇</div>`;
+                             cardsHtml += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px;">⬇ 明日班次 ⬇</div>`;
                              hasShownNextDayDivider = true;
                         }
                     }
@@ -1065,11 +1065,14 @@
             }
         }
 
+        // [新增] 更新滑動提示顯示
         function updateScrollHint() {
             const el = document.getElementById('quickRouteArea');
             const hint = document.getElementById('scrollHint');
             if (el.scrollWidth > el.clientWidth) {
+                // 如果內容長度大於容器寬度 -> 顯示提示
                 hint.style.opacity = '1';
+                // 監聽滾動，滾到底就隱藏
                 el.onscroll = () => {
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
                         hint.style.opacity = '0';
