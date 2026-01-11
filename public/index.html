@@ -958,7 +958,7 @@
         function updateScrollHint() {
             const el = document.getElementById('quickRouteArea');
             const hint = document.getElementById('scrollHint');
-            if (el.scrollWidth > el.clientWidth) {
+            if (el && el.scrollWidth > el.clientWidth) {
                 hint.style.opacity = '1';
                 el.onscroll = () => {
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
@@ -967,9 +967,77 @@
                         hint.style.opacity = '1';
                     }
                 };
-            } else {
+            } else if (hint) {
                 hint.style.opacity = '0';
             }
+        }
+
+        // Utility Functions (Restored)
+        function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
+        function recordRequest(){requestHistory.push(Date.now());}
+        function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
+        function closeModal(){document.getElementById('aboutModal').style.display='none';}
+        function copyReportOnly() {
+            let final = document.getElementById('reportContent').value;
+            const uDesc = document.getElementById('userDesc').value; if(uDesc) final += `\n\nUser: ${uDesc}`;
+            navigator.clipboard.writeText(final).then(() => { alert("已複製"); }).catch(e=>{alert('複製失敗');});
+        }
+        function openMailClient() {
+            const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
+            const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
+            window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
+        }
+        function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
+        function isFavorite(s, e) {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            return favs.some(f => f.start === s && f.end === e);
+        }
+        function toggleFavorite() {
+            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
+            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
+            if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav", "Removed"); } 
+            else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav", "Added"); }
+            localStorage.setItem(LS_FAV, JSON.stringify(favs));
+            updateStarState(); renderQuickRoutes();
+        }
+        function addToHistory() {
+            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
+            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
+            hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop();
+            localStorage.setItem(LS_HIST, JSON.stringify(hist));
+            renderQuickRoutes();
+        }
+        function updateStarState() {
+            const cur = getCurrentPair();
+            if (isFavorite(cur.start, cur.end)) { 
+                btnStar.innerHTML = '★ 已收藏<br>路線'; 
+                btnStar.classList.add('fav-active'); 
+            } else { 
+                btnStar.innerHTML = '☆ 收藏<br>路線'; 
+                btnStar.classList.remove('fav-active'); 
+            }
+        }
+        function loadRoute(s, e) {
+            const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
+            if (sR && eR) {
+                setMenu('start', sR, s); setMenu('end', eR, e);
+                markAsChanged(); doSearch(); 
+            }
+        }
+        function renderQuickRoutes() {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+            let html = '';
+            favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
+            hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
+            if (html === '') {
+                quickArea.innerHTML = '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
+            } else {
+                quickArea.innerHTML = html;
+            }
+            setTimeout(updateScrollHint, 100);
         }
     </script>
 </body>
