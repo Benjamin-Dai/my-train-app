@@ -23,7 +23,7 @@
         .header-static-part { padding: 15px 15px 15px 15px; background: #151517; position: relative; z-index: 10; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
         .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
-        
+
         .top-actions { display: flex; align-items: center; gap: 8px; }
         .install-btn-top {
             background: #4d7f5e; color: #fff; border: none; padding: 0 12px; height: 36px; border-radius: 8px; 
@@ -80,7 +80,7 @@
             -ms-overflow-style: none; scrollbar-width: none; 
         }
         .quick-route-scroll-container::-webkit-scrollbar { display: none; }
-        
+
         /* [新增] 滑動提示遮罩 (Fade Mask + Arrow) */
         .scroll-hint-overlay {
             position: absolute; right: 85px; /* 避開右邊按鈕 */ top: 0; bottom: 0; width: 40px;
@@ -281,7 +281,7 @@
             <div class="header-static-part">
                 <div class="header-top">
                     <div class="app-title">TRAIN LIVE</div>
-                    
+
                     <div class="top-actions">
                         <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
                             📲 加到桌面
@@ -310,7 +310,7 @@
                         <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
                     </div>
                 </div>
-                
+
                 <button id="btnSearch" class="btn-static-search" onclick="doSearch()">🔍 查詢路線</button>
             </div>
 
@@ -337,7 +337,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div id="cardList"></div>
     </div>
 
@@ -534,14 +534,20 @@
         }
 
         let lastScroll = 0; let currentTranslate = 0;
+        
+        // [優化] 將 DOM 查詢移出 scroll 事件外，提升效能
+        const sticky = document.getElementById('stickyHeader');
+        const placeholder = document.getElementById('stickyPlaceholder');
+        const backToTop = document.getElementById('btnBackToTop');
+        const staticPart = document.querySelector('.header-static-part');
+        const headerEl = document.querySelector('.header'); // [新增] 用於計算偏移
+
         window.addEventListener('scroll', () => {
             const current = window.scrollY;
-            const sticky = document.getElementById('stickyHeader');
-            const placeholder = document.getElementById('stickyPlaceholder');
-            const backToTop = document.getElementById('btnBackToTop');
-            const staticPart = document.querySelector('.header-static-part');
             
-            const threshold = staticPart ? staticPart.offsetHeight : 150;
+            // [修正] 計算 threshold 時加上 headerEl.offsetTop (body padding 10px)
+            const headerOffset = headerEl ? headerEl.offsetTop : 0;
+            const threshold = staticPart ? (staticPart.offsetHeight + headerOffset) : 150;
             const stickyHeight = sticky.offsetHeight || 150;
 
             if(current > 300) backToTop.classList.add('visible'); else backToTop.classList.remove('visible');
@@ -553,9 +559,9 @@
                 currentTranslate = 0;
             } else {
                 if (!sticky.classList.contains('is-fixed')) {
-                     placeholder.style.height = stickyHeight + 'px'; 
-                     placeholder.style.display = 'block';
-                     sticky.classList.add('is-fixed');
+                      placeholder.style.height = stickyHeight + 'px'; 
+                      placeholder.style.display = 'block';
+                      sticky.classList.add('is-fixed');
                 }
                 const diff = current - lastScroll;
                 currentTranslate -= diff;
@@ -580,7 +586,7 @@
             logSystem("Init","App Started"); 
             startTicker(); 
             updateToggleBtns();
-            
+
             const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
             const savedSR = localStorage.getItem(PREF_START_R_KEY);
             if (savedSR) {
@@ -641,7 +647,7 @@
             updateStarState();
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
-        
+
         function reRenderLocal() {
             if (currentTrainData) {
                 renderCards(currentTrainData);
@@ -650,7 +656,7 @@
             const c=localStorage.getItem(getCacheKey());
             if(c) renderCards(JSON.parse(c).payload); 
         }
-        
+
         function attemptLoadCache(isInit) {
             if(!startStation.value||!endStation.value) return;
             const c=localStorage.getItem(getCacheKey()); let hit=false;
@@ -760,7 +766,7 @@
                 const isVercelCache = age && parseInt(age) > 0;
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
-                
+
                 lastFetchedPair={start:s,end:e};
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
@@ -826,11 +832,11 @@
 
         function renderCards(data) {
             currentTrainData = data; 
-            
+
             const footerHints = document.getElementById('fixedFooterHints');
             const hintArrival = document.getElementById('hintArrival');
             const hintDivider = document.getElementById('hintDivider');
-            
+
             if(data.trains && data.trains.length > 0) {
                 // 有車次顯示 Footer
                 footerHints.style.display = 'flex';
@@ -907,7 +913,7 @@
                         </div>
                     </a>`;
                 });
-                
+
                 // [智慧提示切換邏輯]
                 if (anyArriving) {
                     hintArrival.style.display = 'flex';
@@ -922,7 +928,7 @@
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
                 return;
             }
-            
+
             // 無車次隱藏 Footer
             footerHints.style.display = 'none';
 
@@ -1024,7 +1030,7 @@
             favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
             hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
             quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
-            
+
             // [新增] 檢查是否需要滑動提示
             setTimeout(updateScrollHint, 100);
         }
