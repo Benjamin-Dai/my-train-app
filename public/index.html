@@ -318,7 +318,7 @@
                         <span class="scroll-hint-arrow">›</span>
                     </div>
                     <div class="btn-side-container">
-                         <button id="btnStar" class="btn-fav-compact" onclick="toggleFavorite()">☆ 收藏<br>路線</button>
+                         <button id="btnStar" class="btn-fav-compact" onclick="toggleFavorite()">★<br>已收藏</button>
                     </div>
                 </div>
 
@@ -1046,7 +1046,7 @@
         function updateStarState() {
             const cur = getCurrentPair();
             if (isFavorite(cur.start, cur.end)) { 
-                btnStar.innerHTML = '★ 已收藏<br>路線'; 
+                btnStar.innerHTML = '★<br>已收藏'; 
                 btnStar.classList.add('fav-active'); 
             } else { 
                 btnStar.innerHTML = '☆ 收藏<br>路線'; 
