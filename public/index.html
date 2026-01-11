@@ -125,9 +125,9 @@
         .toolbar-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77,127,94,0.1); }
         .toolbar-btn.fav-active { color: #e6b800; border-color: #e6b800; background: rgba(230,184,0,0.1); }
 
-        /* Row 3: 提示列 (預設隱藏，由 JS 控制顯示) */
+        /* Row 3: 提示列 */
         .sticky-row-hints { 
-            display: none; /* [修改] 預設隱藏，有資料才顯示 */
+            display: none; /* 預設隱藏 */
             align-items: center; justify-content: center; gap: 20px; 
             padding: 8px 15px; font-size: 0.75rem; color: #666; background: #1a1a1c;
         }
@@ -519,8 +519,8 @@
                 btnAll.classList.remove('active');
             }
         }
-        function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); }
-        function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); }
+        function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
+        function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
 
         function formatTime(t) {
             if(!t) return "";
@@ -564,6 +564,16 @@
             }
             lastScroll = current <= 0 ? 0 : current;
         });
+
+        // [新增] 自動捲動到第一張活躍卡片
+        function scrollToFirstActive() {
+            setTimeout(() => {
+                const el = document.getElementById("firstActive");
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            }, 300); // 稍微延遲等待 DOM 渲染完畢
+        }
 
         function init() {
             logSystem("Init","App Started"); 
@@ -656,6 +666,7 @@
                     
                     list.style.opacity="1"; 
                     lastFetchedPair={start:startStation.value,end:endStation.value}; hit=true;
+                    scrollToFirstActive(); // [新增]
                 }
             }
             if(!hit) {
@@ -743,6 +754,7 @@
                     const now = Date.now();
                     if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false, 500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                     if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                    scrollToFirstActive(); // [新增]
                     return;
                 }
             }
@@ -776,6 +788,7 @@
                 const now=Date.now();
                 if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                 if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                scrollToFirstActive(); // [新增]
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
                 scheduleRetry("連線錯誤", "status-left alert");
