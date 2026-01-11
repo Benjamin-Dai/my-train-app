@@ -840,13 +840,9 @@
             }; t(); refreshTimer=setInterval(t,1000);
         }
 
-        // [重要] 新增 Helper Function: 取得台鐵營業日的日期字串
-        // 邏輯：如果時間是 00:00 ~ 03:59，算作前一天
-        function getRailwayDateStr(ts) {
+        // [重要修正] 嚴格的日期字串取得函數 (不扣除 4 小時)
+        function getStrictDateStr(ts) {
             const d = new Date(ts * 1000);
-            if (d.getHours() < 4) {
-                d.setDate(d.getDate() - 1);
-            }
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
 
@@ -875,9 +871,8 @@
                 const nowSec = Math.floor(Date.now() / 1000);
 
                 const now = new Date();
-                // 取得「現在」的台鐵營業日期 (如果現在是 01:00，這會拿到昨天的日期)
-                // 用來比對是否為 "未來/明日" 的班次
-                const currentRailwayDate = getRailwayDateStr(nowSec);
+                // [重要修正] 嚴格取得今天日期 (YYYY-MM-DD)
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
                 data.trains.forEach((t, index) => {
                     const diffSec = t.sort_key - nowSec;
@@ -888,11 +883,13 @@
 
                     if (!isShowAll && diffMin < -10) return;
 
-                    // [修正] 分界線邏輯改用 "台鐵營業日" 判斷
+                    // [重要修正] 使用嚴格日期比對來決定是否畫分隔線
+                    const trainDate = getStrictDateStr(t.sort_key);
+                    const isStrictTomorrow = trainDate > todayStr; // 用字串比對 "2026-01-12" > "2026-01-11"
+
                     if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
-                        const thisRwDate = getRailwayDateStr(t.sort_key);
-                        const lastRwDate = getRailwayDateStr(lastTrainTs);
-                        if (thisRwDate !== lastRwDate) {
+                        const lastTrainDate = getStrictDateStr(lastTrainTs);
+                        if (trainDate !== lastTrainDate) {
                              cardsHtml += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px;">⬇ 明日班次 ⬇</div>`;
                              hasShownNextDayDivider = true;
                         }
@@ -912,11 +909,12 @@
                         </div>`;
                     }
 
+                    // [重要修正] 只有「不是明天」才顯示誤點標籤
                     let rightBadgesHtml = '';
                     if (isDeparted) {
                         rightBadgesHtml = `<div class="status-tag departed">已駛離</div>`;
                     } else {
-                        if (!data.delay_failed && t.delay > 0) {
+                        if (!isStrictTomorrow && !data.delay_failed && t.delay > 0) {
                             rightBadgesHtml += `<div class="status-tag delay">誤點 ${t.delay} 分</div>`;
                         }
                     }
@@ -924,16 +922,12 @@
                     const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
                     let cardClass = "card"; if (isDeparted) cardClass += " departed-card";
 
-                    // [修正] "明日" 標籤判斷：如果該班次的營業日 > 現在的營業日
-                    const trainRwDate = getRailwayDateStr(t.sort_key);
-                    const isFutureRwDate = trainRwDate > currentRailwayDate;
+                    const depDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
+                    const arrDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
 
-                    const depDateLabel = isFutureRwDate ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
-                    const arrDateLabel = isFutureRwDate ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
-
+                    // [重要修正] 只有「不是明天」才顯示「● 準點」，否則顯示原定時間
                     let subTimeContent = '';
-                    // [修正] 如果是「未來營業日」的班次，強制不顯示「準點」，只顯示原定時間
-                    if (!isFutureRwDate && !data.delay_failed && t.delay === 0) {
+                    if (!isStrictTomorrow && !data.delay_failed && t.delay === 0) {
                         subTimeContent = `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>`;
                     } else {
                         subTimeContent = `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`;
