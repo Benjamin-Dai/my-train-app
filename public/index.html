@@ -63,14 +63,16 @@
             width: 100%; z-index: 100; will-change: transform;
             display: flex; flex-direction: column; border-top: 1px solid #222;
         }
+        /* [修正] 加入 margin-top: -1px 防止縫隙，解決瞬移感 */
         .header-sticky-part.is-fixed {
             position: fixed; top: 0; width: calc(100% - 20px); max-width: 500px; left: 50%;
             border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            margin-top: -1px; 
         }
         #stickyPlaceholder { display: none; }
 
-        /* Row 1: Quick Route */
+        /* Row 1: Quick Route + Fav Btn */
         .sticky-row-top { 
             display: flex; align-items: center; border-bottom: 1px solid #222; min-height: 50px; 
             position: relative; 
@@ -851,6 +853,8 @@
             const footerHints = document.getElementById('fixedFooterHints');
             const hintArrival = document.getElementById('hintArrival');
             const hintDivider = document.getElementById('hintDivider');
+            
+            // [關鍵修正] 隱藏工具欄(ID: stickyRowTools)，但保留常用路線(ID: stickyRowTop)
             const toolsRow = document.getElementById('stickyRowTools');
             
             if(data.trains && data.trains.length > 0) {
