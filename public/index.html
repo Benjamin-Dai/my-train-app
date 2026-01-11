@@ -11,6 +11,8 @@
     <link rel="apple-touch-icon" href="/icon.png">
     <link rel="icon" type="image/png" href="/icon.png">
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <style>
         /* --- 基礎設定 --- */
         *, *::before, *::after { box-sizing: border-box; }
@@ -202,6 +204,10 @@
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* [新增] QR Code 樣式 */
+        .qr-container { display: flex; justify-content: center; align-items: center; margin: 20px 0; padding: 15px; background: #fff; border-radius: 12px; width: fit-content; margin-left: auto; margin-right: auto; }
+        #qrcode img { display: block; } /* 修正部分手機顯示問題 */
+
         /* Back to top (Adjusted) */
         .back-to-top {
             position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
@@ -318,7 +324,7 @@
                         <span class="scroll-hint-arrow">›</span>
                     </div>
                     <div class="btn-side-container">
-                         <button id="btnStar" class="btn-fav-compact" onclick="toggleFavorite()">★<br>已收藏</button>
+                         <button id="btnStar" class="btn-fav-compact" onclick="toggleFavorite()">☆ 收藏<br>路線</button>
                     </div>
                 </div>
 
@@ -350,6 +356,9 @@
                 <button class="menu-btn anim-gold-pulse" onclick="goToPage('Why')">設計理念</button>
                 <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
+                
+                <button class="menu-btn" onclick="goToPage('QR')">📲 顯示 QR Code</button>
+                
                 <button class="menu-btn" onclick="goToPage('Author')">關於作者</button>
                 <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
                 <div style="height:10px"></div>
@@ -399,6 +408,20 @@
                     </div>
                 </div>
             </div>
+            
+            <div id="pageQR" class="modal-page">
+                <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">掃描分享</div></div>
+                <div style="text-align:center; padding:20px 0;">
+                    <div style="color:#ccc; font-size:0.9rem; margin-bottom:15px;">掃描此 QR Code<br>立即開啟 <strong>TRAIN LIVE</strong></div>
+                    
+                    <div class="qr-container">
+                        <div id="qrcode"></div>
+                    </div>
+
+                    <div style="font-size:0.8rem; color:#666; margin-top:10px;">(包含當前路線設定)</div>
+                </div>
+            </div>
+
             <div id="pageAuthor" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">關於作者</div></div>
                 <div class="modal-text" style="text-align:center;">
@@ -590,10 +613,33 @@
             }, 300); 
         }
 
+        // [新增] QR Code 生成邏輯
+        let qrCodeObj = null;
+        function generateQR() {
+            const el = document.getElementById("qrcode");
+            if(!el) return;
+            el.innerHTML = ""; // 清空舊的
+            
+            // 使用當前網址 (保留參數)
+            const url = window.location.href; 
+            
+            qrCodeObj = new QRCode(el, {
+                text: url,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
         function init() {
             logSystem("Init","App Started"); 
             startTicker(); 
             updateToggleBtns();
+            
+            // 初始執行一次 QR 生成 (雖然通常要在開啟 Modal 時才生，但這裡先預備好也行)
+            // 為了效能，我們改在 goToPage('QR') 時觸發
             
             document.getElementById('rowTools').style.display = 'none';
 
@@ -1003,6 +1049,10 @@
                 document.getElementById('reportContent').value = r;
                 document.getElementById('terminalView').innerText = systemLogs.join("\n");
             }
+            // [新增] 如果是進入 QR 頁面，觸發生成
+            if (id === 'QR') {
+                setTimeout(generateQR, 100);
+            }
         }
         function copyReportOnly() {
             let final = document.getElementById('reportContent').value;
@@ -1046,7 +1096,7 @@
         function updateStarState() {
             const cur = getCurrentPair();
             if (isFavorite(cur.start, cur.end)) { 
-                btnStar.innerHTML = '★<br>已收藏'; 
+                btnStar.innerHTML = '★ 已收藏<br>路線'; 
                 btnStar.classList.add('fav-active'); 
             } else { 
                 btnStar.innerHTML = '☆ 收藏<br>路線'; 
@@ -1095,6 +1145,26 @@
             } else {
                 hint.style.opacity = '0';
             }
+        }
+
+        // [新增] QR Code 生成邏輯
+        let qrCodeObj = null;
+        function generateQR() {
+            const el = document.getElementById("qrcode");
+            if(!el) return;
+            el.innerHTML = ""; // 清空舊的
+            
+            // 使用當前網址 (保留參數)
+            const url = window.location.href; 
+            
+            qrCodeObj = new QRCode(el, {
+                text: url,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
         }
 
         init();
