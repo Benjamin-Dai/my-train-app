@@ -275,8 +275,6 @@
     </div>
 
     <div class="container">
-        <div id="stickyPlaceholder"></div>
-
         <div class="header">
             <div class="header-static-part">
                 <div class="header-top">
@@ -336,6 +334,8 @@
                     <div id="updateTime" class="status-right"></div>
                 </div>
             </div>
+            
+            <div id="stickyPlaceholder"></div>
         </div>
 
         <div id="cardList"></div>
@@ -535,29 +535,27 @@
 
         let lastScroll = 0; let currentTranslate = 0;
         
-        // [優化] 將 DOM 查詢移出 scroll 事件外，提升效能
         const sticky = document.getElementById('stickyHeader');
         const placeholder = document.getElementById('stickyPlaceholder');
         const backToTop = document.getElementById('btnBackToTop');
         const staticPart = document.querySelector('.header-static-part');
-        const headerEl = document.querySelector('.header'); // [新增] 用於計算偏移
+        const headerEl = document.querySelector('.header');
 
         window.addEventListener('scroll', () => {
             const current = window.scrollY;
-            
-            // [修正] 計算 threshold 時加上 headerEl.offsetTop (body padding 10px)
             const headerOffset = headerEl ? headerEl.offsetTop : 0;
             const threshold = staticPart ? (staticPart.offsetHeight + headerOffset) : 150;
             const stickyHeight = sticky.offsetHeight || 150;
 
             if(current > 300) backToTop.classList.add('visible'); else backToTop.classList.remove('visible');
 
-            if (current <= threshold) {
+            // [修正] 加入 1px 的緩衝 (Hysteresis)，防止在 threshold 邊緣來回跳動
+            if (current <= threshold - 1) {
                 sticky.classList.remove('is-fixed');
                 sticky.style.transform = 'translateY(0)';
                 placeholder.style.display = 'none';
                 currentTranslate = 0;
-            } else {
+            } else if (current > threshold) {
                 if (!sticky.classList.contains('is-fixed')) {
                       placeholder.style.height = stickyHeight + 'px'; 
                       placeholder.style.display = 'block';
