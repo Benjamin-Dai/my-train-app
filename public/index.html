@@ -16,41 +16,31 @@
         *, *::before, *::after { box-sizing: border-box; }
         html { scroll-behavior: smooth; }
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
-        .container { max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
+        .container { max-width: 500px; margin: 0 auto; padding-bottom: 100px; }
 
-        /* --- Header 結構 --- */
+        /* --- Header --- */
         .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
-
-        /* 靜態區 (搜尋與選單) */
         .header-static-part { padding: 15px 15px 15px 15px; background: #151517; position: relative; z-index: 10; }
-        
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
         .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
         
         .top-actions { display: flex; align-items: center; gap: 8px; }
-        
         .install-btn-top {
             background: #4d7f5e; color: #fff; border: none; padding: 0 12px; height: 36px; border-radius: 8px; 
             font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none;
             align-items: center; gap: 4px; animation: fadeIn 0.5s; white-space: nowrap;
         }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
-
         .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
-
-        @keyframes pulse-white-gold {
-            0%, 100% { color: #fff; border-color: #444; }
-            50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); }
-        }
+        @keyframes pulse-white-gold { 0%, 100% { color: #fff; border-color: #444; } 50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); } }
         .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
 
-        /* --- 搜尋與下拉選單 --- */
+        /* --- Search & Selectors --- */
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
         .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
         .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
         .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
-
         .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
         .select-group { flex: 1; display: flex; gap: 5px; }
@@ -58,7 +48,6 @@
         .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
-
         .btn-static-search {
             width: 100%; background: #eee; color: #000; border: none; 
             padding: 10px; border-radius: 10px; font-size: 1rem; font-weight: bold; 
@@ -67,19 +56,13 @@
         .btn-static-search:active { transform: scale(0.98); background: #ddd; }
         .btn-static-search:disabled { background: #333; color: #888; cursor: not-allowed; }
 
-        /* --- 動態懸浮區 (Sticky Header) --- */
+        /* --- Sticky Header --- */
         .header-sticky-part {
             background: #151517; 
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
-            width: 100%;
-            z-index: 100;
-            will-change: transform;
-            display: flex;
-            flex-direction: column;
-            border-top: 1px solid #222;
+            border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+            width: 100%; z-index: 100; will-change: transform;
+            display: flex; flex-direction: column; border-top: 1px solid #222;
         }
-
         .header-sticky-part.is-fixed {
             position: fixed; top: 0; width: calc(100% - 20px); max-width: 500px; left: 50%;
             border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;
@@ -87,15 +70,28 @@
         }
         #stickyPlaceholder { display: none; }
 
-        /* Row 1: 捲動路線 + 更新按鈕 */
-        .sticky-row-top { display: flex; align-items: center; border-bottom: 1px solid #222; height: 50px; }
-        
+        /* Row 1: Quick Route + Fav Btn */
+        .sticky-row-top { 
+            display: flex; align-items: center; border-bottom: 1px solid #222; min-height: 50px; 
+            position: relative; /* For Overlay */
+        }
         .quick-route-scroll-container {
-            flex: 1; overflow-x: auto; white-space: nowrap; padding: 0 10px; height: 100%; display: flex; align-items: center;
+            flex: 1; overflow-x: auto; white-space: nowrap; padding: 5px 10px; height: 100%; display: flex; align-items: center;
             -ms-overflow-style: none; scrollbar-width: none; 
         }
         .quick-route-scroll-container::-webkit-scrollbar { display: none; }
         
+        /* [新增] 滑動提示遮罩 (Fade Mask + Arrow) */
+        .scroll-hint-overlay {
+            position: absolute; right: 85px; /* 避開右邊按鈕 */ top: 0; bottom: 0; width: 40px;
+            background: linear-gradient(to right, transparent, #151517);
+            pointer-events: none; /* 讓點擊穿透 */
+            display: flex; align-items: center; justify-content: flex-end;
+            padding-right: 5px; opacity: 0; transition: opacity 0.3s;
+        }
+        .scroll-hint-arrow { color: #4d7f5e; font-weight: bold; font-size: 1.2rem; animation: bounce-x 1s infinite; }
+        @keyframes bounce-x { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+
         .route-chip { 
             display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
             padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; margin-right: 6px; 
@@ -106,15 +102,16 @@
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
         .route-chip.hist { border-style: dashed; }
 
-        .btn-refresh-container { padding: 0 10px; border-left: 1px solid #222; height: 100%; display: flex; align-items: center; }
-        .btn-refresh-compact {
-            background: #4d7f5e; color: #fff; border: none; padding: 6px 12px; border-radius: 8px; 
-            font-size: 0.85rem; font-weight: bold; cursor: pointer; white-space: nowrap; transition: all 0.1s;
+        .btn-side-container { padding: 5px 10px; border-left: 1px solid #222; height: 100%; display: flex; align-items: center; min-width: 85px; justify-content: center; z-index: 5;}
+        .btn-fav-compact {
+            background: #222; color: #ccc; border: 1px solid #444; padding: 4px 8px; border-radius: 8px; 
+            font-size: 0.75rem; cursor: pointer; white-space: pre-wrap; line-height: 1.2; text-align: center;
+            transition: all 0.1s; width: 100%;
         }
-        .btn-refresh-compact:active { transform: scale(0.95); }
-        .btn-refresh-compact:disabled { background: #333; color: #888; cursor: not-allowed; }
+        .btn-fav-compact:active { transform: scale(0.95); background: #333; }
+        .btn-fav-compact.fav-active { color: #e6b800; border-color: #e6b800; background: rgba(230,184,0,0.1); font-weight: bold; }
 
-        /* Row 2: 工具按鈕 */
+        /* Row 2: Tools */
         .sticky-row-tools { display: flex; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #222; }
         .toolbar-btn {
             flex: 1; background: #222; border: 1px solid #444; color: #ccc; 
@@ -123,21 +120,10 @@
         }
         .toolbar-btn:active { transform: scale(0.96); background: #333; }
         .toolbar-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77,127,94,0.1); }
-        .toolbar-btn.fav-active { color: #e6b800; border-color: #e6b800; background: rgba(230,184,0,0.1); }
+        .toolbar-btn.refresh { background: #4d7f5e; color: white; border-color: #4d7f5e; font-weight: bold; }
+        .toolbar-btn.refresh:disabled { background: #333; color: #888; border-color: #333; cursor: not-allowed; }
 
-        /* Row 3: 提示列 */
-        .sticky-row-hints { 
-            display: none; /* 預設隱藏 */
-            align-items: center; justify-content: center; gap: 20px; 
-            padding: 8px 15px; font-size: 0.75rem; color: #666; background: #1a1a1c;
-        }
-        .hint-group { display: flex; align-items: center; gap: 8px; }
-        .hint-text-col { display: flex; flex-direction: column; line-height: 1.2; }
-        .hint-text-col span { font-weight: bold; color: #ccc; }
-        .hint-text-col span.sub { font-weight: normal; color: #666; font-size: 0.7rem; }
-        .hint-divider { width: 1px; height: 20px; background: #333; margin: 0 5px; }
-        
-        /* Row 4: 狀態列 */
+        /* Row 3: Status */
         .sticky-row-status {
             display: flex; justify-content: space-between; align-items: center;
             padding: 6px 15px 8px 15px; background: #111; 
@@ -147,6 +133,24 @@
         .status-left.alert { color: #ff4d4d; }
         .status-left.warning { color: #e6b800; }
         .status-right { font-size: 0.75rem; color: #666; font-family: monospace; }
+
+        /* [修改] 底部固定提示欄 */
+        .fixed-footer-hints {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: #1a1a1c; border-top: 1px solid #333;
+            display: none; /* JS 控制 */
+            align-items: center; justify-content: center; gap: 20px; 
+            padding: 10px 15px; font-size: 0.75rem; color: #666; 
+            z-index: 200; 
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.8);
+        }
+        .fixed-footer-hints.centered { justify-content: center; } /* 無左側提示時置中 */
+        .hint-group { display: flex; align-items: center; gap: 8px; }
+        .hint-text-col { display: flex; flex-direction: column; line-height: 1.2; }
+        .hint-text-col span { font-weight: bold; color: #ccc; }
+        .hint-text-col span.sub { font-weight: normal; color: #666; font-size: 0.7rem; }
+        .hint-divider { width: 1px; height: 20px; background: #333; margin: 0 5px; }
 
         /* LED */
         .led-dot { width: 8px; height: 8px; background-color: #4d7f5e; border-radius: 50%; opacity: 0.2; transition: opacity 0.1s; }
@@ -158,7 +162,6 @@
         .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
-
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
         .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 6px; flex-wrap: nowrap; }
         .time-group { display: flex; flex-direction: column; align-items: center; }
@@ -167,12 +170,10 @@
         .ampm { font-size: 1rem; margin-right: 3px; color: #aaa; font-weight: normal; }
         .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
         @media (max-width: 360px) { .time-part { font-size: 1.5rem; } .ampm { font-size: 0.85rem; } }
-
         .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
         .card.past { opacity: 0.5; filter: grayscale(0.8); }
         .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
         .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
-
         .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
         .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
@@ -188,7 +189,6 @@
         .sk-title { height: 14px; width: 60%; margin-bottom: 12px; }
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
-
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; align-items: center; justify-content: center; }
         .modal-content { background: #1c1c1e; width: 85%; max-width: 400px; border-radius: 16px; padding: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: left; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; position: sticky; top: -25px; background: #1c1c1e; z-index: 10; padding: 10px 0; border-bottom: 1px solid #333; }
@@ -203,17 +203,17 @@
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 回到頂端按鈕 */
+        /* Back to top (Adjusted) */
         .back-to-top {
-            position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px;
+            position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
             background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 90;
+            font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 100;
             opacity: 0; transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; 
         }
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
-        /* 診斷樣式 */
+        /* Diagnostics */
         .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
         .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
@@ -251,6 +251,27 @@
         <div style="color:#fff; font-size:1.1rem; line-height:1.6;">請切換至瀏覽器開啟</div>
         <div class="guide-highlight">1. 點擊選單 (⋮)<br><br>2. 選擇「在瀏覽器開啟」</div>
         <div style="font-size:0.8rem; color:#aaa; margin-top:20px;">(點擊任意處關閉)</div>
+    </div>
+
+    <div id="fixedFooterHints" class="fixed-footer-hints">
+        <div id="hintArrival" class="hint-group">
+            <div class="led-pair-mini">
+                <div class="led-dot top"></div>
+                <div class="led-dot bottom"></div>
+            </div>
+            <div class="hint-text-col">
+                <span>10分鐘內</span>
+                <span>發車</span>
+            </div>
+        </div>
+        <div id="hintDivider" class="hint-divider"></div>
+        <div class="hint-group">
+            <span style="font-size:1.2rem">👆</span>
+            <div class="hint-text-col">
+                <span>點擊卡片查看</span>
+                <span class="sub">即時位置 & 完整停靠站</span>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -296,36 +317,18 @@
             <div id="stickyHeader" class="header-sticky-part">
                 <div class="sticky-row-top">
                     <div id="quickRouteArea" class="quick-route-scroll-container"></div>
-                    <div class="btn-refresh-container">
-                         <button id="btnRefresh" class="btn-refresh-compact" onclick="doRefresh()">🔄 更新</button>
+                    <div id="scrollHint" class="scroll-hint-overlay">
+                        <span class="scroll-hint-arrow">›</span>
+                    </div>
+                    <div class="btn-side-container">
+                         <button id="btnStar" class="btn-fav-compact" onclick="toggleFavorite()">☆ 收藏<br>路線</button>
                     </div>
                 </div>
 
                 <div class="sticky-row-tools">
-                    <button id="btnStar" class="toolbar-btn" onclick="toggleFavorite()">☆ 收藏路線</button>
+                    <button id="btnRefresh" class="toolbar-btn refresh" onclick="doRefresh()">🔄 更新</button>
                     <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 已駛離</button>
                     <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 AM/PM</button>
-                </div>
-
-                <div id="hintContainer" class="sticky-row-hints">
-                    <div id="hintArrival" class="hint-group">
-                        <div class="led-pair-mini">
-                            <div class="led-dot top"></div>
-                            <div class="led-dot bottom"></div>
-                        </div>
-                        <div class="hint-text-col">
-                            <span>10分鐘內</span>
-                            <span>發車</span>
-                        </div>
-                    </div>
-                    <div id="hintDivider" class="hint-divider"></div>
-                    <div class="hint-group">
-                        <span style="font-size:1.2rem">👆</span>
-                        <div class="hint-text-col">
-                            <span>點擊卡片查看</span>
-                            <span class="sub">即時位置 & 完整停靠站</span>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="sticky-row-status">
@@ -510,12 +513,11 @@
             const btnTime = document.getElementById('btnTimeFormat');
             if (!is24Hour) btnTime.classList.add('active'); else btnTime.classList.remove('active');
             const btnAll = document.getElementById('btnShowAll');
-            // [修正] 按鈕文字簡化
             if (isShowAll) {
                 btnAll.innerHTML = '👁️ 已駛離';
                 btnAll.classList.add('active'); 
             } else {
-                btnAll.innerHTML = '👁️ 已駛離'; // 文字保持不變，只變顏色
+                btnAll.innerHTML = '👁️ 已駛離'; 
                 btnAll.classList.remove('active');
             }
         }
@@ -565,14 +567,13 @@
             lastScroll = current <= 0 ? 0 : current;
         });
 
-        // [新增] 自動捲動到第一張活躍卡片
         function scrollToFirstActive() {
             setTimeout(() => {
                 const el = document.getElementById("firstActive");
                 if (el) {
                     el.scrollIntoView({ behavior: "smooth", block: "center" });
                 }
-            }, 300); // 稍微延遲等待 DOM 渲染完畢
+            }, 300); 
         }
 
         function init() {
@@ -658,15 +659,11 @@
                 if(Date.now()-d.timestamp < 60000) {
                     if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
                     renderCards(d.payload); 
-                    
-                    // [修正] 讀取快取時，明確標示並清空載入中狀態
                     setUpdateText(`更新時間：${d.payload.update_time} (快取)`);
-                    statusMsg.innerText=""; 
-                    statusMsg.className="status-left"; 
-                    
+                    statusMsg.innerText=""; statusMsg.className="status-left"; 
                     list.style.opacity="1"; 
                     lastFetchedPair={start:startStation.value,end:endStation.value}; hit=true;
-                    scrollToFirstActive(); // [新增]
+                    scrollToFirstActive(); 
                 }
             }
             if(!hit) {
@@ -744,17 +741,14 @@
                     await new Promise(r => setTimeout(r, 200)); 
                     if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false);
                     renderCards(d.payload);
-                    
-                    // [修正] 快取 Hit 時，清除載入中並標示快取
                     setUpdateText(`更新時間：${d.payload.update_time} (快取)`);
                     statusMsg.innerText = "";
-                    
                     lastFetchedPair={start:s,end:e};
                     logSystem("Cache", "Hit local (Age < 60s)");
                     const now = Date.now();
                     if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false, 500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                     if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                    scrollToFirstActive(); // [新增]
+                    scrollToFirstActive(); 
                     return;
                 }
             }
@@ -778,17 +772,15 @@
                     scheduleRetry("誤點資料失敗", "status-left warning");
                     setUpdateText(`更新時間：${json.update_time} (僅時刻)`);
                 } else {
-                    // [修正] API 回傳成功，若 Age > 0 代表 CDN 暫存，若 Age=0 代表最新
                     const suffix = isVercelCache ? "(最新)" : "(最新)";
                     setUpdateText(`更新時間：${json.update_time} ${suffix}`);
-                    
                     statusMsg.innerText = "更新完成";
                     setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
                 }
                 const now=Date.now();
                 if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                 if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                scrollToFirstActive(); // [新增]
+                scrollToFirstActive(); 
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
                 scheduleRetry("連線錯誤", "status-left alert");
@@ -835,13 +827,13 @@
         function renderCards(data) {
             currentTrainData = data; 
             
-            const hintContainer = document.getElementById('hintContainer');
+            const footerHints = document.getElementById('fixedFooterHints');
             const hintArrival = document.getElementById('hintArrival');
             const hintDivider = document.getElementById('hintDivider');
             
             if(data.trains && data.trains.length > 0) {
-                // [修正] 有車次才顯示提示欄
-                hintContainer.style.display = 'flex';
+                // 有車次顯示 Footer
+                footerHints.style.display = 'flex';
 
                 let cardsHtml = '';
                 let anyArriving = false; 
@@ -916,21 +908,23 @@
                     </a>`;
                 });
                 
-                // [修正] 根據是否有進站車次，切換提示顯示
+                // [智慧提示切換邏輯]
                 if (anyArriving) {
                     hintArrival.style.display = 'flex';
                     hintDivider.style.display = 'block';
+                    footerHints.classList.remove('centered'); // 恢復預設對齊
                 } else {
                     hintArrival.style.display = 'none';
                     hintDivider.style.display = 'none';
+                    footerHints.classList.add('centered'); // 置中
                 }
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
                 return;
             }
             
-            // [修正] 沒有車次時，隱藏整個提示欄
-            hintContainer.style.display = 'none';
+            // 無車次隱藏 Footer
+            footerHints.style.display = 'none';
 
             const orig = data.stats ? data.stats.original_count : 0;
             list.innerHTML = orig > 0 ? `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : `<div class="message">查無此區間直達列車 ⚠️</div>`;
@@ -1008,8 +1002,13 @@
         }
         function updateStarState() {
             const cur = getCurrentPair();
-            if (isFavorite(cur.start, cur.end)) { btnStar.innerText = '★ 收藏路線'; btnStar.classList.add('fav-active'); } 
-            else { btnStar.innerText = '☆ 收藏路線'; btnStar.classList.remove('fav-active'); }
+            if (isFavorite(cur.start, cur.end)) { 
+                btnStar.innerHTML = '★ 已收藏<br>路線'; 
+                btnStar.classList.add('fav-active'); 
+            } else { 
+                btnStar.innerHTML = '☆ 收藏<br>路線'; 
+                btnStar.classList.remove('fav-active'); 
+            }
         }
         function loadRoute(s, e) {
             const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
@@ -1025,6 +1024,29 @@
             favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
             hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
             quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
+            
+            // [新增] 檢查是否需要滑動提示
+            setTimeout(updateScrollHint, 100);
+        }
+
+        // [新增] 更新滑動提示顯示
+        function updateScrollHint() {
+            const el = document.getElementById('quickRouteArea');
+            const hint = document.getElementById('scrollHint');
+            if (el.scrollWidth > el.clientWidth) {
+                // 如果內容長度大於容器寬度 -> 顯示提示
+                hint.style.opacity = '1';
+                // 監聽滾動，滾到底就隱藏
+                el.onscroll = () => {
+                    if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
+                        hint.style.opacity = '0';
+                    } else {
+                        hint.style.opacity = '1';
+                    }
+                };
+            } else {
+                hint.style.opacity = '0';
+            }
         }
 
         init();
