@@ -352,7 +352,19 @@
                 <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
                 <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
                 <div style="height:10px"></div>
-                <button class="modal-close" onclick="closeModal()">關閉</button>
+                
+                <div style="margin-top:20px; padding-top:15px; border-top:1px solid #333; text-align:center; line-height:1.6;">
+                    <div style="font-size:0.8rem; color:#888; margin-bottom:4px;">作者</div>
+                    <div style="font-size:0.95rem; color:#fff; font-weight:bold; margin-bottom:5px;">
+                        BenjaminDai <span style="font-size:0.8rem; color:#666; font-weight:normal;">與</span> Gemini <span style="font-size:0.8rem; color:#666; font-weight:normal;">一起</span>
+                    </div>
+                    <a href="https://www.instagram.com/d16benjamin_?igsh=N2c3M25ia3M0a3c4" target="_blank" style="font-size:0.85rem; color:#4d7f5e; display:inline-block; margin-bottom:5px; text-decoration:none;">
+                        @d16benjamin_
+                    </a>
+                    <div style="font-size:0.7rem; color:#444;">Start: 2026/1/6</div>
+                </div>
+
+                <button class="modal-close" style="margin-top:15px;" onclick="closeModal()">關閉</button>
             </div>
             <div id="pageWhy" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
@@ -582,7 +594,6 @@
             startTicker(); 
             updateToggleBtns();
             
-            // [修正] 初始隱藏工具列
             document.getElementById('rowTools').style.display = 'none';
 
             const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
@@ -831,7 +842,6 @@
         function renderCards(data) {
             currentTrainData = data; 
             
-            // [修正] 控制工具列顯示
             const elTools = document.getElementById('rowTools');
             const hasTrains = data.trains && data.trains.length > 0;
             const originalCount = (data.stats && data.stats.original_count) ? data.stats.original_count : 0;
@@ -843,7 +853,6 @@
             const hintDivider = document.getElementById('hintDivider');
 
             if(hasTrains) {
-                // 有車次顯示 Footer
                 footerHints.style.display = 'flex';
 
                 let cardsHtml = '';
@@ -919,22 +928,20 @@
                     </a>`;
                 });
 
-                // [智慧提示切換邏輯]
                 if (anyArriving) {
                     hintArrival.style.display = 'flex';
                     hintDivider.style.display = 'block';
-                    footerHints.classList.remove('centered'); // 恢復預設對齊
+                    footerHints.classList.remove('centered'); 
                 } else {
                     hintArrival.style.display = 'none';
                     hintDivider.style.display = 'none';
-                    footerHints.classList.add('centered'); // 置中
+                    footerHints.classList.add('centered'); 
                 }
 
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
                 return;
             }
 
-            // 無車次隱藏 Footer
             footerHints.style.display = 'none';
 
             list.innerHTML = originalCount > 0 ? `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` : `<div class="message">查無此區間直達列車 ⚠️</div>`;
@@ -1035,7 +1042,6 @@
             hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
             quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
 
-            // [修正] 控制常用路線列顯示
             const elRow = document.getElementById('rowQuickRoute');
             if (favs.length === 0 && hist.length === 0) {
                 elRow.style.display = 'none';
@@ -1045,14 +1051,11 @@
             }
         }
 
-        // [新增] 更新滑動提示顯示
         function updateScrollHint() {
             const el = document.getElementById('quickRouteArea');
             const hint = document.getElementById('scrollHint');
             if (el.scrollWidth > el.clientWidth) {
-                // 如果內容長度大於容器寬度 -> 顯示提示
                 hint.style.opacity = '1';
-                // 監聽滾動，滾到底就隱藏
                 el.onscroll = () => {
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
                         hint.style.opacity = '0';
