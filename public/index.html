@@ -914,6 +914,13 @@
                     const depDateLabel = (t.dep_date !== todayStr) ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
                     const arrDateLabel = (t.arr_date !== todayStr) ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
 
+                    let subTimeContent = '';
+                    if (!data.delay_failed && t.delay === 0) {
+                        subTimeContent = `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>`;
+                    } else {
+                        subTimeContent = `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`;
+                    }
+
                     cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
                             ${leftIndicatorHtml}
@@ -930,7 +937,7 @@
                                     <div class="time-part">${formatTime(t.act_arr)}</div>
                                 </div>
                             </div>
-                            <div class="sub-time">原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}</div>
+                            <div class="sub-time">${subTimeContent}</div>
                         </div>
                     </a>`;
                 });
@@ -1058,14 +1065,11 @@
             }
         }
 
-        // [新增] 更新滑動提示顯示
         function updateScrollHint() {
             const el = document.getElementById('quickRouteArea');
             const hint = document.getElementById('scrollHint');
             if (el.scrollWidth > el.clientWidth) {
-                // 如果內容長度大於容器寬度 -> 顯示提示
                 hint.style.opacity = '1';
-                // 監聽滾動，滾到底就隱藏
                 el.onscroll = () => {
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
                         hint.style.opacity = '0';
