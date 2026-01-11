@@ -782,7 +782,6 @@
                 localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
-                // [Log] 這裡已加入剩餘次數顯示
                 logSystem("Status", `狀態: ${rInfo.source} (剩:${rInfo.quota}) / ${dInfo.source} (剩:${dInfo.quota})`);
 
                 if(json.delay_failed) {
@@ -865,6 +864,9 @@
                 let foundFirstActive = false;
                 const nowSec = Math.floor(Date.now() / 1000);
 
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
                 data.trains.forEach((t, index) => {
                     const diffSec = t.sort_key - nowSec;
                     const diffMin = Math.floor(diffSec / 60);
@@ -909,6 +911,9 @@
                     const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
                     let cardClass = "card"; if (isDeparted) cardClass += " departed-card";
 
+                    const depDateLabel = (t.dep_date !== todayStr) ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
+                    const arrDateLabel = (t.arr_date !== todayStr) ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
+
                     cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
                             ${leftIndicatorHtml}
@@ -916,12 +921,12 @@
                             <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">${t.type} ${t.no} 次</div>
                             <div class="main-time">
                                 <div class="time-group">
-                                    <div class="time-date-label">${t.dep_date}</div>
+                                    <div class="time-date-label" style="color:#4d7f5e;">${startStation.value} ${depDateLabel}</div>
                                     <div class="time-part">${formatTime(t.act_dep)}</div>
                                 </div>
                                 <span class="arrow">➔</span>
                                 <div class="time-group">
-                                    <div class="time-date-label">${t.arr_date}</div>
+                                    <div class="time-date-label" style="color:#4d7f5e;">${endStation.value} ${arrDateLabel}</div>
                                     <div class="time-part">${formatTime(t.act_arr)}</div>
                                 </div>
                             </div>
@@ -1053,11 +1058,14 @@
             }
         }
 
+        // [新增] 更新滑動提示顯示
         function updateScrollHint() {
             const el = document.getElementById('quickRouteArea');
             const hint = document.getElementById('scrollHint');
             if (el.scrollWidth > el.clientWidth) {
+                // 如果內容長度大於容器寬度 -> 顯示提示
                 hint.style.opacity = '1';
+                // 監聽滾動，滾到底就隱藏
                 el.onscroll = () => {
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
                         hint.style.opacity = '0';
