@@ -438,14 +438,11 @@
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
 
-        const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
-        const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
-        const searchInput=document.getElementById('searchInput');const searchTarget=document.getElementById('searchTarget');
-        const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
-        const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
-        const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
-
-        let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
+        // Global Variables
+        let startRegion, startStation, endRegion, endStation, searchInput, searchTarget;
+        let btnSearch, btnRefresh, statusMsg, updateTimeDiv, list, btnInstall;
+        let refreshTimer=null, searchLockTimer=null, retryTimer=null;
+        
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
         const LS_IS_24H="tl_pref_is_24h"; 
@@ -459,12 +456,38 @@
 
         let currentTrainData = null;
         let deferredPrompt;
+        
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
         const isInApp = /Line|Instagram|FBAN|FBAV/i.test(navigator.userAgent);
 
-        if (!isInStandaloneMode) { btnInstall.style.display = 'flex'; }
-        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+        // Init Sequence
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                // Initialize DOM References
+                startRegion=document.getElementById('startRegion');
+                startStation=document.getElementById('startStation');
+                endRegion=document.getElementById('endRegion');
+                endStation=document.getElementById('endStation');
+                searchInput=document.getElementById('searchInput');
+                searchTarget=document.getElementById('searchTarget');
+                btnSearch=document.getElementById('btnSearch');
+                btnRefresh=document.getElementById('btnRefresh');
+                statusMsg=document.getElementById('statusMsg');
+                updateTimeDiv=document.getElementById('updateTime');
+                list=document.getElementById('cardList');
+                btnInstall = document.getElementById('btnInstall');
+
+                if (!isInStandaloneMode) { btnInstall.style.display = 'flex'; }
+                window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+
+                init();
+            } catch (e) {
+                console.error(e);
+                if(statusMsg) statusMsg.innerHTML = `<span style="color:red">Error: ${e.message}</span>`;
+                else alert("Critical Error: " + e.message);
+            }
+        });
 
         function handleInstall() {
             if (isInApp) { document.getElementById('inAppOverlay').style.display = 'flex'; return; }
@@ -828,17 +851,12 @@
             const footerHints = document.getElementById('fixedFooterHints');
             const hintArrival = document.getElementById('hintArrival');
             const hintDivider = document.getElementById('hintDivider');
-            
-            // [修改] 隱藏工具欄邏輯 (工具列 ID: stickyRowTools)
-            // 第一排 (常用路線) ID: stickyRowTop (要保留)
             const toolsRow = document.getElementById('stickyRowTools');
-            const topRow = document.getElementById('stickyRowTop');
             
             if(data.trains && data.trains.length > 0) {
                 // 有車次 -> 顯示所有 UI
                 footerHints.style.display = 'flex';
                 toolsRow.style.display = 'flex';
-                topRow.style.display = 'flex';
 
                 let cardsHtml = '';
                 let anyArriving = false; 
@@ -928,10 +946,9 @@
                 return;
             }
             
-            // 無車次 -> 隱藏 Footer 與 工具欄，但保留 常用路線 (topRow)
+            // 無車次 -> 隱藏 Footer 與 工具欄，但 *保留* 常用路線欄位
             footerHints.style.display = 'none';
             toolsRow.style.display = 'none';
-            // topRow.style.display = 'none'; // [修正] 註解掉這行，保留第一排
 
             const orig = data.stats ? data.stats.original_count : 0;
             list.innerHTML = orig > 0 ? `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${orig} 班)</span></div>` : `<div class="message">查無此區間直達列車 ⚠️</div>`;
@@ -954,8 +971,6 @@
                 hint.style.opacity = '0';
             }
         }
-
-        init();
     </script>
 </body>
 </html>
