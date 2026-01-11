@@ -134,7 +134,7 @@ class handler(BaseHTTPRequestHandler):
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
     # === 核心處理邏輯 ===
-    def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, now, is_tomorrow=False, fix_crossing_night=False):
+    def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, now_aware, is_tomorrow=False, fix_crossing_night=False):
         processed = []
         for item in raw_list:
             info = item.get('TrainInfo', {})
@@ -165,8 +165,9 @@ class handler(BaseHTTPRequestHandler):
             else:
                 delay = int(delays.get(no, 0))
 
-            dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
-            arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
+            # [關鍵修正] 解析時間時，直接指定為台灣時區，避免 Vercel 用 UTC 計算 timestamp
+            dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M").replace(tzinfo=TW_TZ)
+            arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M").replace(tzinfo=TW_TZ)
 
             if fix_crossing_night:
                 if dep_time < "12:00": dep_dt += timedelta(days=1)
@@ -177,19 +178,16 @@ class handler(BaseHTTPRequestHandler):
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
 
-            is_past = real_dep < (now - timedelta(minutes=10))
+            # 判斷是否已駛離 (使用帶時區的時間比較)
+            is_past = real_dep < (now_aware - timedelta(minutes=10))
 
-            # 讓 real_dep 帶有時區資訊以便計算 timestamp
-            real_dep_aware = real_dep.replace(tzinfo=None).astimezone(TW_TZ)
-
-            # [修正點] 日期格式改為完整 YYYY-MM-DD，以便前端精準比對
             processed.append({
                 "no": no, "type": display_type, "delay": delay, "color": type_color,
                 "act_dep": real_dep.strftime("%H:%M"), "act_arr": real_arr.strftime("%H:%M"),
                 "dep_date": real_dep.strftime("%Y-%m-%d"),
                 "arr_date": real_arr.strftime("%Y-%m-%d"),
                 "sch_dep": dep_time, "sch_arr": arr_time,
-                "sort_key": real_dep.timestamp(),
+                "sort_key": real_dep.timestamp(), # 這裡產生的 timestamp 現在會是正確的絕對時間
                 "is_past": is_past
             })
         return processed
@@ -208,12 +206,13 @@ class handler(BaseHTTPRequestHandler):
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
-        # [修正] 嚴格定義現在時間為 UTC+8
-        now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
-        now = now_aware.replace(tzinfo=None) # 轉為 naive time 以便與 strptime 產生的時間運算
+        # 取得絕對準確的現在時刻 (UTC)
+        now_utc = datetime.now(timezone.utc)
+        # 轉換為台灣時間 (用於日期字串生成)
+        now_tw = now_utc.astimezone(TW_TZ)
 
-        today_str = now.strftime('%Y-%m-%d')
-        tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+        today_str = now_tw.strftime('%Y-%m-%d')
+        tomorrow_str = (now_tw + timedelta(days=1)).strftime('%Y-%m-%d')
 
         headers = {'authorization': f'Bearer {token}'}
 
@@ -223,9 +222,9 @@ class handler(BaseHTTPRequestHandler):
 
             raw_yest = []
             status_yest = "Skipped"
-            # 凌晨 4 點前查詢，可能需要昨天的跨夜車
-            if now.hour < 4:
-                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+            # 凌晨 4 點前查詢
+            if now_tw.hour < 4:
+                yesterday_str = (now_tw - timedelta(days=1)).strftime('%Y-%m-%d')
                 raw_yest, status_yest = self.get_route_timetable(start_id, end_id, yesterday_str, headers)
 
             delays = {}
@@ -242,21 +241,22 @@ class handler(BaseHTTPRequestHandler):
             processed = []
 
             if raw_yest:
-                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-                processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, now, is_tomorrow=False, fix_crossing_night=True))
+                yesterday_str = (now_tw - timedelta(days=1)).strftime('%Y-%m-%d')
+                processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, now_tw, is_tomorrow=False, fix_crossing_night=True))
 
-            processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, now, is_tomorrow=False))
-            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, now, is_tomorrow=False))
+            processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, now_tw, is_tomorrow=False))
+            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, now_tw, is_tomorrow=True))
 
             unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
 
             final_result = []
-            now_ts = now.timestamp()
+            
+            # 使用 UTC timestamp 做過濾，這是絕對標準，不會受時區干擾
+            now_ts = now_utc.timestamp()
+            
+            # 計算台灣今天的 00:00:00 對應的 timestamp
+            today_start = now_tw.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
 
-            # 取得「今天 00:00:00」的 timestamp
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-
-            # 視窗：從今天 00:00 起 ~ 未來 24 小時
             future_limit = now_ts + (24 * 3600) 
             past_limit = today_start 
 
@@ -274,11 +274,11 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
 
             diag_route_status = f"{status_today} / {status_tmrw}"
-            if now.hour < 4:
+            if now_tw.hour < 4:
                 diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
 
             self.wfile.write(json.dumps({
-                "update_time": now.strftime("%H:%M:%S"),
+                "update_time": now_tw.strftime("%H:%M:%S"),
                 "start": start_station,
                 "end": end_station,
                 "delay_failed": delay_failed,
