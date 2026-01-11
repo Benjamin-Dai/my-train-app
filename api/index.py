@@ -134,7 +134,8 @@ class handler(BaseHTTPRequestHandler):
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
     # === 核心處理邏輯 ===
-    def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, now, is_tomorrow=False, fix_crossing_night=False):
+    # [修正] 傳入 now_aware (帶時區的現在時間)
+    def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, now_aware, fix_crossing_night=False):
         processed = []
         for item in raw_list:
             info = item.get('TrainInfo', {})
@@ -160,11 +161,11 @@ class handler(BaseHTTPRequestHandler):
             elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
             elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
 
-            # 先抓取可能的誤點 (可能會抓到昨天的同號車)
             raw_delay = int(delays.get(no, 0))
 
-            dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M")
-            arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M")
+            # 解析時間並加上時區
+            dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M").replace(tzinfo=TW_TZ)
+            arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M").replace(tzinfo=TW_TZ)
 
             if fix_crossing_night:
                 if dep_time < "12:00": dep_dt += timedelta(days=1)
@@ -172,14 +173,11 @@ class handler(BaseHTTPRequestHandler):
 
             if arr_dt < dep_dt: arr_dt += timedelta(days=1)
 
-            # [關鍵修正] 智慧判斷誤點有效性
-            # 計算「原定發車時間」距離「現在」多久
-            time_diff_seconds = (dep_dt - now).total_seconds()
+            # [修正] 這裡的減法現在是「有時區 - 有時區」，不會再報錯了
+            time_diff_seconds = (dep_dt - now_aware).total_seconds()
 
-            # 如果這班車 原定發車時間 在 現在的 6 小時之後
-            # 代表它還很久才開，API 裡的誤點資訊應該是屬於「上一班同號車」的
-            # 所以強制歸零
-            if time_diff_seconds > 21600: # 6小時 = 21600秒
+            # 6小時判斷邏輯
+            if time_diff_seconds > 21600: 
                 delay = 0
             else:
                 delay = raw_delay
@@ -187,7 +185,8 @@ class handler(BaseHTTPRequestHandler):
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
 
-            is_past = real_dep < (now - timedelta(minutes=10))
+            # [修正] 判斷是否駛離也使用 now_aware
+            is_past = real_dep < (now_aware - timedelta(minutes=10))
 
             processed.append({
                 "no": no, "type": display_type, "delay": delay, "color": type_color,
@@ -214,12 +213,11 @@ class handler(BaseHTTPRequestHandler):
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
-        # [修正] 嚴格定義現在時間為 UTC+8
+        # [修正] 取得帶有時區的現在時間 now_aware
         now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
-        now = now_aware.replace(tzinfo=None) # 轉為 naive time 以便與 strptime 產生的時間運算
-
-        today_str = now.strftime('%Y-%m-%d')
-        tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        today_str = now_aware.strftime('%Y-%m-%d')
+        tomorrow_str = (now_aware + timedelta(days=1)).strftime('%Y-%m-%d')
 
         headers = {'authorization': f'Bearer {token}'}
 
@@ -229,9 +227,8 @@ class handler(BaseHTTPRequestHandler):
 
             raw_yest = []
             status_yest = "Skipped"
-            # 凌晨 4 點前查詢，可能需要昨天的跨夜車
-            if now.hour < 4:
-                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+            if now_aware.hour < 4:
+                yesterday_str = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
                 raw_yest, status_yest = self.get_route_timetable(start_id, end_id, yesterday_str, headers)
 
             delays = {}
@@ -247,25 +244,22 @@ class handler(BaseHTTPRequestHandler):
 
             processed = []
 
+            # [修正] 呼叫 process_daily_list 時，傳入 now_aware
             if raw_yest:
-                yesterday_str = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-                processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, now, is_tomorrow=False, fix_crossing_night=True))
+                yesterday_str = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
+                processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, now_aware, fix_crossing_night=True))
 
-            # 處理今天
-            processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, now, is_tomorrow=False))
-            
-            # 處理明天 (不再強制 is_tomorrow=True，改由內部時間邏輯判斷)
-            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, now, is_tomorrow=False))
+            processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, now_aware))
+            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, now_aware))
 
             unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
 
             final_result = []
-            now_ts = now.timestamp()
+            now_ts = now_aware.timestamp()
+            
+            # 使用 now_aware 計算今天的 00:00:00 (保留時區)
+            today_start = now_aware.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
 
-            # 取得「今天 00:00:00」的 timestamp
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-
-            # 視窗：從今天 00:00 起 ~ 未來 24 小時
             future_limit = now_ts + (24 * 3600) 
             past_limit = today_start 
 
@@ -283,11 +277,11 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
 
             diag_route_status = f"{status_today} / {status_tmrw}"
-            if now.hour < 4:
+            if now_aware.hour < 4:
                 diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
 
             self.wfile.write(json.dumps({
-                "update_time": now.strftime("%H:%M:%S"),
+                "update_time": now_aware.strftime("%H:%M:%S"),
                 "start": start_station,
                 "end": end_station,
                 "delay_failed": delay_failed,
