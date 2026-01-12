@@ -603,7 +603,11 @@
             if (logoClickCount >= 5) { clearTimeout(logoClickTimer); logoClickCount = 0; activateGodMode(); }
         }
         function activateGodMode() {
+            // [修正] 開啟上帝模式時，也要加入歷史紀錄與鎖定背景，這樣「關閉」按鈕才會有作用
             document.getElementById('aboutModal').style.display = 'flex';
+            document.body.classList.add('noscroll');
+            history.pushState({modal: true}, '', '');
+
             if (adminAuth.u && adminAuth.p) {
                 goToPage('Dev');
                 fetchSessionList();
