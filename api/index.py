@@ -281,7 +281,7 @@ class handler(BaseHTTPRequestHandler):
                         if target_sid:
                             logs = redis_client.lrange(f"session:{target_sid}", 0, -1)
                             logs = [l.decode('utf-8') for l in logs]
-                            # [修改] 排序改為 舊 -> 新 (Reverse)
+                            # 排序 舊 -> 新 (Reverse)
                             logs.reverse()
                             result["logs"] = logs
                         else:
@@ -313,7 +313,9 @@ class handler(BaseHTTPRequestHandler):
         end_station = params.get('end', [DEFAULT_END])[0]
         want_next_day = params.get('next_day', ['0'])[0] == '1'
         sid = params.get('sid', [None])[0]
-        rpm = params.get('rpm', ['0'])[0]
+        
+        # [修改] 讀取 mode 參數，首字大寫 (Query/Search/Refresh)
+        req_mode = params.get('mode', ['Query'])[0].capitalize() 
 
         if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Env")
         start_id = STATION_MAP.get(start_station)
@@ -372,25 +374,22 @@ class handler(BaseHTTPRequestHandler):
 
             result = sorted(final_result, key=lambda x: x['sort_key'])
             
-            # [LOGGING LOGIC]
-            logging_enabled_resp = False # 預設回傳 false
+            # [LOGGING LOGIC] - 修改 Log 格式
+            logging_enabled_resp = False 
             if sid:
-                # 製作詳細 Log 字串 (含日期)
                 now_log_str = now_aware.strftime("%m/%d %H:%M:%S")
                 
-                # 判斷 V3 來源與額度
                 v3_log = f"V3 {status_today}"
                 if now_aware.hour < 4: v3_log = f"V3 Y:{status_yest}/T:{status_today}"
                 
-                # 判斷 V2 來源與額度
                 v2_log = f"V2 {delay_status}"
                 
-                log_text = f"[{now_log_str}] Action  RPM={rpm}\n"
+                # [修改] 移除 RPM，改顯示 Action: Search/Refresh
+                log_text = f"[{now_log_str}] Action: {req_mode}\n"
                 log_text += f"                 {start_station} -> {end_station}\n"
                 log_text += f"                 {v3_log} / {v2_log}\n"
                 log_text += f"                 Result: {len(result)} trains"
                 
-                # 寫入並取得狀態 (True=ON, False=OFF)
                 logging_enabled_resp = log_to_redis_logic(log_text, sid)
 
             self.send_response(200)
