@@ -42,13 +42,11 @@ if KV_URL:
 else:
     print("Warning: No Redis URL found.")
 
-# [修改] Log 寫入函式：支援多行格式
+# [Log 寫入函式]
 def log_to_redis(log_entry, sid=None):
     if not redis_client: return
     try:
         # 檢查是否開啟資料收集 (預設為 1)
-        # 注意：在省錢模式下，如果前端沒傳 sid，這裡通常不會被呼叫到 (因為 Vercel 擋掉了)
-        # 但如果 Vercel 沒擋(快取過期)，進來這裡再做一次防呆
         is_enabled = redis_client.get("config:logging_enabled")
         if is_enabled and is_enabled.decode('utf-8') == "0":
             return
@@ -114,7 +112,7 @@ class handler(BaseHTTPRequestHandler):
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             if redis_client:
                 try: 
-                    # [修改] 誤點快取 75 秒
+                    # 誤點快取 75 秒
                     redis_client.set(cache_key, json.dumps(new_delays), ex=75)
                 except: pass
             return (new_delays, status_str)
@@ -263,7 +261,8 @@ class handler(BaseHTTPRequestHandler):
                             session_list.append({
                                 "id": k_str.replace("session:", ""),
                                 "ttl": ttl,
-                                "last_active_str": last_active.strftime("%H:%M:%S")
+                                # [修改] 這裡加入日期顯示 (月/日 時:分:秒)
+                                "last_active_str": last_active.strftime("%m/%d %H:%M:%S")
                             })
                         session_list.sort(key=lambda x: x['ttl'], reverse=True)
                         result["sessions"] = session_list
@@ -301,7 +300,7 @@ class handler(BaseHTTPRequestHandler):
         end_station = params.get('end', [DEFAULT_END])[0]
         want_next_day = params.get('next_day', ['0'])[0] == '1'
         sid = params.get('sid', [None])[0]
-        rpm = params.get('rpm', ['0'])[0] # [修改] 讀取前端傳來的 RPM
+        rpm = params.get('rpm', ['0'])[0] # 讀取前端傳來的 RPM
 
         if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Env")
         start_id = STATION_MAP.get(start_station)
@@ -368,12 +367,9 @@ class handler(BaseHTTPRequestHandler):
 
             result = sorted(final_result, key=lambda x: x['sort_key'])
             
-            # [修改] 寫入 Log (如果有 sid 且開關開啟)
+            # 寫入 Log (如果有 sid 且開關開啟)
             if sid and logging_enabled:
                 now_time_str = now_aware.strftime("%H:%M:%S")
-                # 判斷動作類型 (Refresh vs Search)
-                # 這裡簡單判斷：如果 rpm=0 或 1 可能是 Search，其他是 Refresh，或由前端傳 Action。
-                # 但前端只傳了 RPM，我們就顯示 Action: Query 即可
                 diag_route_status = f"{status_today}/{status_tmrw}"
                 
                 log_text = f"------\n"
@@ -400,7 +396,7 @@ class handler(BaseHTTPRequestHandler):
                 "start": start_station, "end": end_station, "delay_failed": delay_failed,
                 "trains": result, "stats": { "original_count": len(final_result) },
                 "diagnostics": { "route_status": diag_route_status, "delay_status": delay_status },
-                "logging_enabled": logging_enabled # 回傳給前端，決定下次要不要帶 SID
+                "logging_enabled": logging_enabled # 回傳給前端
             }).encode())
         except Exception as e:
             self.send_error_response(str(e))
