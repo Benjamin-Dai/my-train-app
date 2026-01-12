@@ -877,19 +877,11 @@ ${logs}`;
             renderQuickRoutes();
             updateStarState();
         }
-        function doRefresh(skip=false) {
-            if(!skip) {
-                const now=Date.now(); const rL=getRefreshLockedUntil();
-                if(rL>now) { 
-                    // [修改] 這裡也要加限制，不然誤按會跳出 80 幾秒
-                    let left = Math.ceil((rL-now)/1000);
-                    if(left > 30) left = 30; // <--- 加上這一行
-                    lockRefreshButton(left); 
-                    return; 
-                }
-            }
+        function checkLocksOnLoad() {
+            const now=Date.now();
+            const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
+            const rL=getRefreshLockedUntil(); if(rL>now) lockRefreshButton(Math.ceil((rL-now)/1000));
         }
-            // ... (後面保持不變)
         function setMenu(type,rV,sV) {
             const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
             if(!STATION_DATA[rV]) { rSel.value = ""; return; }
