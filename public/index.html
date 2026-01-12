@@ -225,10 +225,11 @@
         .gm-list-item:hover { background: #222; color: #fff; }
         .gm-list-item.active { background: #1a3320; color: #4d7f5e; border-left: 3px solid #4d7f5e; }
         
+        /* [修改] 支援左右滑動，不換行 */
         .gm-terminal {
             flex: 1; background: #000; border: 1px solid #333; border-radius: 8px;
             color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px;
-            overflow-y: auto; white-space: pre-wrap;
+            overflow-x: auto; white-space: pre; 
         }
         
         /* Toggle Switch */
@@ -253,23 +254,13 @@
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
-        .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
-        .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
-        .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
-        .stat-label { font-size: 0.65rem; color: #888; margin-top: 2px;}
-        .stat-card.danger .stat-val { color: #ff4d4d; }
         .diag-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
         .diag-section:last-child { border-bottom: none; }
         .diag-title { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .info-item { background: #222; padding: 10px; border-radius: 8px; border: 1px solid #333; }
-        .info-label { font-size: 0.7rem; color: #666; margin-bottom: 4px; }
-        .info-value { font-size: 0.85rem; color: #fff; font-family: monospace; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-        .badge.green { background: rgba(77, 127, 94, 0.2); color: #4d7f5e; border: 1px solid #4d7f5e; }
-        .badge.yellow { background: rgba(230, 184, 0, 0.2); color: #e6b800; border: 1px solid #e6b800; }
-        .badge.red { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
-        .terminal-box { background: #0d0d0d; border: 1px solid #333; border-radius: 8px; color: #0f0; font-family: 'Consolas', monospace; font-size: 0.7rem; padding: 10px; height: 120px; overflow-y: auto; white-space: pre-wrap; box-shadow: inset 0 0 10px #000; }
+        
+        /* [修改] 支援左右滑動，不換行 */
+        .terminal-box { background: #0d0d0d; border: 1px solid #333; border-radius: 8px; color: #0f0; font-family: 'Consolas', monospace; font-size: 0.7rem; padding: 10px; height: 120px; overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000; }
+        
         .ios-instruction { text-align: center; margin-top: 10px; }
         .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
         .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
@@ -420,21 +411,6 @@
                     <div id="autoUploadHint" style="color:#4d7f5e; font-size:0.8rem; text-align:center; margin-top:5px; opacity:0; transition:opacity 1s;">✅ 系統資料已自動歸檔</div>
                 </div>
 
-                <div class="diag-section">
-                    <div class="diag-title">資料來源 / 剩餘額度</div>
-                    <div class="info-grid">
-                        <div class="info-item"><div class="info-label">API 狀態 (V3 / V2)</div><div id="diagStatus" class="info-value">-- / --</div></div>
-                        <div class="info-item"><div class="info-label">剩餘額度</div><div id="diagQuota" class="info-value">--</div></div>
-                    </div>
-                </div>
-                <div class="diag-section">
-                    <div class="diag-title">流量監控</div>
-                    <div class="stats-dashboard">
-                        <div class="stat-card" id="cardRpm"><div class="stat-val" id="statRpm">0</div><div class="stat-label">1分內請求</div></div>
-                        <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">本次總數</div></div>
-                        <div class="stat-card"><div class="stat-val" id="statLast">--</div><div class="stat-label">距上次(s)</div></div>
-                    </div>
-                </div>
                 <div class="diag-section" style="border:none;">
                     <div class="diag-title">系統紀錄 (Log)</div>
                     <div id="terminalView" class="terminal-box"></div>
@@ -560,7 +536,7 @@
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
-        const LS_UI_LOCK = "tl_ui_button_locked_until"; // [新增] UI 按鈕專用鎖
+        const LS_UI_LOCK = "tl_ui_button_locked_until"; 
 
         const LS_IS_24H="tl_pref_is_24h"; 
 
@@ -574,8 +550,8 @@
         let isNextDayLoaded = false;
         let currentTrainData = null;
         
-        // 伺服器端開關狀態 (預設 false: 省錢)
-        let serverLoggingEnabled = false;
+        // [修改] 預設為 true (樂觀模式)，確保第一發請求帶參數
+        let serverLoggingEnabled = true;
 
         // Session ID
         let SESSION_ID = localStorage.getItem('tl_session_v2'); 
@@ -626,7 +602,7 @@
             if (adminAuth.u && adminAuth.p) {
                 goToPage('Dev');
                 fetchSessionList();
-                fetchConfig(); // 載入開關狀態
+                fetchConfig(); 
             } else {
                 goToPage('Login');
             }
@@ -640,7 +616,7 @@
             document.getElementById('loginPass').value = "";
             goToPage('Dev');
             fetchSessionList();
-            fetchConfig(); // 載入開關狀態
+            fetchConfig(); 
         }
         
         function switchDevTab(tab) {
@@ -679,7 +655,6 @@
                     json.sessions.forEach(s => {
                         const isMe = s.id === SESSION_ID ? " (Me)" : "";
                         const status = s.ttl > 86000 ? "🟢" : "⚪"; 
-                        // [修改] 顯示日期+時間
                         html += `<div class="gm-list-item" onclick="loadSessionLogs('${s.id}', this)">
                                     <span>[${s.last_active_str}] ${status} ${s.id}${isMe}</span>
                                  </div>`;
@@ -735,15 +710,10 @@
 
         function formatReport(data) {
             const logs = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs";
-            const diag = data.diagnostics || {};
             
             return `📅 時間: ${data.timestamp || '--'}
 📱 裝置: ${data.user_agent || 'Unknown'}
 📏 畫面: ${data.screen || '--'}
---------------------------------
-📊 流量: RPM=${data.rpm || 0} / Total=${data.total_requests || 0}
-🚦 狀態: Route=[${diag.route_source || '--'}] / Delay=[${diag.delay_source || '--'}]
-📝 使用者描述: ${data.user_desc || 'None'}
 --------------------------------
 [系統紀錄]
 ${logs}`;
@@ -783,7 +753,6 @@ ${logs}`;
         function setSearchLockedUntil(v){localStorage.setItem(LS_SEARCH_LOCK,v);}
         function getRefreshLockedUntil(){return parseInt(localStorage.getItem(LS_REFRESH_LOCK)||"0");}
         function setRefreshLockedUntil(v){localStorage.setItem(LS_REFRESH_LOCK,v);}
-        // [新增] UI 鎖讀寫函式
         function getUiLockedUntil(){return parseInt(localStorage.getItem(LS_UI_LOCK)||"0");}
         function setUiLockedUntil(v){localStorage.setItem(LS_UI_LOCK,v);}
 
@@ -858,7 +827,7 @@ ${logs}`;
         }
 
         function init() {
-            logSystem("Init","App Started"); 
+            logSystem("App Started"); 
             startTicker(); 
             updateToggleBtns();
             
@@ -885,7 +854,6 @@ ${logs}`;
         function checkLocksOnLoad() {
             const now=Date.now();
             const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
-            // [修改] 這裡改檢查 UI 鎖，而非後台資料鎖，確保載入時只看視覺時間
             const uL=getUiLockedUntil(); if(uL>now) lockRefreshButton(Math.ceil((uL-now)/1000));
         }
         function setMenu(type,rV,sV) {
@@ -903,7 +871,7 @@ ${logs}`;
             if(startStation.value&&endStation.value) markAsChanged();
         }
         function swapStations() {
-            if(!startStation.value||!endStation.value) return; logSystem("UI","Swap");
+            if(!startStation.value||!endStation.value) return; logSystem("Action: Swap");
             const sR=startRegion.value; const sS=startStation.value;
             setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
             markAsChanged();
@@ -912,7 +880,9 @@ ${logs}`;
             const val=searchInput.value.trim(); const tgt=searchTarget.value; if(!val) return;
             let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
             if(found) {
-                logSystem("UI",`Search: ${found}`); setMenu(tgt,STATION_INDEX[found],found);
+                // [修改] Log 格式
+                logSystem(`Action: InputSearch\n           ${found}`); 
+                setMenu(tgt,STATION_INDEX[found],found);
                 searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
                 if(startStation.value&&endStation.value) markAsChanged();
             }
@@ -997,54 +967,47 @@ ${logs}`;
             if(cnt===0) { rst=now; setSearchResetTime(now); }
             if(cnt>=MAX_SEARCH_PER_MIN) {
                 const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60;
-                setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit","Search Limit"); return;
+                setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit: Search Limit"); return;
             }
             addToHistory();
             cnt++; setSearchCount(cnt); 
-            logSystem("Action",`Search(${cnt}/${MAX_SEARCH_PER_MIN}) ${sS}→${eS}`); 
+            // [修改] Log 格式 (縮排對齊)
+            const spaces = "           "; 
+            logSystem(`Action: Search(${cnt}/${MAX_SEARCH_PER_MIN})\n${spaces}${sS} -> ${eS}`); 
             fetchData("search");
         }
         function doRefresh(skip=false) {
             const now = Date.now();
             
             if(!skip) {
-                // 1. 先檢查視覺按鈕有沒有被鎖住 (通常按鈕disabled按不到，這是防呆)
                 const uL = getUiLockedUntil();
                 if(uL > now) return; 
             }
-
-            // 2. 檢查「後台資料鎖 (90s)」是否還在鎖定中
             const rL = getRefreshLockedUntil();
             
-            // [核心邏輯]：如果後台還在鎖 (31s ~ 90s 之間)，我們做「假更新」
             if(rL > now && !skip) {
-                logSystem("Action", "Soft Refresh (Cache)");
+                // [修改] 假更新 Log
+                logSystem("Action: Soft Refresh (Cache)");
                 
-                // A. 重新讀取本地快取並渲染 (讓畫面閃一下，感覺有更新)
                 reRenderLocal(); 
-                
-                // B. 顯示提示，讓使用者知道這是快取資料
                 statusMsg.innerText = "資料有效中 (快取)";
                 statusMsg.className = "status-left";
                 setTimeout(() => statusMsg.innerText="", 2000);
-
-                // C. 再次鎖住按鈕「視覺上」的 30 秒
                 setUiLockedUntil(now + 30000); 
                 lockRefreshButton(30);
-                return; // 結束，不發送 API
+                return; 
             }
-
-            // 3. 如果後台鎖解除了 (超過 90s)，才真的發送請求
-            logSystem("Action",`Refresh ${startStation.value}→${endStation.value}`); 
+            // [修改] 真更新 Log
+            const spaces = "           "; 
+            logSystem(`Action: Refresh\n${spaces}${startStation.value} -> ${endStation.value}`); 
             fetchData("refresh");
         }
         
         function handleLoadNextDay() {
-            logSystem("Action", "Load Next Day");
+            logSystem("Action: Load Next Day");
             fetchData("load_next_day");
         }
 
-        // [修改] 自動上傳與手動上傳整合
         async function uploadReportInternal(desc, isAuto) {
             const statusHint = document.getElementById('autoUploadHint');
             const now = Date.now();
@@ -1075,7 +1038,7 @@ ${logs}`;
                         setTimeout(() => { statusHint.style.opacity = '0'; }, 3000);
                     } else {
                         alert("✅ 感謝回報！開發者已收到您的訊息。");
-                        document.getElementById('userDesc').value = ""; // 清空
+                        document.getElementById('userDesc').value = ""; 
                     }
                 } else {
                     if (!isAuto) alert('❌ 上傳失敗: ' + (json.error || 'Unknown'));
@@ -1086,7 +1049,6 @@ ${logs}`;
         }
         
         function uploadReport() {
-            // 自動模式 (無參數)
             uploadReportInternal("", true);
         }
         
@@ -1097,10 +1059,10 @@ ${logs}`;
 
         function parseDiagnostics(diag, isCdn) {
             const parseDiag = (str, isC) => {
-                let source = "TDX API"; let quota = "--";
-                if (isC) source = "Vercel CDN";
-                else if (str.includes("Hit") || str.includes("Cache")) source = "Redis DB";
-                else if (str.includes("API")) source = "TDX API";
+                let source = "API"; let quota = "--";
+                if (isC) source = "Vercel";
+                else if (str.includes("Hit") || str.includes("Cache") || str.includes("Redis")) source = "Redis";
+                else if (str.includes("API")) source = "API";
                 const match = str.match(/\(剩:\s*(\d+)\)/); if (match) quota = match[1];
                 return { source, quota };
             };
@@ -1131,13 +1093,11 @@ ${logs}`;
             const cacheKeySuffix = needNextDay ? "_full" : ""; 
             const cacheKey = getCacheKey() + cacheKeySuffix; 
             
-            // [關鍵] RPM計算
             const now = Date.now();
             const rpmVal = requestHistory.filter(t => now - t < 60000).length;
 
             recordRequest();
             try {
-                // [關鍵] 智能切換網址參數
                 let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}`;
                 if(serverLoggingEnabled) {
                     url += `&sid=${SESSION_ID}&rpm=${rpmVal}`;
@@ -1149,7 +1109,6 @@ ${logs}`;
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
 
-                // 更新本地的 logging 狀態，供下次查詢決定要不要帶 SID
                 if(json.logging_enabled !== undefined) {
                     serverLoggingEnabled = json.logging_enabled;
                 }
@@ -1163,7 +1122,9 @@ ${logs}`;
                 localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
-                logSystem("Status", `狀態: ${rInfo.source} (剩:${rInfo.quota}) / ${dInfo.source} (剩:${dInfo.quota})`);
+                // [修改] Log 格式 (簡潔版)
+                // V3 Redis / V2 API(剩:123)
+                logSystem(`${rInfo.source} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
 
                 if(json.delay_failed) {
                     scheduleRetry("誤點資料失敗", "status-left warning");
@@ -1175,20 +1136,14 @@ ${logs}`;
                     setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
                 }
                 
-                // [修改] 雙軌鎖定邏輯
                 if(mode==="search"){ 
                     setTimeout(()=>btnSearch.disabled=false,500); 
-                    
-                    // 真實鎖定 90秒
                     setRefreshLockedUntil(now+90000); 
-                    // 視覺鎖定 30秒
                     setUiLockedUntil(now+30000);
                     lockRefreshButton(30);            
                 }
                 if(mode==="refresh"){ 
-                    // 真實鎖定 90秒
                     setRefreshLockedUntil(now+90000); 
-                    // 視覺鎖定 30秒
                     setUiLockedUntil(now+30000);
                     lockRefreshButton(30);            
                 }
@@ -1204,7 +1159,7 @@ ${logs}`;
                 }
 
             } catch(err) {
-                console.error(err); logSystem("API Error",err.message);
+                console.error(err); logSystem("API Error: " + err.message);
                 scheduleRetry("連線錯誤", "status-left alert");
                 list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`;
             }
@@ -1407,7 +1362,12 @@ ${logs}`;
             }
         }
 
-        function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
+        // [修改] Log 格式 (單行 timestamp)
+        function logSystem(d){
+            const time = new Date().toLocaleTimeString('en-GB', {hour12:false});
+            systemLogs.push(`[${time}] ${d}`);
+            if(systemLogs.length>30)systemLogs.shift();
+        }
         function recordRequest(){requestHistory.push(Date.now());}
         function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
         function closeModal(){document.getElementById('aboutModal').style.display='none';}
@@ -1416,36 +1376,22 @@ ${logs}`;
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
             if(id==='Report'){
+                // [修改] 刪除舊的資料來源顯示程式碼，只保留 Log
                 const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
-                document.getElementById('statRpm').innerText=rpm;
-                document.getElementById('cardRpm').classList.toggle('danger', rpm>=5);
-                document.getElementById('statTotal').innerText=requestHistory.length;
-                const last=requestHistory[requestHistory.length-1];
-                document.getElementById('statLast').innerText=last?Math.floor((now-last)/1000):"--";
-                
-                const getColor = (src) => { if(src.includes("Vercel")||src.includes("Redis")) return "green"; if(src.includes("API")) return "yellow"; return "red"; };
-                const displayQuota = (lastDiagnostics.route_quota !== "--") ? lastDiagnostics.route_quota : lastDiagnostics.delay_quota;
-                
-                document.getElementById('diagStatus').innerHTML = `<span class="badge ${getColor(lastDiagnostics.route_source)}">${lastDiagnostics.route_source}</span> / <span class="badge ${getColor(lastDiagnostics.delay_source)}">${lastDiagnostics.delay_source}</span>`;
-                document.getElementById('diagQuota').innerHTML = `<span style="font-size:1.1rem; color:#fff;">${displayQuota}</span>`;
-                
                 const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone);
                 let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
                 r += `裝置: ${navigator.userAgent}\n畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
                 r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
-                r += `狀態: [${lastDiagnostics.route_source}] / [${lastDiagnostics.delay_source}]\n剩餘: ${displayQuota}\n`;
                 r += `--- Log ---\n${systemLogs.join("\n")}`;
                 document.getElementById('terminalView').innerText = systemLogs.join("\n");
 
-                uploadReport(); // 自動上傳
+                uploadReport(); 
             }
         }
         function copyReportOnly() {
             let final = document.getElementById('reportContent').value; 
         }
-        function openMailClient() {
-            // 已移除寄信按鈕
-        }
+        function openMailClient() { }
 
         const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
         const MAX_HIST = 3; const MAX_FAV = 6;
@@ -1461,8 +1407,8 @@ ${logs}`;
             const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
             let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
             const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
-            if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav", "Removed"); } 
-            else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav", "Added"); }
+            if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav: Removed"); } 
+            else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav: Added"); }
             localStorage.setItem(LS_FAV, JSON.stringify(favs));
             updateStarState(); renderQuickRoutes();
         }
