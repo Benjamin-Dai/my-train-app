@@ -499,15 +499,13 @@
                     </div>
 
                     <div id="panelReports" class="dev-panel">
-                        <div style="margin-bottom:10px;">
-                            <button class="menu-btn" style="width:100%; padding:8px;" onclick="fetchReportList()">🔄 刷新報告列表</button>
+                        <div style="margin-bottom:10px; display:flex; gap:10px;">
+                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchReportList()">🔄 刷新列表</button>
+                            <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空報告</button>
                         </div>
                         <div id="reportListContainer" class="terminal-box" style="height:120px; margin-bottom:10px;"></div>
                         <div class="info-label">報告內容：</div>
                         <div id="reportDetailContainer" class="dev-terminal" style="height:150px; border:1px dashed #444;">點擊上方列表查看...</div>
-                        <div style="margin-top:10px;">
-                             <button class="menu-btn" style="width:100%; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空所有報告</button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -574,7 +572,7 @@
         let isNextDayLoaded = false;
         let currentTrainData = null;
         
-        // [新增] 伺服器端開關狀態 (預設 false: 省錢)
+        // 伺服器端開關狀態 (預設 false: 省錢)
         let serverLoggingEnabled = false;
 
         // Session ID
@@ -668,7 +666,6 @@
             await fetch(`/api/index?debug=godmode&action=set_config&key=logging_enabled&val=${val}&u=${adminAuth.u}&p=${adminAuth.p}`);
         }
 
-        // [修改] Session List 格式
         async function fetchSessionList() {
             const listEl = document.getElementById('gmSessionList');
             listEl.innerHTML = "Loading...";
@@ -680,7 +677,7 @@
                     json.sessions.forEach(s => {
                         const isMe = s.id === SESSION_ID ? " (Me)" : "";
                         const status = s.ttl > 86000 ? "🟢" : "⚪"; 
-                        // 顯示格式：[時間] 狀態 ID
+                        // [修改] 顯示日期+時間
                         html += `<div class="gm-list-item" onclick="loadSessionLogs('${s.id}', this)">
                                     <span>[${s.last_active_str}] ${status} ${s.id}${isMe}</span>
                                  </div>`;
@@ -1109,8 +1106,6 @@ ${logs}`;
             recordRequest();
             try {
                 // [關鍵] 智能切換網址參數
-                // 如果 serverLoggingEnabled 為 true, 帶上 sid 和 rpm -> 強制後端紀錄
-                // 如果為 false, 不帶 -> 命中 Vercel 快取 (省額度)
                 let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}`;
                 if(serverLoggingEnabled) {
                     url += `&sid=${SESSION_ID}&rpm=${rpmVal}`;
@@ -1408,7 +1403,7 @@ ${logs}`;
             }
         }
         function copyReportOnly() {
-            let final = document.getElementById('reportContent').value; // 注意：reportContent 已移除，此函式備用或可移除
+            let final = document.getElementById('reportContent').value; 
         }
         function openMailClient() {
             // 已移除寄信按鈕
