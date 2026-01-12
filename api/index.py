@@ -42,27 +42,39 @@ if KV_URL:
 else:
     print("Warning: No Redis URL found.")
 
-# [Log 寫入函式]
-def log_to_redis(log_entry, sid=None):
-    if not redis_client: return
+# [Log 寫入函式] - 強制寫入第一筆，並回傳是否繼續開啟
+def log_to_redis_logic(log_entry, sid):
+    if not redis_client or not sid: return False
+    
     try:
-        # 檢查是否開啟資料收集 (預設為 1)
-        is_enabled = redis_client.get("config:logging_enabled")
-        if is_enabled and is_enabled.decode('utf-8') == "0":
-            return
-
-        # 寫入 Session Log
-        if sid:
-            key = f"session:{sid}"
-            redis_client.lpush(key, log_entry)
-            redis_client.ltrim(key, 0, 199) 
-            redis_client.expire(key, 86400) 
+        # 1. 檢查全域開關
+        config_val = redis_client.get("config:logging_enabled")
+        is_globally_enabled = (config_val.decode('utf-8') == "1") if config_val else True
         
-        # 寫入 System Log (全域)
-        redis_client.lpush("sys_logs", log_entry)
-        redis_client.ltrim("sys_logs", 0, 99)
+        final_log = log_entry
+        should_continue = True
+
+        # 2. 如果全域關閉，但在 Log 尾端加註，並回傳 False
+        if not is_globally_enabled:
+            final_log += "\n                 [System] Logging stopped (Config OFF)"
+            should_continue = False
+
+        # 3. 執行寫入 (無論開關為何，只要有 sid 都寫入這一次)
+        key = f"session:{sid}"
+        redis_client.lpush(key, final_log)
+        redis_client.ltrim(key, 0, 199) # 保留最近 200 筆
+        redis_client.expire(key, 86400) # 24小時過期
+        
+        # 寫入 System Log
+        if is_globally_enabled:
+            redis_client.lpush("sys_logs", final_log)
+            redis_client.ltrim("sys_logs", 0, 99)
+
+        return should_continue
+
     except Exception as e:
         print(f"Log Error: {e}")
+        return False
 
 class handler(BaseHTTPRequestHandler):
 
@@ -92,8 +104,8 @@ class handler(BaseHTTPRequestHandler):
         val = None
         for k, v in res.headers.items():
             if 'remaining' in k.lower(): val = v; break
-        if val: return f"API {res.status_code} (剩:{val})"
-        return f"API {res.status_code}"
+        if val: return f"API(剩:{val})"
+        return "API"
 
     def get_cached_delays(self, headers):
         cache_key = "v3_tra_delay_data"
@@ -101,7 +113,7 @@ class handler(BaseHTTPRequestHandler):
             try:
                 cached_data = redis_client.get(cache_key)
                 if cached_data:
-                    return (json.loads(cached_data), "Redis Hit")
+                    return (json.loads(cached_data), "Redis")
             except: pass
 
         res = requests.get(f"{API_BASE_V2}/LiveTrainDelay", headers=headers)
@@ -125,7 +137,7 @@ class handler(BaseHTTPRequestHandler):
             try:
                 cached_route = redis_client.get(cache_key)
                 if cached_route:
-                    return (json.loads(cached_route), "Redis Hit")
+                    return (json.loads(cached_route), "Redis")
             except: pass
 
         res = requests.get(f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}", headers=headers)
@@ -191,7 +203,6 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            # 回報功能不擋開關，始終允許
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             data = json.loads(post_data.decode('utf-8'))
@@ -261,7 +272,6 @@ class handler(BaseHTTPRequestHandler):
                             session_list.append({
                                 "id": k_str.replace("session:", ""),
                                 "ttl": ttl,
-                                # [修改] 這裡加入日期顯示 (月/日 時:分:秒)
                                 "last_active_str": last_active.strftime("%m/%d %H:%M:%S")
                             })
                         session_list.sort(key=lambda x: x['ttl'], reverse=True)
@@ -270,7 +280,10 @@ class handler(BaseHTTPRequestHandler):
                         target_sid = params.get('sid', [''])[0]
                         if target_sid:
                             logs = redis_client.lrange(f"session:{target_sid}", 0, -1)
-                            result["logs"] = [l.decode('utf-8') for l in logs]
+                            logs = [l.decode('utf-8') for l in logs]
+                            # [修改] 排序改為 舊 -> 新 (Reverse)
+                            logs.reverse()
+                            result["logs"] = logs
                         else:
                             result["logs"] = ["Please provide sid"]
                     elif action == 'list_reports':
@@ -300,20 +313,13 @@ class handler(BaseHTTPRequestHandler):
         end_station = params.get('end', [DEFAULT_END])[0]
         want_next_day = params.get('next_day', ['0'])[0] == '1'
         sid = params.get('sid', [None])[0]
-        rpm = params.get('rpm', ['0'])[0] # 讀取前端傳來的 RPM
+        rpm = params.get('rpm', ['0'])[0]
 
         if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Env")
         start_id = STATION_MAP.get(start_station)
         end_id = STATION_MAP.get(end_station)
         if not start_id or not end_id: 
             return self.send_error_response(f"Station Error")
-
-        # 1. 檢查開關狀態 (為了回傳給前端)
-        logging_enabled = True
-        if redis_client:
-            val = redis_client.get("config:logging_enabled")
-            if val and val.decode('utf-8') == "0":
-                logging_enabled = False
 
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
@@ -324,7 +330,6 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            # 2. 開始執行 API 查詢
             raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
             
             raw_tmrw, status_tmrw = [], "Skipped"
@@ -367,22 +372,30 @@ class handler(BaseHTTPRequestHandler):
 
             result = sorted(final_result, key=lambda x: x['sort_key'])
             
-            # 寫入 Log (如果有 sid 且開關開啟)
-            if sid and logging_enabled:
-                now_time_str = now_aware.strftime("%H:%M:%S")
-                diag_route_status = f"{status_today}/{status_tmrw}"
+            # [LOGGING LOGIC]
+            logging_enabled_resp = False # 預設回傳 false
+            if sid:
+                # 製作詳細 Log 字串 (含日期)
+                now_log_str = now_aware.strftime("%m/%d %H:%M:%S")
                 
-                log_text = f"------\n"
-                log_text += f"[{now_time_str}] Action: Query (RPM: {rpm}) {start_station} -> {end_station}\n"
-                log_text += f"[{now_time_str}] Status: Route=[{diag_route_status}] / Delay=[{delay_status}]\n"
-                log_text += f"[{now_time_str}] Result: {len(result)} trains"
+                # 判斷 V3 來源與額度
+                v3_log = f"V3 {status_today}"
+                if now_aware.hour < 4: v3_log = f"V3 Y:{status_yest}/T:{status_today}"
                 
-                log_to_redis(log_text, sid)
+                # 判斷 V2 來源與額度
+                v2_log = f"V2 {delay_status}"
+                
+                log_text = f"[{now_log_str}] Action  RPM={rpm}\n"
+                log_text += f"                 {start_station} -> {end_station}\n"
+                log_text += f"                 {v3_log} / {v2_log}\n"
+                log_text += f"                 Result: {len(result)} trains"
+                
+                # 寫入並取得狀態 (True=ON, False=OFF)
+                logging_enabled_resp = log_to_redis_logic(log_text, sid)
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
-            # Vercel Cache 設定: 60秒
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
@@ -396,7 +409,7 @@ class handler(BaseHTTPRequestHandler):
                 "start": start_station, "end": end_station, "delay_failed": delay_failed,
                 "trains": result, "stats": { "original_count": len(final_result) },
                 "diagnostics": { "route_status": diag_route_status, "delay_status": delay_status },
-                "logging_enabled": logging_enabled # 回傳給前端
+                "logging_enabled": logging_enabled_resp # 回傳開關狀態
             }).encode())
         except Exception as e:
             self.send_error_response(str(e))
