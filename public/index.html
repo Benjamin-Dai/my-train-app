@@ -13,11 +13,12 @@
 
     <style>
         /* --- 基礎設定 --- */
-*, *::before, *::after { 
-    box-sizing: border-box; 
-    -webkit-tap-highlight-color: transparent; /* 關鍵：把點擊後的藍色背景變透明 */
-    outline: none; /* 順便把點擊後的黑框線也拿掉 */
-}html { scroll-behavior: smooth; }
+        *, *::before, *::after { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; /* 隱藏 Android 點擊藍框 */
+            outline: none; 
+        }
+        html { scroll-behavior: smooth; }
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 100px; }
 
@@ -25,8 +26,14 @@
         .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
         .header-static-part { padding: 15px 15px 15px 15px; background: #151517; position: relative; z-index: 10; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
-        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; cursor: pointer; user-select: none; }
-        .app-title:active { color: #fff; }
+        
+        /* [修改] 隱形 Logo 設定：游標改回預設，禁止反白，移除 active 變色 */
+        .app-title { 
+            font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; 
+            cursor: default; /* 改回箭頭 */
+            user-select: none; -webkit-user-select: none; /* 禁止反白 */
+        }
+        /* 移除了 .app-title:active，點擊時不會變色 */
 
         .top-actions { display: flex; align-items: center; gap: 8px; }
         .install-btn-top {
@@ -206,7 +213,7 @@
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* [新增] God Mode Styles */
+        /* God Mode Styles */
         .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
         .dev-tab { flex: 1; padding: 10px; text-align: center; background: #1a1a1c; color: #666; cursor: pointer; border-top-left-radius: 8px; border-top-right-radius: 8px; }
         .dev-tab.active { background: #222; color: #fff; font-weight: bold; border-bottom: 2px solid #4d7f5e; }
@@ -236,7 +243,7 @@
         .report-list-item:hover { background: #333; }
         .report-timestamp { color: #4d7f5e; font-family: monospace; }
 
-        /* Back to top (Adjusted) */
+        /* Back to top */
         .back-to-top {
             position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
             background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
@@ -558,14 +565,15 @@
         let isNextDayLoaded = false;
         let currentTrainData = null;
         
-        // [新增] Session ID & Admin Auth
+        // [修改] Session ID 生成邏輯：使用詳細日期格式
         let SESSION_ID = localStorage.getItem('tl_session_id');
         if (!SESSION_ID) {
-            const r = Math.floor(Math.random() * 10000);
-            SESSION_ID = `u_${Date.now().toString().slice(-6)}_${r}`;
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+            SESSION_ID = `u_${timeStr}`;
             localStorage.setItem('tl_session_id', SESSION_ID);
         }
-        let adminAuth = { u: "", p: "" }; // 暫存記憶體，不存 LocalStorage
+        let adminAuth = { u: "", p: "" }; // 暫存記憶體
 
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -615,7 +623,6 @@
             const p = document.getElementById('loginPass').value;
             if (!u || !p) return;
             adminAuth = { u, p };
-            // 清空輸入框 (安全)
             document.getElementById('loginUser').value = "";
             document.getElementById('loginPass').value = "";
             goToPage('Dev');
@@ -639,7 +646,6 @@
             const listEl = document.getElementById('gmSessionList');
             listEl.innerHTML = "Loading...";
             try {
-                // 帶入帳密參數
                 const res = await fetch(`/api/index?debug=godmode&action=list_sessions&u=${adminAuth.u}&p=${adminAuth.p}`);
                 if (res.status === 401) {
                     alert("驗證失敗");
@@ -696,13 +702,33 @@
             } catch (e) { container.innerHTML = "Error: " + e.message; }
         }
 
+        // [新增] 報告格式化函式
+        function formatReport(data) {
+            const logs = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs";
+            const diag = data.diagnostics || {};
+            
+            return `📅 時間: ${data.timestamp || '--'}
+📱 裝置: ${data.user_agent || 'Unknown'}
+📏 畫面: ${data.screen || '--'}
+--------------------------------
+📊 流量: RPM=${data.rpm || 0} / Total=${data.total_requests || 0}
+🚦 狀態: Route=[${diag.route_source || '--'}] / Delay=[${diag.delay_source || '--'}]
+📝 使用者描述: ${data.user_desc || 'None'}
+--------------------------------
+[系統紀錄]
+${logs}`;
+        }
+
         async function loadReportDetail(reportId) {
             const detailBox = document.getElementById('reportDetailContainer');
             detailBox.innerHTML = "Loading content...";
             try {
                 const res = await fetch(`/api/index?debug=godmode&action=get_report&id=${reportId}&u=${adminAuth.u}&p=${adminAuth.p}`);
                 const json = await res.json();
-                if (json.report_content) { detailBox.innerHTML = JSON.stringify(json.report_content, null, 2); } 
+                if (json.report_content) { 
+                    // 使用格式化函式顯示
+                    detailBox.innerText = formatReport(json.report_content); 
+                } 
                 else { detailBox.innerHTML = "Error: Not Found"; }
             } catch (e) { detailBox.innerHTML = "Fetch Error: " + e.message; }
         }
