@@ -470,7 +470,10 @@
         let lastDiagnostics = { route_source: "--", route_quota: "--", delay_source: "--", delay_quota: "--" };
         let systemLogs=[]; let requestHistory=[];
 
+        // [新增功能] 狀態變數：是否已載入明天
+        let isNextDayLoaded = false;
         let currentTrainData = null;
+        
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
@@ -653,6 +656,10 @@
             if(!startStation.value||!endStation.value) return;
             localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
             localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
+            
+            // [新增功能] 重置明日載入狀態
+            isNextDayLoaded = false;
+            
             attemptLoadCache(false);
             updateStarState();
         }
@@ -663,26 +670,48 @@
                 renderCards(currentTrainData);
                 return;
             }
-            const c=localStorage.getItem(getCacheKey());
+            // 嘗試讀取兩種快取 (優先讀取有 next_day 的)
+            const baseKey = getCacheKey();
+            const fullKey = baseKey + "_full";
+            const cFull = localStorage.getItem(fullKey);
+            const c = localStorage.getItem(baseKey);
+
+            if(cFull) {
+                const d = JSON.parse(cFull);
+                if(Date.now()-d.timestamp < 60000) { renderCards(d.payload); isNextDayLoaded=true; return; }
+            }
             if(c) renderCards(JSON.parse(c).payload); 
         }
 
         function attemptLoadCache(isInit) {
             if(!startStation.value||!endStation.value) return;
-            const c=localStorage.getItem(getCacheKey()); let hit=false;
-            if(c) {
-                const d=JSON.parse(c);
-                if(Date.now()-d.timestamp < 60000) {
-                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false); 
-                    renderCards(d.payload); 
-                    setUpdateText(`更新時間：${d.payload.update_time} (快取)`);
-                    statusMsg.innerText=""; statusMsg.className="status-left"; 
-                    list.style.opacity="1"; 
-                    lastFetchedPair={start:startStation.value,end:endStation.value}; hit=true;
-                    scrollToFirstActive(); 
-                }
+            
+            const baseKey = getCacheKey();
+            const fullKey = baseKey + "_full";
+            const cFull = localStorage.getItem(fullKey);
+            const c = localStorage.getItem(baseKey);
+            let hitData = null;
+
+            // 優先檢查有載入明天的快取
+            if (cFull) {
+                const d = JSON.parse(cFull);
+                if (Date.now() - d.timestamp < 60000) { hitData = d; isNextDayLoaded = true; }
             }
-            if(!hit) {
+            // 如果沒有，檢查普通快取
+            if (!hitData && c) {
+                const d = JSON.parse(c);
+                if (Date.now() - d.timestamp < 60000) { hitData = d; }
+            }
+
+            if(hitData) {
+                if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
+                renderCards(hitData.payload); 
+                setUpdateText(`更新時間：${hitData.payload.update_time} (快取)`);
+                statusMsg.innerText=""; statusMsg.className="status-left"; 
+                list.style.opacity="1"; 
+                lastFetchedPair={start:startStation.value,end:endStation.value}; 
+                scrollToFirstActive(); 
+            } else {
                 if(isInit) {
                     statusMsg.innerText="等待查詢"; list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
                 } else {
@@ -722,6 +751,12 @@
             logSystem("Action",`Refresh ${startStation.value}→${endStation.value}`); 
             fetchData("refresh");
         }
+        
+        // [新增功能] 處理載入明日按鈕
+        function handleLoadNextDay() {
+            logSystem("Action", "Load Next Day");
+            fetchData("load_next_day");
+        }
 
         function parseDiagnostics(diag, isCdn) {
             const parseDiag = (str, isC) => {
@@ -743,43 +778,46 @@
             return html;
         }
 
+        // [修改功能] 支援 load_next_day 模式與參數
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
-            list.innerHTML = getSkeletonHTML(); list.style.opacity="1"; statusMsg.innerText="載入中..."; 
+            
+            // 只有不是載入明天時，才顯示骨架屏
+            if(mode !== "load_next_day") {
+                list.innerHTML = getSkeletonHTML(); 
+                list.style.opacity="1"; 
+            }
+            statusMsg.innerText="載入中..."; 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
 
             const s=startStation.value; const e=endStation.value; 
-            const cacheKey = getCacheKey(); const cached = localStorage.getItem(cacheKey);
+            
+            // 判斷是否需要明天資料：如果是手動載入，或狀態已經是已載入
+            const needNextDay = (mode === "load_next_day" || isNextDayLoaded) ? 1 : 0;
+            const cacheKeySuffix = needNextDay ? "_full" : ""; 
+            const cacheKey = getCacheKey() + cacheKeySuffix; 
 
-            if (cached) {
-                const d = JSON.parse(cached);
-                if (Date.now() - d.timestamp < 60000) { 
-                    await new Promise(r => setTimeout(r, 200)); 
-                    if(d.payload.diagnostics) parseDiagnostics(d.payload.diagnostics, false);
-                    renderCards(d.payload);
-                    setUpdateText(`更新時間：${d.payload.update_time} (快取)`);
-                    statusMsg.innerText = "";
-                    lastFetchedPair={start:s,end:e};
-                    logSystem("Cache", "Hit local (Age < 60s)");
-                    const now = Date.now();
-                    if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false, 500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                    if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                    scrollToFirstActive(); 
-                    return;
-                }
-            }
+            // 在 fetch 前先嘗試快取 (略過這步直接 fetch 確保資料最新，或者也可以加上讀快取邏輯)
+            // 這裡簡化直接請求 API，依靠後端 Redis 快取
 
             recordRequest();
             try {
-                const res=await fetch(`/api/index?start=${s}&end=${e}`);
+                // URL 加上參數
+                const res=await fetch(`/api/index?start=${s}&end=${e}&next_day=${needNextDay}`);
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
 
                 lastFetchedPair={start:s,end:e};
+                
+                // 成功載入後更新狀態
+                if (needNextDay) isNextDayLoaded = true;
+
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
-                localStorage.setItem(getCacheKey(),JSON.stringify({timestamp:Date.now(),payload:json}));
+                
+                // 存入快取 (使用帶後綴的 key)
+                localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
                 logSystem("Status", `狀態: ${rInfo.source} (剩:${rInfo.quota}) / ${dInfo.source} (剩:${dInfo.quota})`);
@@ -796,7 +834,18 @@
                 const now=Date.now();
                 if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                 if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                scrollToFirstActive(); 
+                
+                // [修改功能] 智慧滾動
+                if (mode === "load_next_day") {
+                    const divider = document.getElementById('tomorrow-divider');
+                    if (divider) {
+                        divider.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        setTimeout(() => window.scrollBy({ top: -60, behavior: 'smooth' }), 500);
+                    }
+                } else {
+                    scrollToFirstActive(); 
+                }
+
             } catch(err) {
                 console.error(err); logSystem("API Error",err.message);
                 scheduleRetry("連線錯誤", "status-left alert");
@@ -840,7 +889,6 @@
             }; t(); refreshTimer=setInterval(t,1000);
         }
 
-        // [重要修正] 嚴格的日期字串取得函數 (不扣除 4 小時)
         function getStrictDateStr(ts) {
             const d = new Date(ts * 1000);
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -871,8 +919,11 @@
                 const nowSec = Math.floor(Date.now() / 1000);
 
                 const now = new Date();
-                // [重要修正] 嚴格取得今天日期 (YYYY-MM-DD)
                 const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+                
+                // [新增功能] 判斷是否為晚間時段 (22:00 ~ 03:59)
+                const nowHour = now.getHours();
+                const isLateNight = nowHour >= 22 || nowHour < 4;
 
                 data.trains.forEach((t, index) => {
                     const diffSec = t.sort_key - nowSec;
@@ -883,15 +934,15 @@
 
                     if (!isShowAll && diffMin < -10) return;
 
-                    // [重要修正] 使用嚴格日期比對來決定是否畫分隔線
                     const trainDate = getStrictDateStr(t.sort_key);
-                    const isStrictTomorrow = trainDate > todayStr; // 用字串比對 "2026-01-12" > "2026-01-11"
+                    const isStrictTomorrow = trainDate > todayStr;
 
                     if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
                         const lastTrainDate = getStrictDateStr(lastTrainTs);
                         if (trainDate !== lastTrainDate) {
-                             cardsHtml += `<div style="text-align:center; padding:10px 0; color:#4d7f5e; font-size:0.8rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px;">⬇ 明日班次 ⬇</div>`;
-                             hasShownNextDayDivider = true;
+                            // [新增功能] 加入 ID 以供滾動定位
+                            cardsHtml += `<div id="tomorrow-divider" style="text-align:center; padding:20px 0 10px 0; color:#4d7f5e; font-size:0.9rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px; scroll-margin-top: 160px;">⬇ 明日班次 ⬇</div>`;
+                            hasShownNextDayDivider = true;
                         }
                     }
                     lastTrainTs = t.sort_key;
@@ -909,7 +960,6 @@
                         </div>`;
                     }
 
-                    // [重要修正] 只有「不是明天」才顯示誤點標籤
                     let rightBadgesHtml = '';
                     if (isDeparted) {
                         rightBadgesHtml = `<div class="status-tag departed">已駛離</div>`;
@@ -925,7 +975,6 @@
                     const depDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
                     const arrDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
 
-                    // [重要修正] 只有「不是明天」才顯示「● 準點」，否則顯示原定時間
                     let subTimeContent = '';
                     if (!isStrictTomorrow && !data.delay_failed && t.delay === 0) {
                         subTimeContent = `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>`;
@@ -954,6 +1003,20 @@
                     </a>`;
                 });
 
+                // [新增功能] 晚間時段顯示「載入明日」按鈕
+                if (isLateNight && !isNextDayLoaded) {
+                    cardsHtml += `
+                        <div style="padding: 20px 0 40px 0; display: flex; justify-content: center;">
+                            <button onclick="handleLoadNextDay()" style="
+                                background: #222; color: #aaa; border: 1px solid #444; 
+                                padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; 
+                                cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;">
+                                ⬇ 載入明日班次
+                            </button>
+                        </div>
+                    `;
+                }
+
                 if (anyArriving) {
                     hintArrival.style.display = 'flex';
                     hintDivider.style.display = 'block';
@@ -970,7 +1033,25 @@
 
             footerHints.style.display = 'none';
 
-            list.innerHTML = originalCount > 0 ? `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` : `<div class="message">查無此區間直達列車 ⚠️</div>`;
+            // [修改] 如果沒有班次，但有原始資料 (代表今天車跑光了)，這時候如果符合晚間條件，也要顯示載入按鈕
+            if (originalCount > 0) {
+                 const nowHour = new Date().getHours();
+                 const isLateNight = nowHour >= 22 || nowHour < 4;
+                 let extraBtn = "";
+                 if (isLateNight && !isNextDayLoaded) {
+                     extraBtn = `<div style="padding: 20px 0; display: flex; justify-content: center;">
+                            <button onclick="handleLoadNextDay()" style="
+                                background: #222; color: #aaa; border: 1px solid #444; 
+                                padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; 
+                                cursor: pointer; transition: all 0.2s;">
+                                ⬇ 載入明日班次
+                            </button>
+                        </div>`;
+                 }
+                 list.innerHTML = `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` + extraBtn;
+            } else {
+                 list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`;
+            }
         }
 
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
@@ -1077,14 +1158,11 @@
             }
         }
 
-        // [新增] 更新滑動提示顯示
         function updateScrollHint() {
             const el = document.getElementById('quickRouteArea');
             const hint = document.getElementById('scrollHint');
             if (el.scrollWidth > el.clientWidth) {
-                // 如果內容長度大於容器寬度 -> 顯示提示
                 hint.style.opacity = '1';
-                // 監聽滾動，滾到底就隱藏
                 el.onscroll = () => {
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
                         hint.style.opacity = '0';
