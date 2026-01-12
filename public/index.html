@@ -18,6 +18,10 @@
         }
         html { scroll-behavior: smooth; }
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
+        
+        /* [新增] 鎖定背景捲動 (解決 iOS 穿透問題) */
+        body.noscroll { overflow: hidden; }
+
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 100px; }
 
         /* --- Header --- */
@@ -225,11 +229,11 @@
         .gm-list-item:hover { background: #222; color: #fff; }
         .gm-list-item.active { background: #1a3320; color: #4d7f5e; border-left: 3px solid #4d7f5e; }
         
-        /* [修改] 支援左右滑動，不換行 */
-        .gm-terminal {
+        /* 終端機風格 (Log & Report) */
+        .gm-terminal, .terminal-box, .dev-terminal {
             flex: 1; background: #000; border: 1px solid #333; border-radius: 8px;
             color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px;
-            overflow-x: auto; white-space: pre; 
+            overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000;
         }
         
         /* Toggle Switch */
@@ -257,9 +261,6 @@
         .diag-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
         .diag-section:last-child { border-bottom: none; }
         .diag-title { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        
-        /* [修改] 支援左右滑動，不換行 */
-        .terminal-box { background: #0d0d0d; border: 1px solid #333; border-radius: 8px; color: #0f0; font-family: 'Consolas', monospace; font-size: 0.7rem; padding: 10px; height: 120px; overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000; }
         
         .ios-instruction { text-align: center; margin-top: 10px; }
         .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
@@ -470,7 +471,8 @@
                         </div>
                         <div style="margin-top:10px; display:flex; gap:10px;">
                             <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchSessionList()">🔄 刷新</button>
-                            <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearSessions()">🗑️ 清空 Session</button>
+                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="copyDevContent('session')">📋 複製 Log</button>
+                            <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearSessions()">🗑️ 清空</button>
                         </div>
                     </div>
 
@@ -480,8 +482,11 @@
                             <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空報告</button>
                         </div>
                         <div id="reportListContainer" class="terminal-box" style="height:120px; margin-bottom:10px;"></div>
-                        <div class="info-label">報告內容：</div>
-                        <div id="reportDetailContainer" class="dev-terminal" style="height:150px; border:1px dashed #444;">點擊上方列表查看...</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0 5px 0;">
+                            <div class="info-label">報告內容：</div>
+                            <button class="btn-fav-compact" style="width:auto; padding:2px 8px;" onclick="copyDevContent('report')">📋 複製內容</button>
+                        </div>
+                        <div id="reportDetailContainer" class="dev-terminal" style="height:150px;">點擊上方列表查看...</div>
                     </div>
                 </div>
             </div>
@@ -730,6 +735,25 @@ ${logs}`;
                 } 
                 else { detailBox.innerHTML = "Error: Not Found"; }
             } catch (e) { detailBox.innerHTML = "Fetch Error: " + e.message; }
+        }
+        
+        function copyDevContent(type) {
+            let text = "";
+            if(type === 'session') {
+                const el = document.getElementById('gmLogView');
+                text = el ? el.innerText : "";
+            } else {
+                const el = document.getElementById('reportDetailContainer');
+                text = el ? el.innerText : "";
+            }
+            if(!text || text.includes("Loading") || text.includes("Select a user")) {
+                alert("沒有內容可複製"); return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                alert("已複製到剪貼簿 ✅");
+            }).catch(err => {
+                alert("複製失敗: " + err);
+            });
         }
         
         function startTicker() {
@@ -1372,8 +1396,28 @@ ${logs}`;
             if(systemLogs.length>30)systemLogs.shift();
         }
         function recordRequest(){requestHistory.push(Date.now());}
-        function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
-        function closeModal(){document.getElementById('aboutModal').style.display='none';}
+        
+        // [修改] 開啟時加入 noscroll 與 History State
+        function openModal(){
+            document.getElementById('aboutModal').style.display='flex';
+            document.body.classList.add('noscroll');
+            history.pushState({modal: true}, '', '');
+            goToPage('Menu');
+        }
+        
+        // [修改] 關閉時執行 history.back()
+        function closeModal(){
+            history.back();
+        }
+
+        // [新增] 監聽 popstate (手機返回鍵)
+        window.addEventListener('popstate', () => {
+            const modal = document.getElementById('aboutModal');
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none';
+                document.body.classList.remove('noscroll');
+            }
+        });
 
         function goToPage(id){
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
