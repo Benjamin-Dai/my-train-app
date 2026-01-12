@@ -13,8 +13,11 @@
 
     <style>
         /* --- 基礎設定 --- */
-        *, *::before, *::after { box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
+*, *::before, *::after { 
+    box-sizing: border-box; 
+    -webkit-tap-highlight-color: transparent; /* 關鍵：把點擊後的藍色背景變透明 */
+    outline: none; /* 順便把點擊後的黑框線也拿掉 */
+}html { scroll-behavior: smooth; }
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 100px; }
 
