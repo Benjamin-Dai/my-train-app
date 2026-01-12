@@ -18,12 +18,9 @@ CLIENT_ID = os.environ.get('TDX_ID')
 CLIENT_SECRET = os.environ.get('TDX_SECRET')
 KV_URL = os.environ.get('UPSTASH_REDIS_KV_URL') or os.environ.get('UPSTASH_REDIS_URL') or os.environ.get('KV_URL')
 
-# 管理員帳號密碼
-ADMIN_USER = "d16benjamin_"
-ADMIN_PASS = "540417"
-
-DEFAULT_START = '屏東'
-DEFAULT_END = '潮州'
+# [修改] 改從環境變數讀取，增加安全性
+ADMIN_USER = os.environ.get('ADMIN_USER')
+ADMIN_PASS = os.environ.get('ADMIN_PASS')
 
 API_BASE_V3 = "https://tdx.transportdata.tw/api/basic/v3/Rail/TRA"
 API_BASE_V2 = "https://tdx.transportdata.tw/api/basic/v2/Rail/TRA"
@@ -42,7 +39,7 @@ if KV_URL:
 else:
     print("Warning: No Redis URL found.")
 
-# [Log 寫入函式] - 強制寫入第一筆，並回傳是否繼續開啟
+# [Log 寫入函式]
 def log_to_redis_logic(log_entry, sid):
     if not redis_client or not sid: return False
     
@@ -62,8 +59,8 @@ def log_to_redis_logic(log_entry, sid):
         # 3. 執行寫入 (無論開關為何，只要有 sid 都寫入這一次)
         key = f"session:{sid}"
         redis_client.lpush(key, final_log)
-        redis_client.ltrim(key, 0, 199) # 保留最近 200 筆
-        redis_client.expire(key, 86400) # 24小時過期
+        redis_client.ltrim(key, 0, 199) 
+        redis_client.expire(key, 86400) 
         
         # 寫入 System Log
         if is_globally_enabled:
@@ -107,7 +104,7 @@ class handler(BaseHTTPRequestHandler):
         if val: return f"API(剩:{val})"
         return "API"
 
-    def get_cached_delays(self, headers):
+    def get_cached_delays(self, headers, allow_api=True):
         cache_key = "v3_tra_delay_data"
         if redis_client:
             try:
@@ -115,6 +112,9 @@ class handler(BaseHTTPRequestHandler):
                 if cached_data:
                     return (json.loads(cached_data), "Redis")
             except: pass
+
+        if not allow_api:
+            return ({}, "Skipped")
 
         res = requests.get(f"{API_BASE_V2}/LiveTrainDelay", headers=headers)
         if res.status_code == 200:
@@ -124,7 +124,6 @@ class handler(BaseHTTPRequestHandler):
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             if redis_client:
                 try: 
-                    # 誤點快取 75 秒
                     redis_client.set(cache_key, json.dumps(new_delays), ex=75)
                 except: pass
             return (new_delays, status_str)
@@ -281,7 +280,6 @@ class handler(BaseHTTPRequestHandler):
                         if target_sid:
                             logs = redis_client.lrange(f"session:{target_sid}", 0, -1)
                             logs = [l.decode('utf-8') for l in logs]
-                            # 排序 舊 -> 新 (Reverse)
                             logs.reverse()
                             result["logs"] = logs
                         else:
@@ -309,13 +307,13 @@ class handler(BaseHTTPRequestHandler):
             return
 
         # [正常查詢]
-        start_station = params.get('start', [DEFAULT_START])[0]
-        end_station = params.get('end', [DEFAULT_END])[0]
+        start_station = params.get('start', [''])[0]
+        end_station = params.get('end', [''])[0]
         want_next_day = params.get('next_day', ['0'])[0] == '1'
         sid = params.get('sid', [None])[0]
         
-        # [修改] 讀取 mode 參數，首字大寫 (Query/Search/Refresh)
-        req_mode = params.get('mode', ['Query'])[0].capitalize() 
+        raw_mode = params.get('mode', ['Query'])[0]
+        req_mode_log = raw_mode.capitalize() 
 
         if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Env")
         start_id = STATION_MAP.get(start_station)
@@ -347,7 +345,8 @@ class handler(BaseHTTPRequestHandler):
             delay_failed = False
             delay_status = "Unknown"
             try: 
-                delays, delay_status = self.get_cached_delays(headers)
+                allow_v2 = (raw_mode != "load_next_day")
+                delays, delay_status = self.get_cached_delays(headers, allow_api=allow_v2)
             except Exception as e: 
                 delay_failed, delay_status = True, "Failed"
 
@@ -374,18 +373,21 @@ class handler(BaseHTTPRequestHandler):
 
             result = sorted(final_result, key=lambda x: x['sort_key'])
             
-            # [LOGGING LOGIC] - 修改 Log 格式
+            # [LOGGING LOGIC]
             logging_enabled_resp = False 
             if sid:
                 now_log_str = now_aware.strftime("%m/%d %H:%M:%S")
                 
-                v3_log = f"V3 {status_today}"
-                if now_aware.hour < 4: v3_log = f"V3 Y:{status_yest}/T:{status_today}"
+                v3_log = f"V3 API(剩:{status_today.split(':')[1]})" if "API" in status_today else f"V3 {status_today}"
+                
+                if now_aware.hour < 4: 
+                    v3_log = f"V3 Yest:{status_yest} / Today:{status_today}"
+                elif want_next_day: 
+                    v3_log = f"V3 Today:{status_today} / Tmrw:{status_tmrw}"
                 
                 v2_log = f"V2 {delay_status}"
                 
-                # [修改] 移除 RPM，改顯示 Action: Search/Refresh
-                log_text = f"[{now_log_str}] Action: {req_mode}\n"
+                log_text = f"[{now_log_str}] Action: {req_mode_log}\n"
                 log_text += f"                 {start_station} -> {end_station}\n"
                 log_text += f"                 {v3_log} / {v2_log}\n"
                 log_text += f"                 Result: {len(result)} trains"
