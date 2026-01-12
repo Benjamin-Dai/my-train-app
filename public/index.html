@@ -22,7 +22,10 @@
         .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
         .header-static-part { padding: 15px 15px 15px 15px; background: #151517; position: relative; z-index: 10; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
-        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; }
+        
+        /* [修改] Title 加上 Cursor Pointer 暗示可點擊 */
+        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; cursor: pointer; user-select: none; }
+        .app-title:active { color: #fff; }
 
         .top-actions { display: flex; align-items: center; gap: 8px; }
         .install-btn-top {
@@ -202,6 +205,23 @@
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* [新增] Dev Mode Terminal Style */
+        .dev-terminal {
+            background-color: #0d0d0d;
+            color: #00ff00;
+            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 0.75rem;
+            white-space: pre-wrap;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            margin-bottom: 15px;
+        }
+        .log-entry { border-bottom: 1px solid #222; padding: 2px 0; }
+
         /* Back to top (Adjusted) */
         .back-to-top {
             position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
@@ -277,7 +297,7 @@
         <div class="header">
             <div class="header-static-part">
                 <div class="header-top">
-                    <div class="app-title">TRAIN LIVE</div>
+                    <div class="app-title" onclick="handleLogoClick()">TRAIN LIVE</div>
 
                     <div class="top-actions">
                         <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
@@ -411,6 +431,21 @@
                     <div style="font-size:0.7rem; color:#444; margin-top:10px;">Start: 2026/1/6</div>
                 </div>
             </div>
+            <div id="pageDev" class="modal-page">
+                <div class="modal-header-row">
+                    <div class="modal-title" style="color:#ff0000;">👨‍💻 開發者控制台</div>
+                    <button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button>
+                </div>
+                
+                <div class="modal-text">
+                    <div style="margin-bottom:10px; display:flex; gap:10px;">
+                        <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchServerLogs()">📥 讀取 Server Log</button>
+                        <button class="menu-btn" style="flex:1; padding:8px;" onclick="clearDevLogs()">🗑️ 清除畫面</button>
+                    </div>
+                    <div id="serverLogContainer" class="dev-terminal">等待指令...</div>
+                </div>
+            </div>
+
             <div id="pageIOS" class="modal-page">
                 <div class="modal-header-row"><div class="modal-title">安裝教學 (iOS)</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
                 <div class="ios-instruction">
@@ -470,7 +505,6 @@
         let lastDiagnostics = { route_source: "--", route_quota: "--", delay_source: "--", delay_quota: "--" };
         let systemLogs=[]; let requestHistory=[];
 
-        // [新增功能] 狀態變數：是否已載入明天
         let isNextDayLoaded = false;
         let currentTrainData = null;
         
@@ -500,6 +534,45 @@
             const data = { title: 'TRAIN LIVE', text: '誤點自動計算！', url: window.location.href };
             if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
         }
+
+        // --- 開發者模式邏輯 ---
+        let logoClickCount = 0;
+        let logoClickTimer = null;
+
+        function handleLogoClick() {
+            logoClickCount++;
+            if (logoClickCount === 1) {
+                logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 1000);
+            }
+            if (logoClickCount >= 5) {
+                clearTimeout(logoClickTimer);
+                logoClickCount = 0;
+                activateGodMode();
+            }
+        }
+        function activateGodMode() {
+            alert("👨‍💻 Developer Mode Activated!");
+            document.getElementById('aboutModal').style.display = 'flex';
+            goToPage('Dev');
+            fetchServerLogs();
+        }
+        async function fetchServerLogs() {
+            const term = document.getElementById('serverLogContainer');
+            term.innerHTML = "Loading backend logs...";
+            try {
+                const res = await fetch('/api/index?debug=godmode');
+                const json = await res.json();
+                if (json.logs && json.logs.length > 0) {
+                    term.innerHTML = json.logs.map(l => `<div class="log-entry">${l}</div>`).join('');
+                } else {
+                    term.innerHTML = "No logs found in Redis.";
+                }
+            } catch (e) {
+                term.innerHTML = "Error fetching logs: " + e.message;
+            }
+        }
+        function clearDevLogs() { document.getElementById('serverLogContainer').innerHTML = ""; }
+        // -----------------------
 
         function startTicker() {
             setInterval(() => {
@@ -657,7 +730,6 @@
             localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
             localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
             
-            // [新增功能] 重置明日載入狀態
             isNextDayLoaded = false;
             
             attemptLoadCache(false);
@@ -670,7 +742,6 @@
                 renderCards(currentTrainData);
                 return;
             }
-            // 嘗試讀取兩種快取 (優先讀取有 next_day 的)
             const baseKey = getCacheKey();
             const fullKey = baseKey + "_full";
             const cFull = localStorage.getItem(fullKey);
@@ -692,12 +763,10 @@
             const c = localStorage.getItem(baseKey);
             let hitData = null;
 
-            // 優先檢查有載入明天的快取
             if (cFull) {
                 const d = JSON.parse(cFull);
                 if (Date.now() - d.timestamp < 60000) { hitData = d; isNextDayLoaded = true; }
             }
-            // 如果沒有，檢查普通快取
             if (!hitData && c) {
                 const d = JSON.parse(c);
                 if (Date.now() - d.timestamp < 60000) { hitData = d; }
@@ -752,7 +821,6 @@
             fetchData("refresh");
         }
         
-        // [新增功能] 處理載入明日按鈕
         function handleLoadNextDay() {
             logSystem("Action", "Load Next Day");
             fetchData("load_next_day");
@@ -778,11 +846,9 @@
             return html;
         }
 
-        // [修改功能] 支援 load_next_day 模式與參數
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
             
-            // 只有不是載入明天時，才顯示骨架屏
             if(mode !== "load_next_day") {
                 list.innerHTML = getSkeletonHTML(); 
                 list.style.opacity="1"; 
@@ -792,17 +858,12 @@
 
             const s=startStation.value; const e=endStation.value; 
             
-            // 判斷是否需要明天資料：如果是手動載入，或狀態已經是已載入
             const needNextDay = (mode === "load_next_day" || isNextDayLoaded) ? 1 : 0;
             const cacheKeySuffix = needNextDay ? "_full" : ""; 
             const cacheKey = getCacheKey() + cacheKeySuffix; 
 
-            // 在 fetch 前先嘗試快取 (略過這步直接 fetch 確保資料最新，或者也可以加上讀快取邏輯)
-            // 這裡簡化直接請求 API，依靠後端 Redis 快取
-
             recordRequest();
             try {
-                // URL 加上參數
                 const res=await fetch(`/api/index?start=${s}&end=${e}&next_day=${needNextDay}`);
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
@@ -811,12 +872,10 @@
 
                 lastFetchedPair={start:s,end:e};
                 
-                // 成功載入後更新狀態
                 if (needNextDay) isNextDayLoaded = true;
 
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
                 
-                // 存入快取 (使用帶後綴的 key)
                 localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
@@ -835,7 +894,6 @@
                 if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                 if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
                 
-                // [修改功能] 智慧滾動
                 if (mode === "load_next_day") {
                     const divider = document.getElementById('tomorrow-divider');
                     if (divider) {
@@ -921,7 +979,6 @@
                 const now = new Date();
                 const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
                 
-                // [新增功能] 判斷是否為晚間時段 (22:00 ~ 03:59)
                 const nowHour = now.getHours();
                 const isLateNight = nowHour >= 22 || nowHour < 4;
 
@@ -940,7 +997,7 @@
                     if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
                         const lastTrainDate = getStrictDateStr(lastTrainTs);
                         if (trainDate !== lastTrainDate) {
-                            // [新增功能] 加入 ID 以供滾動定位
+                            // [關鍵] 加入 scroll-margin-top 避免被 header 遮住
                             cardsHtml += `<div id="tomorrow-divider" style="text-align:center; padding:20px 0 10px 0; color:#4d7f5e; font-size:0.9rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px; scroll-margin-top: 160px;">⬇ 明日班次 ⬇</div>`;
                             hasShownNextDayDivider = true;
                         }
@@ -1003,7 +1060,6 @@
                     </a>`;
                 });
 
-                // [新增功能] 晚間時段顯示「載入明日」按鈕
                 if (isLateNight && !isNextDayLoaded) {
                     cardsHtml += `
                         <div style="padding: 20px 0 40px 0; display: flex; justify-content: center;">
@@ -1033,7 +1089,6 @@
 
             footerHints.style.display = 'none';
 
-            // [修改] 如果沒有班次，但有原始資料 (代表今天車跑光了)，這時候如果符合晚間條件，也要顯示載入按鈕
             if (originalCount > 0) {
                  const nowHour = new Date().getHours();
                  const isLateNight = nowHour >= 22 || nowHour < 4;
@@ -1096,7 +1151,6 @@
             window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
         }
 
-        // === 常用路線與歷史紀錄 ===
         const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
         const MAX_HIST = 3; const MAX_FAV = 6;
         const btnStar = document.getElementById('btnStar');
