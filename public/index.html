@@ -937,8 +937,7 @@ ${logs}`;
             if(hitData) {
                 if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
                 renderCards(hitData.payload); 
-                // [修改] 簡化顯示，只留時間
-                setUpdateText(`更新時間：${hitData.payload.update_time}`);
+                setUpdateText(`更新時間：${hitData.payload.update_time} (快取)`);
                 statusMsg.innerText=""; statusMsg.className="status-left"; 
                 list.style.opacity="1"; 
                 lastFetchedPair={start:startStation.value,end:endStation.value}; 
@@ -972,6 +971,7 @@ ${logs}`;
             }
             addToHistory();
             cnt++; setSearchCount(cnt); 
+            // [修改] Log 格式 (縮排對齊)
             const spaces = "           "; 
             logSystem(`Action: Search(${cnt}/${MAX_SEARCH_PER_MIN})\n${spaces}${sS} -> ${eS}`); 
             fetchData("search");
@@ -986,6 +986,7 @@ ${logs}`;
             const rL = getRefreshLockedUntil();
             
             if(rL > now && !skip) {
+                // [修改] 假更新 Log
                 logSystem("Action: Soft Refresh (Cache)");
                 
                 reRenderLocal(); 
@@ -996,6 +997,7 @@ ${logs}`;
                 lockRefreshButton(30);
                 return; 
             }
+            // [修改] 真更新 Log
             const spaces = "           "; 
             logSystem(`Action: Refresh\n${spaces}${startStation.value} -> ${endStation.value}`); 
             fetchData("refresh");
@@ -1003,9 +1005,6 @@ ${logs}`;
         
         function handleLoadNextDay() {
             logSystem("Action: Load Next Day");
-            // [修改] 按鈕回饋
-            const btn = document.getElementById('btnLoadNext');
-            if(btn) { btn.disabled=true; btn.innerText = "⏳ 載入中..."; }
             fetchData("load_next_day");
         }
 
@@ -1124,15 +1123,16 @@ ${logs}`;
                 localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
-                // [修改] Log 格式 (簡潔版，顯示額度)
-                logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
+                // [修改] Log 格式 (簡潔版)
+                // V3 Redis / V2 API(剩:123)
+                logSystem(`${rInfo.source} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
 
                 if(json.delay_failed) {
                     scheduleRetry("誤點資料失敗", "status-left warning");
                     setUpdateText(`更新時間：${json.update_time} (僅時刻)`);
                 } else {
-                    // [修改] 簡化時間顯示
-                    setUpdateText(`更新時間：${json.update_time}`);
+                    const suffix = isVercelCache ? "(最新)" : "(最新)";
+                    setUpdateText(`更新時間：${json.update_time} ${suffix}`);
                     statusMsg.innerText = "更新完成";
                     setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
                 }
@@ -1235,8 +1235,7 @@ ${logs}`;
                 const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
                 
                 const nowHour = now.getHours();
-                // [修改] 深夜邏輯：只看 22:00 ~ 23:59
-                const isLateNight = nowHour >= 22; 
+                const isLateNight = nowHour >= 22 || nowHour < 4;
 
                 data.trains.forEach((t, index) => {
                     const diffSec = t.sort_key - nowSec;
@@ -1318,7 +1317,7 @@ ${logs}`;
                 if (isLateNight && !isNextDayLoaded) {
                     cardsHtml += `
                         <div style="padding: 20px 0 40px 0; display: flex; justify-content: center;">
-                            <button id="btnLoadNext" onclick="handleLoadNextDay()" style="
+                            <button onclick="handleLoadNextDay()" style="
                                 background: #222; color: #aaa; border: 1px solid #444; 
                                 padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; 
                                 cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;">
@@ -1346,12 +1345,11 @@ ${logs}`;
 
             if (originalCount > 0) {
                  const nowHour = new Date().getHours();
-                 // [修改] 深夜邏輯：只看 22:00 ~ 23:59
-                 const isLateNight = nowHour >= 22;
+                 const isLateNight = nowHour >= 22 || nowHour < 4;
                  let extraBtn = "";
                  if (isLateNight && !isNextDayLoaded) {
                      extraBtn = `<div style="padding: 20px 0; display: flex; justify-content: center;">
-                            <button id="btnLoadNext" onclick="handleLoadNextDay()" style="
+                            <button onclick="handleLoadNextDay()" style="
                                 background: #222; color: #aaa; border: 1px solid #444; 
                                 padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; 
                                 cursor: pointer; transition: all 0.2s;">
@@ -1362,6 +1360,98 @@ ${logs}`;
                  list.innerHTML = `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` + extraBtn;
             } else {
                  list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`;
+            }
+        }
+
+        // [修改] Log 格式 (單行 timestamp)
+        function logSystem(d){
+            const time = new Date().toLocaleTimeString('en-GB', {hour12:false});
+            systemLogs.push(`[${time}] ${d}`);
+            if(systemLogs.length>30)systemLogs.shift();
+        }
+        function recordRequest(){requestHistory.push(Date.now());}
+        function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
+        function closeModal(){document.getElementById('aboutModal').style.display='none';}
+
+        function goToPage(id){
+            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
+            document.getElementById('page'+id).classList.add('active');
+            if(id==='Report'){
+                // [修改] 刪除舊的資料來源顯示程式碼，只保留 Log
+                const now=Date.now(); const rpm=requestHistory.filter(t=>now-t<60000).length;
+                const isStandalone = ('standalone' in window.navigator) && (window.navigator.standalone);
+                let r=`【TRAIN LIVE 診斷報告】\n時間: ${new Date().toLocaleString()}\n`;
+                r += `裝置: ${navigator.userAgent}\n畫面: ${window.innerWidth}x${window.innerHeight} (PWA: ${isStandalone})\n`;
+                r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
+                r += `--- Log ---\n${systemLogs.join("\n")}`;
+                document.getElementById('terminalView').innerText = systemLogs.join("\n");
+
+                uploadReport(); 
+            }
+        }
+        function copyReportOnly() {
+            let final = document.getElementById('reportContent').value; 
+        }
+        function openMailClient() { }
+
+        const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
+        const MAX_HIST = 3; const MAX_FAV = 6;
+        const btnStar = document.getElementById('btnStar');
+        const quickArea = document.getElementById('quickRouteArea');
+
+        function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
+        function isFavorite(s, e) {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            return favs.some(f => f.start === s && f.end === e);
+        }
+        function toggleFavorite() {
+            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
+            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
+            if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav: Removed"); } 
+            else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav: Added"); }
+            localStorage.setItem(LS_FAV, JSON.stringify(favs));
+            updateStarState(); renderQuickRoutes();
+        }
+        function addToHistory() {
+            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
+            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
+            hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop();
+            localStorage.setItem(LS_HIST, JSON.stringify(hist));
+            renderQuickRoutes();
+        }
+        function updateStarState() {
+            const cur = getCurrentPair();
+            if (isFavorite(cur.start, cur.end)) { 
+                btnStar.innerHTML = '★<br>已收藏'; 
+                btnStar.classList.add('fav-active'); 
+            } else { 
+                btnStar.innerHTML = '☆ 收藏<br>路線'; 
+                btnStar.classList.remove('fav-active'); 
+            }
+        }
+        function loadRoute(s, e) {
+            const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
+            if (sR && eR) {
+                setMenu('start', sR, s); setMenu('end', eR, e);
+                markAsChanged(); doSearch(); 
+            }
+        }
+        function renderQuickRoutes() {
+            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
+            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
+            let html = '';
+            favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
+            hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
+            quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
+
+            const elRow = document.getElementById('rowQuickRoute');
+            if (favs.length === 0 && hist.length === 0) {
+                elRow.style.display = 'none';
+            } else {
+                elRow.style.display = 'flex';
+                setTimeout(updateScrollHint, 100);
             }
         }
 
@@ -1385,4 +1475,4 @@ ${logs}`;
         init();
     </script>
 </body>
-</html>
+</html></html>
