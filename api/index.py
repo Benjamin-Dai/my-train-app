@@ -134,7 +134,6 @@ class handler(BaseHTTPRequestHandler):
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
     # === 核心處理邏輯 ===
-    # [修正] 傳入 now_aware (帶時區的現在時間)
     def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, now_aware, fix_crossing_night=False):
         processed = []
         for item in raw_list:
@@ -173,7 +172,6 @@ class handler(BaseHTTPRequestHandler):
 
             if arr_dt < dep_dt: arr_dt += timedelta(days=1)
 
-            # [修正] 這裡的減法現在是「有時區 - 有時區」，不會再報錯了
             time_diff_seconds = (dep_dt - now_aware).total_seconds()
 
             # 6小時判斷邏輯
@@ -185,7 +183,6 @@ class handler(BaseHTTPRequestHandler):
             real_dep = dep_dt + timedelta(minutes=delay)
             real_arr = arr_dt + timedelta(minutes=delay)
 
-            # [修正] 判斷是否駛離也使用 now_aware
             is_past = real_dep < (now_aware - timedelta(minutes=10))
 
             processed.append({
@@ -205,6 +202,9 @@ class handler(BaseHTTPRequestHandler):
         start_station = params.get('start', [DEFAULT_START])[0]
         end_station = params.get('end', [DEFAULT_END])[0]
 
+        # [新增功能] 參數控制：是否強制讀取明天
+        want_next_day = params.get('next_day', ['0'])[0] == '1'
+
         if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Environment Variables")
         start_id = STATION_MAP.get(start_station)
         end_id = STATION_MAP.get(end_station)
@@ -213,7 +213,7 @@ class handler(BaseHTTPRequestHandler):
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
-        # [修正] 取得帶有時區的現在時間 now_aware
+        # 取得帶有時區的現在時間 now_aware
         now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
         
         today_str = now_aware.strftime('%Y-%m-%d')
@@ -222,9 +222,16 @@ class handler(BaseHTTPRequestHandler):
         headers = {'authorization': f'Bearer {token}'}
 
         try:
+            # 1. 讀取今天 (基本盤)
             raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
-            raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
+            
+            # 2. [修改邏輯] 讀取明天 (根據參數決定)
+            raw_tmrw = []
+            status_tmrw = "Skipped" # 預設為跳過
+            if want_next_day:
+                raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
 
+            # 3. 讀取昨天 (維持跨夜邏輯：凌晨4點前才抓)
             raw_yest = []
             status_yest = "Skipped"
             if now_aware.hour < 4:
@@ -244,23 +251,27 @@ class handler(BaseHTTPRequestHandler):
 
             processed = []
 
-            # [修正] 呼叫 process_daily_list 時，傳入 now_aware
             if raw_yest:
                 yesterday_str = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
                 processed.extend(self.process_daily_list(raw_yest, yesterday_str, start_id, end_id, delays, now_aware, fix_crossing_night=True))
 
             processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, now_aware))
-            processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, now_aware))
+            
+            # [修改] 只有當明天有資料時才處理
+            if raw_tmrw:
+                processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, now_aware))
 
             unique_dict = {f"{p['sort_key']}_{p['no']}": p for p in processed}
 
             final_result = []
             now_ts = now_aware.timestamp()
             
-            # 使用 now_aware 計算今天的 00:00:00 (保留時區)
+            # 保留時區計算今日起始
             today_start = now_aware.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
 
-            future_limit = now_ts + (24 * 3600) 
+            # 如果抓了明天，顯示範圍放寬到 48 小時；否則只顯示 24 小時內
+            future_hours = 48 if want_next_day else 24
+            future_limit = now_ts + (future_hours * 3600) 
             past_limit = today_start 
 
             for p in unique_dict.values():
@@ -276,9 +287,14 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
+            # [修改] 診斷資訊更新
             diag_route_status = f"{status_today} / {status_tmrw}"
             if now_aware.hour < 4:
                 diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
+            elif want_next_day:
+                diag_route_status = f"T:{status_today} / N:{status_tmrw} (Loaded)"
+            else:
+                diag_route_status = f"T:{status_today} / N:Skipped"
 
             self.wfile.write(json.dumps({
                 "update_time": now_aware.strftime("%H:%M:%S"),
