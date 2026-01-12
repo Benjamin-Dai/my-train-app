@@ -40,17 +40,15 @@ if KV_URL:
 else:
     print("Warning: No Redis URL found.")
 
-# [新增] 系統 Log 寫入函式 (保留最新的 50 筆)
+# [修改] Log 寫入函式 (開發階段保留 100 筆)
 def log_to_redis(msg):
     if redis_client:
         try:
-            # 取得當下台灣時間字串
-            timestamp = datetime.now(timezone(timedelta(hours=8))).strftime("%m/%d %H:%M:%S")
+            timestamp = datetime.now(timezone(timedelta(hours=8))).strftime("%H:%M:%S")
             entry = f"[{timestamp}] {msg}"
-            # 推入列表頭部 (左側)
             redis_client.lpush("sys_logs", entry)
-            # 修剪列表，只保留前 50 筆 (索引 0 到 49)
-            redis_client.ltrim("sys_logs", 0, 49)
+            # 測試階段保留多一點，100筆
+            redis_client.ltrim("sys_logs", 0, 99)
         except Exception as e:
             print(f"Log Error: {e}")
 
@@ -61,6 +59,8 @@ class handler(BaseHTTPRequestHandler):
             try:
                 cached_token = redis_client.get("tdx_token")
                 if cached_token:
+                    # [Log] 使用快取 Token (太頻繁可註解掉)
+                    # log_to_redis("Token: Cache Hit") 
                     return cached_token.decode('utf-8')
             except: pass
 
@@ -76,8 +76,10 @@ class handler(BaseHTTPRequestHandler):
                     try:
                         redis_client.set("tdx_token", token, ex=expires - 600)
                     except: pass
+                
+                # [Log] 申請新 Token
+                log_to_redis("Token: Refreshed (New)")
                 return token
-            # 若取得 Token 失敗也記錄
             log_to_redis(f"Auth Failed: {res.status_code}")
             return None
         except Exception as e:
@@ -101,6 +103,8 @@ class handler(BaseHTTPRequestHandler):
             try:
                 cached_data = redis_client.get(cache_key)
                 if cached_data:
+                    # [Log] 誤點命中快取
+                    log_to_redis("Delay V2: Redis Hit")
                     return (json.loads(cached_data), "Redis Hit")
             except Exception as e:
                 print(f"Redis Read Error: {e}")
@@ -119,10 +123,11 @@ class handler(BaseHTTPRequestHandler):
                     redis_client.set(cache_key, json.dumps(new_delays), ex=60)
                 except Exception as e:
                     print(f"Redis Write Error: {e}")
-
+            
+            # [Log] 誤點 API 呼叫成功
+            log_to_redis(f"Delay V2: API OK ({len(new_delays)} trains)")
             return (new_delays, status_str)
         else: 
-            # 記錄 API 錯誤
             log_to_redis(f"Delay API Error: {res.status_code}")
             raise Exception(f"Delay API Error: {res.status_code}")
 
@@ -134,6 +139,8 @@ class handler(BaseHTTPRequestHandler):
             try:
                 cached_route = redis_client.get(cache_key)
                 if cached_route:
+                    # [Log] 時刻表命中快取
+                    log_to_redis(f"Route V3 [{date_str}]: Redis Hit")
                     return (json.loads(cached_route), "Redis Hit")
             except: pass
 
@@ -148,10 +155,11 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     redis_client.set(cache_key, json.dumps(raw_list), ex=43200)
                 except: pass
-
+            
+            # [Log] 時刻表 API 呼叫成功
+            log_to_redis(f"Route V3 [{date_str}]: API OK")
             return (raw_list, status_str)
         else: 
-            # 記錄 API 錯誤
             log_to_redis(f"Timetable API Error: {res.status_code}")
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
@@ -184,7 +192,6 @@ class handler(BaseHTTPRequestHandler):
 
             raw_delay = int(delays.get(no, 0))
 
-            # 解析時間並加上時區
             dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M").replace(tzinfo=TW_TZ)
             arr_dt = datetime.strptime(f"{date_str} {arr_time}", "%Y-%m-%d %H:%M").replace(tzinfo=TW_TZ)
 
@@ -196,7 +203,6 @@ class handler(BaseHTTPRequestHandler):
 
             time_diff_seconds = (dep_dt - now_aware).total_seconds()
 
-            # 6小時判斷邏輯
             if time_diff_seconds > 21600: 
                 delay = 0
             else:
@@ -222,12 +228,11 @@ class handler(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         params = parse_qs(parsed_path.query)
 
-        # [新增] 開發者模式：攔截 Log 請求
+        # God Mode: 讀取 Logs
         if params.get('debug') == ['godmode']:
             logs = []
             if redis_client:
                 try:
-                    # 讀取 Redis List "sys_logs" 所有內容
                     logs_bytes = redis_client.lrange("sys_logs", 0, -1)
                     logs = [l.decode('utf-8') for l in logs_bytes]
                 except Exception as e:
@@ -237,16 +242,17 @@ class handler(BaseHTTPRequestHandler):
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*') # 方便測試
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({"logs": logs}).encode())
-            return # 攔截後直接結束，不執行下方查火車邏輯
+            return
 
         start_station = params.get('start', [DEFAULT_START])[0]
         end_station = params.get('end', [DEFAULT_END])[0]
-
-        # [新增] 參數控制：是否強制讀取明天
         want_next_day = params.get('next_day', ['0'])[0] == '1'
+
+        # [Log] 收到查詢請求
+        log_to_redis(f"REQ: {start_station}->{end_station} (Next:{want_next_day})")
 
         if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Environment Variables")
         start_id = STATION_MAP.get(start_station)
@@ -256,25 +262,20 @@ class handler(BaseHTTPRequestHandler):
         token = self.get_token(CLIENT_ID, CLIENT_SECRET)
         if not token: return self.send_error_response("Auth Failed")
 
-        # 取得帶有時區的現在時間 now_aware
         now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
-        
         today_str = now_aware.strftime('%Y-%m-%d')
         tomorrow_str = (now_aware + timedelta(days=1)).strftime('%Y-%m-%d')
 
         headers = {'authorization': f'Bearer {token}'}
 
         try:
-            # 1. 讀取今天 (基本盤)
             raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
             
-            # 2. [修改] 讀取明天 (根據參數決定)
             raw_tmrw = []
             status_tmrw = "Skipped" 
             if want_next_day:
                 raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
 
-            # 3. 讀取昨天 (維持跨夜邏輯：凌晨4點前才抓)
             raw_yest = []
             status_yest = "Skipped"
             if now_aware.hour < 4:
@@ -288,8 +289,6 @@ class handler(BaseHTTPRequestHandler):
             try: 
                 delays, delay_status = self.get_cached_delays(headers)
             except Exception as e: 
-                print(f"Delay Fetch Error: {e}")
-                # 記錄嚴重錯誤
                 log_to_redis(f"Delay Fetch Fail: {str(e)}")
                 delay_failed = True
                 delay_status = "Failed"
@@ -302,7 +301,6 @@ class handler(BaseHTTPRequestHandler):
 
             processed.extend(self.process_daily_list(raw_today, today_str, start_id, end_id, delays, now_aware))
             
-            # [修改] 只有當明天有資料時才處理
             if raw_tmrw:
                 processed.extend(self.process_daily_list(raw_tmrw, tomorrow_str, start_id, end_id, delays, now_aware))
 
@@ -310,11 +308,7 @@ class handler(BaseHTTPRequestHandler):
 
             final_result = []
             now_ts = now_aware.timestamp()
-            
-            # 保留時區計算今日起始
             today_start = now_aware.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-
-            # 如果抓了明天，顯示範圍放寬到 48 小時；否則只顯示 24 小時內
             future_hours = 48 if want_next_day else 24
             future_limit = now_ts + (future_hours * 3600) 
             past_limit = today_start 
@@ -326,13 +320,15 @@ class handler(BaseHTTPRequestHandler):
 
             result = sorted(final_result, key=lambda x: x['sort_key'])
 
+            # [Log] 處理完成，記錄結果
+            log_to_redis(f"RES: {len(result)} trains sent.")
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
-            # [修改] 診斷資訊更新
             diag_route_status = f"{status_today} / {status_tmrw}"
             if now_aware.hour < 4:
                 diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
@@ -356,7 +352,6 @@ class handler(BaseHTTPRequestHandler):
                 }
             }).encode())
         except Exception as e:
-            # [修改] 記錄未預期的錯誤
             log_to_redis(f"CRITICAL: {str(e)}")
             self.send_error_response(str(e))
 
