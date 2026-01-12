@@ -880,7 +880,13 @@ ${logs}`;
         function checkLocksOnLoad() {
             const now=Date.now();
             const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
-            const rL=getRefreshLockedUntil(); if(rL>now) lockRefreshButton(Math.ceil((rL-now)/1000));
+    
+            // [修改] 取「剩餘時間」與「30秒」之中較小的那個，確保視覺上不超過 30 秒
+            const rL=getRefreshLockedUntil(); 
+            if(rL>now) {
+            const left = Math.ceil((rL-now)/1000);
+            lockRefreshButton(left > 30 ? 30 : left);
+            }
         }
         function setMenu(type,rV,sV) {
             const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
