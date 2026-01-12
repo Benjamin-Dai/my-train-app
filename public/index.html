@@ -321,7 +321,7 @@
 
                 <div class="search-row">
                     <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站..." oninput="handleSearch()">
+                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站 (可打字輸入...)" oninput="handleSearch()">
                 </div>
 
                 <div class="selector-row">
@@ -905,9 +905,15 @@ ${logs}`;
             markAsChanged();
         }
         function handleSearch() {
-            const val=searchInput.value.trim(); const tgt=searchTarget.value; if(!val) return;
-            let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
-            if(found) {
+            // [修改] 搜尋邏輯：自動將「台」轉為「臺」
+            const rawVal = searchInput.value.trim();
+            const tgt = searchTarget.value; 
+            if (!rawVal) return;
+            
+            const val = rawVal.replace(/台/g, '臺'); // 核心修改在這裡
+
+            let found = STATION_INDEX[val] ? val : Object.keys(STATION_INDEX).find(s => s.includes(val));
+            if (found) {
                 // [修改] Log 格式
                 logSystem(`Action: InputSearch\n             ${found}`); 
                 setMenu(tgt,STATION_INDEX[found],found);
