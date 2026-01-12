@@ -560,6 +560,8 @@
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
+        const LS_UI_LOCK = "tl_ui_button_locked_until"; // [新增] UI 按鈕專用鎖
+
         const LS_IS_24H="tl_pref_is_24h"; 
 
         const MAX_SEARCH_PER_MIN=3;
@@ -781,6 +783,9 @@ ${logs}`;
         function setSearchLockedUntil(v){localStorage.setItem(LS_SEARCH_LOCK,v);}
         function getRefreshLockedUntil(){return parseInt(localStorage.getItem(LS_REFRESH_LOCK)||"0");}
         function setRefreshLockedUntil(v){localStorage.setItem(LS_REFRESH_LOCK,v);}
+        // [新增] UI 鎖讀寫函式
+        function getUiLockedUntil(){return parseInt(localStorage.getItem(LS_UI_LOCK)||"0");}
+        function setUiLockedUntil(v){localStorage.setItem(LS_UI_LOCK,v);}
 
         function updateToggleBtns() {
             const btnTime = document.getElementById('btnTimeFormat');
@@ -880,7 +885,8 @@ ${logs}`;
         function checkLocksOnLoad() {
             const now=Date.now();
             const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
-            const rL=getRefreshLockedUntil(); if(rL>now) lockRefreshButton(Math.ceil((rL-now)/1000));
+            // [修改] 這裡改檢查 UI 鎖，而非後台資料鎖，確保載入時只看視覺時間
+            const uL=getUiLockedUntil(); if(uL>now) lockRefreshButton(Math.ceil((uL-now)/1000));
         }
         function setMenu(type,rV,sV) {
             const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
@@ -999,10 +1005,36 @@ ${logs}`;
             fetchData("search");
         }
         function doRefresh(skip=false) {
+            const now = Date.now();
+            
             if(!skip) {
-                const now=Date.now(); const rL=getRefreshLockedUntil();
-                if(rL>now) { lockRefreshButton(Math.ceil((rL-now)/1000)); return; }
+                // 1. 先檢查視覺按鈕有沒有被鎖住 (通常按鈕disabled按不到，這是防呆)
+                const uL = getUiLockedUntil();
+                if(uL > now) return; 
             }
+
+            // 2. 檢查「後台資料鎖 (90s)」是否還在鎖定中
+            const rL = getRefreshLockedUntil();
+            
+            // [核心邏輯]：如果後台還在鎖 (31s ~ 90s 之間)，我們做「假更新」
+            if(rL > now && !skip) {
+                logSystem("Action", "Soft Refresh (Cache)");
+                
+                // A. 重新讀取本地快取並渲染 (讓畫面閃一下，感覺有更新)
+                reRenderLocal(); 
+                
+                // B. 顯示提示，讓使用者知道這是快取資料
+                statusMsg.innerText = "資料有效中 (快取)";
+                statusMsg.className = "status-left";
+                setTimeout(() => statusMsg.innerText="", 2000);
+
+                // C. 再次鎖住按鈕「視覺上」的 30 秒
+                setUiLockedUntil(now + 30000); 
+                lockRefreshButton(30);
+                return; // 結束，不發送 API
+            }
+
+            // 3. 如果後台鎖解除了 (超過 90s)，才真的發送請求
             logSystem("Action",`Refresh ${startStation.value}→${endStation.value}`); 
             fetchData("refresh");
         }
@@ -1143,15 +1175,22 @@ ${logs}`;
                     setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
                 }
                 
-                // [修改] 鎖定邏輯：30s 顯示 / 90s 實際
+                // [修改] 雙軌鎖定邏輯
                 if(mode==="search"){ 
                     setTimeout(()=>btnSearch.disabled=false,500); 
-                    setRefreshLockedUntil(now+90000); // 90s
-                    lockRefreshButton(30);            // 30s
+                    
+                    // 真實鎖定 90秒
+                    setRefreshLockedUntil(now+90000); 
+                    // 視覺鎖定 30秒
+                    setUiLockedUntil(now+30000);
+                    lockRefreshButton(30);            
                 }
                 if(mode==="refresh"){ 
-                    setRefreshLockedUntil(now+90000); // 90s
-                    lockRefreshButton(30);            // 30s
+                    // 真實鎖定 90秒
+                    setRefreshLockedUntil(now+90000); 
+                    // 視覺鎖定 30秒
+                    setUiLockedUntil(now+30000);
+                    lockRefreshButton(30);            
                 }
                 
                 if (mode === "load_next_day") {
@@ -1368,7 +1407,6 @@ ${logs}`;
             }
         }
 
-        // ... (其餘輔助函式) ...
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
         function recordRequest(){requestHistory.push(Date.now());}
         function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
