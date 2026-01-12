@@ -1098,9 +1098,10 @@ ${logs}`;
 
             recordRequest();
             try {
-                let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}`;
+                // [修改] 移除 RPM，改傳 mode 參數
+                let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}&mode=${mode}`;
                 if(serverLoggingEnabled) {
-                    url += `&sid=${SESSION_ID}&rpm=${rpmVal}`;
+                    url += `&sid=${SESSION_ID}`;
                 }
 
                 const res=await fetch(url);
