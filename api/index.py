@@ -40,6 +40,20 @@ if KV_URL:
 else:
     print("Warning: No Redis URL found.")
 
+# [新增] 系統 Log 寫入函式 (保留最新的 50 筆)
+def log_to_redis(msg):
+    if redis_client:
+        try:
+            # 取得當下台灣時間字串
+            timestamp = datetime.now(timezone(timedelta(hours=8))).strftime("%m/%d %H:%M:%S")
+            entry = f"[{timestamp}] {msg}"
+            # 推入列表頭部 (左側)
+            redis_client.lpush("sys_logs", entry)
+            # 修剪列表，只保留前 50 筆 (索引 0 到 49)
+            redis_client.ltrim("sys_logs", 0, 49)
+        except Exception as e:
+            print(f"Log Error: {e}")
+
 class handler(BaseHTTPRequestHandler):
 
     def get_token(self, cid, csecret):
@@ -63,8 +77,12 @@ class handler(BaseHTTPRequestHandler):
                         redis_client.set("tdx_token", token, ex=expires - 600)
                     except: pass
                 return token
+            # 若取得 Token 失敗也記錄
+            log_to_redis(f"Auth Failed: {res.status_code}")
             return None
-        except: return None
+        except Exception as e:
+            log_to_redis(f"Auth Exception: {str(e)}")
+            return None
 
     def get_header_info(self, res):
         val = None
@@ -104,6 +122,8 @@ class handler(BaseHTTPRequestHandler):
 
             return (new_delays, status_str)
         else: 
+            # 記錄 API 錯誤
+            log_to_redis(f"Delay API Error: {res.status_code}")
             raise Exception(f"Delay API Error: {res.status_code}")
 
     # === 使用 Redis 存取時刻表 (V3 Key) ===
@@ -131,6 +151,8 @@ class handler(BaseHTTPRequestHandler):
 
             return (raw_list, status_str)
         else: 
+            # 記錄 API 錯誤
+            log_to_redis(f"Timetable API Error: {res.status_code}")
             raise Exception(f"TDX Timetable Error: {res.status_code}")
 
     # === 核心處理邏輯 ===
@@ -199,10 +221,31 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urlparse(self.path)
         params = parse_qs(parsed_path.query)
+
+        # [新增] 開發者模式：攔截 Log 請求
+        if params.get('debug') == ['godmode']:
+            logs = []
+            if redis_client:
+                try:
+                    # 讀取 Redis List "sys_logs" 所有內容
+                    logs_bytes = redis_client.lrange("sys_logs", 0, -1)
+                    logs = [l.decode('utf-8') for l in logs_bytes]
+                except Exception as e:
+                    logs = [f"Redis Read Error: {str(e)}"]
+            else:
+                logs = ["No Redis Connection"]
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*') # 方便測試
+            self.end_headers()
+            self.wfile.write(json.dumps({"logs": logs}).encode())
+            return # 攔截後直接結束，不執行下方查火車邏輯
+
         start_station = params.get('start', [DEFAULT_START])[0]
         end_station = params.get('end', [DEFAULT_END])[0]
 
-        # [新增功能] 參數控制：是否強制讀取明天
+        # [新增] 參數控制：是否強制讀取明天
         want_next_day = params.get('next_day', ['0'])[0] == '1'
 
         if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Environment Variables")
@@ -225,9 +268,9 @@ class handler(BaseHTTPRequestHandler):
             # 1. 讀取今天 (基本盤)
             raw_today, status_today = self.get_route_timetable(start_id, end_id, today_str, headers)
             
-            # 2. [修改邏輯] 讀取明天 (根據參數決定)
+            # 2. [修改] 讀取明天 (根據參數決定)
             raw_tmrw = []
-            status_tmrw = "Skipped" # 預設為跳過
+            status_tmrw = "Skipped" 
             if want_next_day:
                 raw_tmrw, status_tmrw = self.get_route_timetable(start_id, end_id, tomorrow_str, headers)
 
@@ -246,6 +289,8 @@ class handler(BaseHTTPRequestHandler):
                 delays, delay_status = self.get_cached_delays(headers)
             except Exception as e: 
                 print(f"Delay Fetch Error: {e}")
+                # 記錄嚴重錯誤
+                log_to_redis(f"Delay Fetch Fail: {str(e)}")
                 delay_failed = True
                 delay_status = "Failed"
 
@@ -310,7 +355,10 @@ class handler(BaseHTTPRequestHandler):
                     "delay_status": delay_status
                 }
             }).encode())
-        except Exception as e: self.send_error_response(str(e))
+        except Exception as e:
+            # [修改] 記錄未預期的錯誤
+            log_to_redis(f"CRITICAL: {str(e)}")
+            self.send_error_response(str(e))
 
     def send_error_response(self, msg):
         self.send_response(500)
