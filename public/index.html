@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TRAIN LIVE | 列車時刻即時看板</title>
-    <meta name="description" content="不只是誤點幾分鐘，直接告訴你實際幾點到。專為通勤族設計的極簡、即時火車時刻表 Web App。">
-
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#151517">
     <link rel="apple-touch-icon" href="/icon.png">
@@ -15,7 +13,7 @@
         /* --- 基礎設定 --- */
         *, *::before, *::after { 
             box-sizing: border-box; 
-            -webkit-tap-highlight-color: transparent; /* 隱藏 Android 點擊藍框 */
+            -webkit-tap-highlight-color: transparent;
             outline: none; 
         }
         html { scroll-behavior: smooth; }
@@ -27,13 +25,11 @@
         .header-static-part { padding: 15px 15px 15px 15px; background: #151517; position: relative; z-index: 10; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
         
-        /* [修改] 隱形 Logo 設定：游標改回預設，禁止反白，移除 active 變色 */
+        /* 隱形 Logo */
         .app-title { 
             font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; 
-            cursor: default; /* 改回箭頭 */
-            user-select: none; -webkit-user-select: none; /* 禁止反白 */
+            cursor: default; user-select: none; -webkit-user-select: none; 
         }
-        /* 移除了 .app-title:active，點擊時不會變色 */
 
         .top-actions { display: flex; align-items: center; gap: 8px; }
         .install-btn-top {
@@ -81,27 +77,25 @@
         }
         #stickyPlaceholder { display: none; }
 
-        /* Row 1: Quick Route + Fav Btn */
+        /* Row 1: Quick Route */
         .sticky-row-top { 
             display: flex; align-items: center; border-bottom: 1px solid #222; min-height: 50px; 
-            position: relative; /* For Overlay */
+            position: relative; 
         }
         .quick-route-scroll-container {
             flex: 1; overflow-x: auto; white-space: nowrap; padding: 5px 10px; height: 100%; display: flex; align-items: center;
             -ms-overflow-style: none; scrollbar-width: none; 
         }
         .quick-route-scroll-container::-webkit-scrollbar { display: none; }
-
         .scroll-hint-overlay {
-            position: absolute; right: 85px; /* 避開右邊按鈕 */ top: 0; bottom: 0; width: 40px;
+            position: absolute; right: 85px; top: 0; bottom: 0; width: 40px;
             background: linear-gradient(to right, transparent, #151517);
-            pointer-events: none; /* 讓點擊穿透 */
+            pointer-events: none; 
             display: flex; align-items: center; justify-content: flex-end;
             padding-right: 5px; opacity: 0; transition: opacity 0.3s;
         }
         .scroll-hint-arrow { color: #4d7f5e; font-weight: bold; font-size: 1.2rem; animation: bounce-x 1s infinite; }
         @keyframes bounce-x { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
-
         .route-chip { 
             display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
             padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; margin-right: 6px; 
@@ -111,7 +105,6 @@
         .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
         .route-chip.hist { border-style: dashed; }
-
         .btn-side-container { padding: 5px 10px; border-left: 1px solid #222; height: 100%; display: flex; align-items: center; min-width: 85px; justify-content: center; z-index: 5;}
         .btn-fav-compact {
             background: #222; color: #ccc; border: 1px solid #444; padding: 4px 8px; border-radius: 8px; 
@@ -238,12 +231,19 @@
             overflow-y: auto; white-space: pre-wrap;
         }
         
-        /* Report List */
+        /* Toggle Switch */
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; background: #1a1a1c; padding: 10px; border-radius: 8px; border: 1px solid #333; }
+        .toggle-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #4d7f5e; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
         .report-list-item { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; color: #ccc; font-size: 0.8rem; }
         .report-list-item:hover { background: #333; }
         .report-timestamp { color: #4d7f5e; font-family: monospace; }
 
-        /* Back to top */
         .back-to-top {
             position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
             background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
@@ -253,7 +253,6 @@
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:active { transform: scale(0.9); background: #3d664b; }
 
-        /* Diagnostics */
         .stats-dashboard { display: flex; gap: 8px; margin-bottom: 15px; }
         .stat-card { flex: 1; background: #222; border: 1px solid #444; padding: 10px 5px; border-radius: 8px; text-align: center; }
         .stat-val { font-size: 1.2rem; font-weight: bold; color: #4d7f5e; font-family: monospace;}
@@ -411,8 +410,16 @@
                     錯誤或系統忙碌都會自動重試，請耐心等候。
                 </div>
             </div>
+
             <div id="pageReport" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
+                
+                <div style="margin-bottom:15px;">
+                    <textarea id="userDesc" class="search-box" style="width:100%; resize:none; font-size:1rem; padding:10px;" rows="5" placeholder="遇到什麼問題？(選填)"></textarea>
+                    <button class="menu-btn" style="width:100%; text-align:center; justify-content:center; margin-top:10px;" onclick="manualUploadReport()">☁️ 送出回報</button>
+                    <div id="autoUploadHint" style="color:#4d7f5e; font-size:0.8rem; text-align:center; margin-top:5px; opacity:0; transition:opacity 1s;">✅ 系統資料已自動歸檔</div>
+                </div>
+
                 <div class="diag-section">
                     <div class="diag-title">資料來源 / 剩餘額度</div>
                     <div class="info-grid">
@@ -430,18 +437,10 @@
                 </div>
                 <div class="diag-section" style="border:none;">
                     <div class="diag-title">系統紀錄 (Log)</div>
-                    <div id="uploadStatus" style="color:#666; font-size:0.8rem; margin-bottom:5px; text-align:center; height:1.2em;">
-                        準備就緒
-                    </div>
-                    <textarea id="userDesc" class="search-box" style="width:100%; margin-bottom:10px; resize:none;" rows="2" placeholder="（選填）問題描述..."></textarea>
-                    <textarea id="reportContent" style="display:none;"></textarea>
                     <div id="terminalView" class="terminal-box"></div>
-                    <div class="action-area" style="margin-top:10px; display:flex; gap:10px;">
-                        <button id="btnCopyReport" class="btn btn-half btn-secondary" onclick="copyReportOnly()">📋 複製報告</button>
-                        <button id="btnSendMail" class="btn btn-half btn-primary" onclick="openMailClient()">📧 寄信回報</button>
-                    </div>
                 </div>
             </div>
+
             <div id="pageAuthor" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">關於作者</div></div>
                 <div class="modal-text" style="text-align:center;">
@@ -470,35 +469,45 @@
 
             <div id="pageDev" class="modal-page">
                 <div class="modal-header-row">
-                    <div class="modal-title" style="color:#334439;">開發者介面</div>
+                    <div class="modal-title" style="color:#334439;">開發者頁面</div>
                     <button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button>
                 </div>
                 
-                <div class="dev-tabs">
-                    <div class="dev-tab active" onclick="switchDevTab('sessions')">即時</div>
-                    <div class="dev-tab" onclick="switchDevTab('reports')">歸檔報告</div>
-                </div>
+                <div class="modal-text">
+                    <div class="toggle-row">
+                        <span>資料收集開關</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="loggingToggle" onchange="toggleLogging()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
 
-                <div id="panelSessions" class="dev-panel active">
-                    <div class="modal-text">
+                    <div class="dev-tabs">
+                        <div class="dev-tab active" onclick="switchDevTab('sessions')">即時 Sessions</div>
+                        <div class="dev-tab" onclick="switchDevTab('reports')">歸檔報告</div>
+                    </div>
+
+                    <div id="panelSessions" class="dev-panel active">
                         <div class="gm-container">
                             <div id="gmSessionList" class="gm-list">Loading...</div>
                             <div id="gmLogView" class="gm-terminal">Select a user...</div>
                         </div>
-                        <div style="margin-top:10px;">
-                            <button class="menu-btn" style="padding:8px;" onclick="fetchSessionList()">🔄 刷新列表</button>
+                        <div style="margin-top:10px; display:flex; gap:10px;">
+                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchSessionList()">🔄 刷新</button>
+                            <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearSessions()">🗑️ 清空 Session</button>
                         </div>
                     </div>
-                </div>
 
-                <div id="panelReports" class="dev-panel">
-                    <div class="modal-text">
+                    <div id="panelReports" class="dev-panel">
                         <div style="margin-bottom:10px;">
                             <button class="menu-btn" style="width:100%; padding:8px;" onclick="fetchReportList()">🔄 刷新報告列表</button>
                         </div>
                         <div id="reportListContainer" class="terminal-box" style="height:120px; margin-bottom:10px;"></div>
                         <div class="info-label">報告內容：</div>
                         <div id="reportDetailContainer" class="dev-terminal" style="height:150px; border:1px dashed #444;">點擊上方列表查看...</div>
+                        <div style="margin-top:10px;">
+                             <button class="menu-btn" style="width:100%; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空所有報告</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -515,7 +524,7 @@
     </div>
 
     <script>
-        // ... (Station Data & Constants 保持不變) ...
+        // ... (Station Data, Constants 保持) ...
         const STATION_DATA = {
             "基隆市": ["基隆", "三坑", "八堵", "七堵", "百福", "暖暖", "海科館"],
             "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "侯硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
@@ -565,16 +574,18 @@
         let isNextDayLoaded = false;
         let currentTrainData = null;
         
-        // [修改] 改用 'tl_session_v2' 強制重新生成 ID
+        // [新增] 伺服器端開關狀態 (預設 false: 省錢)
+        let serverLoggingEnabled = false;
+
+        // Session ID
         let SESSION_ID = localStorage.getItem('tl_session_v2'); 
         if (!SESSION_ID) {
             const now = new Date();
-            // 格式: u_YYYYMMDD_HHMMSS
             const timeStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
             SESSION_ID = `u_${timeStr}`;
-            localStorage.setItem('tl_session_v2', SESSION_ID); // 存入新 Key
+            localStorage.setItem('tl_session_v2', SESSION_ID); 
         }
-        let adminAuth = { u: "", p: "" }; // 暫存記憶體
+        let adminAuth = { u: "", p: "" }; 
 
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -615,6 +626,7 @@
             if (adminAuth.u && adminAuth.p) {
                 goToPage('Dev');
                 fetchSessionList();
+                fetchConfig(); // 載入開關狀態
             } else {
                 goToPage('Login');
             }
@@ -628,6 +640,7 @@
             document.getElementById('loginPass').value = "";
             goToPage('Dev');
             fetchSessionList();
+            fetchConfig(); // 載入開關狀態
         }
         
         function switchDevTab(tab) {
@@ -643,31 +656,49 @@
             }
         }
 
+        async function fetchConfig() {
+            try {
+                const res = await fetch(`/api/index?debug=godmode&action=get_config&u=${adminAuth.u}&p=${adminAuth.p}`);
+                const json = await res.json();
+                document.getElementById('loggingToggle').checked = (json.logging_enabled === "1");
+            } catch(e) {}
+        }
+        async function toggleLogging() {
+            const val = document.getElementById('loggingToggle').checked ? "1" : "0";
+            await fetch(`/api/index?debug=godmode&action=set_config&key=logging_enabled&val=${val}&u=${adminAuth.u}&p=${adminAuth.p}`);
+        }
+
+        // [修改] Session List 格式
         async function fetchSessionList() {
             const listEl = document.getElementById('gmSessionList');
             listEl.innerHTML = "Loading...";
             try {
                 const res = await fetch(`/api/index?debug=godmode&action=list_sessions&u=${adminAuth.u}&p=${adminAuth.p}`);
-                if (res.status === 401) {
-                    alert("驗證失敗");
-                    adminAuth = { u:"", p:"" };
-                    goToPage('Login');
-                    return;
-                }
                 const json = await res.json();
                 if (json.sessions && json.sessions.length > 0) {
                     let html = '';
                     json.sessions.forEach(s => {
                         const isMe = s.id === SESSION_ID ? " (Me)" : "";
                         const status = s.ttl > 86000 ? "🟢" : "⚪"; 
+                        // 顯示格式：[時間] 狀態 ID
                         html += `<div class="gm-list-item" onclick="loadSessionLogs('${s.id}', this)">
-                                    <span>${status} ${s.id}${isMe}</span>
-                                    <span>TTL:${s.ttl}s</span>
+                                    <span>[${s.last_active_str}] ${status} ${s.id}${isMe}</span>
                                  </div>`;
                     });
                     listEl.innerHTML = html;
                 } else { listEl.innerHTML = "No active sessions."; }
             } catch (e) { listEl.innerHTML = "Error: " + e.message; }
+        }
+
+        async function clearSessions() {
+            if(!confirm("確定清空所有 Session 紀錄？")) return;
+            await fetch(`/api/index?debug=godmode&action=clear_sessions&u=${adminAuth.u}&p=${adminAuth.p}`);
+            fetchSessionList();
+        }
+        async function clearReports() {
+            if(!confirm("確定清空所有報告？")) return;
+            await fetch(`/api/index?debug=godmode&action=clear_reports&u=${adminAuth.u}&p=${adminAuth.p}`);
+            fetchReportList();
         }
 
         async function loadSessionLogs(sid, el) {
@@ -703,7 +734,6 @@
             } catch (e) { container.innerHTML = "Error: " + e.message; }
         }
 
-        // [新增] 報告格式化函式
         function formatReport(data) {
             const logs = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs";
             const diag = data.diagnostics || {};
@@ -727,14 +757,12 @@ ${logs}`;
                 const res = await fetch(`/api/index?debug=godmode&action=get_report&id=${reportId}&u=${adminAuth.u}&p=${adminAuth.p}`);
                 const json = await res.json();
                 if (json.report_content) { 
-                    // 使用格式化函式顯示
                     detailBox.innerText = formatReport(json.report_content); 
                 } 
                 else { detailBox.innerHTML = "Error: Not Found"; }
             } catch (e) { detailBox.innerHTML = "Fetch Error: " + e.message; }
         }
-        // -----------------------
-
+        
         function startTicker() {
             setInterval(() => {
                 if (document.body.classList.contains('tick-a')) {
@@ -987,12 +1015,9 @@ ${logs}`;
             fetchData("load_next_day");
         }
 
-        // [修改] 自動上傳報告 (靜默模式)
-        async function uploadReport() {
-            const statusEl = document.getElementById('uploadStatus');
-            statusEl.innerText = "☁️ 正在自動上傳診斷資料...";
-            statusEl.style.color = "#4d7f5e";
-
+        // [修改] 自動上傳與手動上傳整合
+        async function uploadReportInternal(desc, isAuto) {
+            const statusHint = document.getElementById('autoUploadHint');
             const now = Date.now();
             const rpm = requestHistory.filter(t => now - t < 60000).length;
             
@@ -1004,7 +1029,7 @@ ${logs}`;
                 total_requests: requestHistory.length,
                 diagnostics: lastDiagnostics,
                 logs: systemLogs,
-                user_desc: document.getElementById('userDesc').value || "(Auto Upload on Open)"
+                user_desc: desc || "(Auto Upload on Open)"
             };
 
             try {
@@ -1016,16 +1041,29 @@ ${logs}`;
                 const json = await res.json();
                 
                 if (json.status === 'ok') {
-                    statusEl.innerHTML = `✅ 診斷報告已自動上傳 (ID: ${json.id.split('_')[1]})`;
-                    statusEl.style.color = "#aaa";
+                    if (isAuto) {
+                        statusHint.style.opacity = '1';
+                        setTimeout(() => { statusHint.style.opacity = '0'; }, 3000);
+                    } else {
+                        alert("✅ 感謝回報！開發者已收到您的訊息。");
+                        document.getElementById('userDesc').value = ""; // 清空
+                    }
                 } else {
-                    statusEl.innerText = '❌ 自動上傳失敗';
-                    statusEl.style.color = "#ff4d4d";
+                    if (!isAuto) alert('❌ 上傳失敗: ' + (json.error || 'Unknown'));
                 }
             } catch (e) {
-                statusEl.innerText = '❌ 上傳錯誤: ' + e.message;
-                statusEl.style.color = "#ff4d4d";
+                if (!isAuto) alert('❌ 上傳錯誤: ' + e.message);
             }
+        }
+        
+        function uploadReport() {
+            // 自動模式 (無參數)
+            uploadReportInternal("", true);
+        }
+        
+        function manualUploadReport() {
+            const desc = document.getElementById('userDesc').value;
+            uploadReportInternal(desc, false);
         }
 
         function parseDiagnostics(diag, isCdn) {
@@ -1063,15 +1101,31 @@ ${logs}`;
             const needNextDay = (mode === "load_next_day" || isNextDayLoaded) ? 1 : 0;
             const cacheKeySuffix = needNextDay ? "_full" : ""; 
             const cacheKey = getCacheKey() + cacheKeySuffix; 
+            
+            // [關鍵] RPM計算
+            const now = Date.now();
+            const rpmVal = requestHistory.filter(t => now - t < 60000).length;
 
             recordRequest();
             try {
-                // [關鍵] 帶入 SESSION_ID (Piggybacking)
-                const res=await fetch(`/api/index?start=${s}&end=${e}&next_day=${needNextDay}&sid=${SESSION_ID}`);
+                // [關鍵] 智能切換網址參數
+                // 如果 serverLoggingEnabled 為 true, 帶上 sid 和 rpm -> 強制後端紀錄
+                // 如果為 false, 不帶 -> 命中 Vercel 快取 (省額度)
+                let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}`;
+                if(serverLoggingEnabled) {
+                    url += `&sid=${SESSION_ID}&rpm=${rpmVal}`;
+                }
+
+                const res=await fetch(url);
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
+
+                // 更新本地的 logging 狀態，供下次查詢決定要不要帶 SID
+                if(json.logging_enabled !== undefined) {
+                    serverLoggingEnabled = json.logging_enabled;
+                }
 
                 lastFetchedPair={start:s,end:e};
                 
@@ -1093,9 +1147,17 @@ ${logs}`;
                     statusMsg.innerText = "更新完成";
                     setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
                 }
-                const now=Date.now();
-                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+90000); lockRefreshButton(30); }
-                if(mode==="refresh"){ setRefreshLockedUntil(now+90000); lockRefreshButton(30); }
+                
+                // [修改] 鎖定邏輯：30s 顯示 / 90s 實際
+                if(mode==="search"){ 
+                    setTimeout(()=>btnSearch.disabled=false,500); 
+                    setRefreshLockedUntil(now+90000); // 90s
+                    lockRefreshButton(30);            // 30s
+                }
+                if(mode==="refresh"){ 
+                    setRefreshLockedUntil(now+90000); // 90s
+                    lockRefreshButton(30);            // 30s
+                }
                 
                 if (mode === "load_next_day") {
                     const divider = document.getElementById('tomorrow-divider');
@@ -1113,7 +1175,7 @@ ${logs}`;
                 list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`;
             }
         }
-
+        
         function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
 
         function scheduleRetry(msg="誤點資訊無法取得", cls="status-left warning") {
@@ -1311,6 +1373,7 @@ ${logs}`;
             }
         }
 
+        // ... (其餘輔助函式) ...
         function logSystem(a,d){systemLogs.push(`[${new Date().toLocaleTimeString()}] ${a}: ${d}`);if(systemLogs.length>30)systemLogs.shift();}
         function recordRequest(){requestHistory.push(Date.now());}
         function openModal(){document.getElementById('aboutModal').style.display='flex';goToPage('Menu');}
@@ -1339,21 +1402,16 @@ ${logs}`;
                 r += `路線: ${startStation.value} -> ${endStation.value}\n流量: RPM=${rpm}, Total=${requestHistory.length}\n`;
                 r += `狀態: [${lastDiagnostics.route_source}] / [${lastDiagnostics.delay_source}]\n剩餘: ${displayQuota}\n`;
                 r += `--- Log ---\n${systemLogs.join("\n")}`;
-                document.getElementById('reportContent').value = r;
                 document.getElementById('terminalView').innerText = systemLogs.join("\n");
 
-                uploadReport();
+                uploadReport(); // 自動上傳
             }
         }
         function copyReportOnly() {
-            let final = document.getElementById('reportContent').value;
-            const uDesc = document.getElementById('userDesc').value; if(uDesc) final += `\n\nUser: ${uDesc}`;
-            navigator.clipboard.writeText(final).then(() => { alert("已複製"); }).catch(e=>{alert('複製失敗');});
+            let final = document.getElementById('reportContent').value; // 注意：reportContent 已移除，此函式備用或可移除
         }
         function openMailClient() {
-            const subject = encodeURIComponent("TRAIN LIVE 診斷回報");
-            const body = encodeURIComponent("（請長按貼上診斷報告）\n\n問題：\n");
-            window.location.href = `mailto:d96benjamin@gmail.com?subject=${subject}&body=${body}`;
+            // 已移除寄信按鈕
         }
 
         const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
