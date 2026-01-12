@@ -115,7 +115,7 @@ class handler(BaseHTTPRequestHandler):
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             if redis_client:
-                try: redis_client.set(cache_key, json.dumps(new_delays), ex=60)
+                try: redis_client.set(cache_key, json.dumps(new_delays), ex=75)
                 except: pass
             log_to_redis(f"Delay V2: API OK ({status_str})", sid)
             return (new_delays, status_str)
