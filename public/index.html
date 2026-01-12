@@ -565,13 +565,14 @@
         let isNextDayLoaded = false;
         let currentTrainData = null;
         
-        // [修改] Session ID 生成邏輯：使用詳細日期格式
-        let SESSION_ID = localStorage.getItem('tl_session_id');
+        // [修改] 改用 'tl_session_v2' 強制重新生成 ID
+        let SESSION_ID = localStorage.getItem('tl_session_v2'); 
         if (!SESSION_ID) {
             const now = new Date();
+            // 格式: u_YYYYMMDD_HHMMSS
             const timeStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
             SESSION_ID = `u_${timeStr}`;
-            localStorage.setItem('tl_session_id', SESSION_ID);
+            localStorage.setItem('tl_session_v2', SESSION_ID); // 存入新 Key
         }
         let adminAuth = { u: "", p: "" }; // 暫存記憶體
 
