@@ -1094,8 +1094,8 @@ ${logs}`;
                     setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
                 }
                 const now=Date.now();
-                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
-                if(mode==="refresh"){ setRefreshLockedUntil(now+30000); lockRefreshButton(30); }
+                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+90000); lockRefreshButton(30); }
+                if(mode==="refresh"){ setRefreshLockedUntil(now+90000); lockRefreshButton(30); }
                 
                 if (mode === "load_next_day") {
                     const divider = document.getElementById('tomorrow-divider');
