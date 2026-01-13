@@ -251,6 +251,7 @@ class handler(BaseHTTPRequestHandler):
                         if key == "logging_enabled":
                             redis_client.set("config:logging_enabled", val)
                             result["status"] = "ok"
+                            result["set_to"] = val
                     elif action == 'clear_sessions':
                         keys = redis_client.keys("session:*")
                         if keys: redis_client.delete(*keys)
@@ -299,14 +300,18 @@ class handler(BaseHTTPRequestHandler):
             else:
                 result["error"] = "No Redis"
             
+            # [CRITICAL FIX] 上帝模式 API 強制不快取
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
             return
 
-        # [正常查詢]
+        # [正常查詢 - 保持快取]
         start_station = params.get('start', [''])[0]
         end_station = params.get('end', [''])[0]
         want_next_day = params.get('next_day', ['0'])[0] == '1'
@@ -397,6 +402,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
+            # 一般查詢保持 60 秒快取
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
@@ -410,7 +416,7 @@ class handler(BaseHTTPRequestHandler):
                 "start": start_station, "end": end_station, "delay_failed": delay_failed,
                 "trains": result, "stats": { "original_count": len(final_result) },
                 "diagnostics": { "route_status": diag_route_status, "delay_status": delay_status },
-                "logging_enabled": logging_enabled_resp # 回傳開關狀態
+                "logging_enabled": logging_enabled_resp 
             }).encode())
         except Exception as e:
             self.send_error_response(str(e))
