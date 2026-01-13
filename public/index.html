@@ -234,22 +234,7 @@
 
         /* Tutorial Pointers (Arrow Style) */
         .tutorial-container { position: relative; margin-bottom: 60px; /* 預留底部文字空間 */ }
-        .t-hint-group {
-            position: absolute;
-            top: 100%; /* 卡片底部 */
-            z-index: 20;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .t-arrow { font-size: 1.2rem; color: #e6b800; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); line-height: 1; }
-        .t-text-box {
-            white-space: nowrap;
-            color: #e6b800; font-weight: bold; font-size: 0.85rem;
-            line-height: 1.4;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-        }
-
+        
         /* 1/4 圓 藍色角落光暈 (Corner Glow) */
         .t-corner-glow {
             position: absolute; bottom: 0; right: 0;
@@ -330,6 +315,61 @@
         .btn-half { flex: 1; font-size: 0.9rem; }
         .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
         .btn-primary { background: #007AFF; color: white; }
+
+        /* --- [新版] Tutorial 樣式優化 (窄螢幕友善版) --- */
+        
+        /* 靜態提示條 (模仿底部 Footer，但用於教學頁面) */
+        .static-hint-bar {
+            background: #1a1a1c;
+            border: 1px solid #333;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px; /* 項目間距 */
+            padding: 12px 10px;
+            margin-top: 8px; /* 與上方卡片的距離 */
+            margin-bottom: 25px; /* 與下方卡片的距離 */
+            font-size: 0.75rem;
+            color: #666;
+        }
+        
+        /* 誤點卡下方的置中文字區塊 */
+        .t-center-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            margin-bottom: 30px; /* 確保不跟按鈕重疊 */
+            text-align: center;
+        }
+        
+        .t-center-text {
+            color: #e6b800;
+            font-weight: bold;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .t-center-text .sub {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: normal;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        /* 箭頭樣式微調 */
+        .t-arrow-side {
+            font-size: 1.2rem;
+            color: #e6b800;
+            animation: bounce-y 1s infinite;
+        }
+        @keyframes bounce-y { 
+            0%, 100% { transform: translateY(0); } 
+            50% { transform: translateY(-3px); } 
+        }
     </style>
 </head>
 <body class="tick-a">
@@ -467,9 +507,9 @@
             <div id="pageTutorial" class="modal-page">
                 <div class="modal-header-row"><div class="modal-title">歡迎使用 TRAIN LIVE</div></div>
                 <div class="modal-text" style="font-size:0.95rem;">
-                    <div style="text-align:center; margin-bottom:10px; color:#ccc;">我們已經幫您算好時間了！</div>
+                    <div style="text-align:center; margin-bottom:15px; color:#ccc;">我們已經幫您算好時間了！</div>
                     
-                    <div class="tutorial-container">
+                    <div class="tutorial-container" style="margin-bottom: 5px;">
                         <div class="card" style="border-left-color: #4d7f5e; margin:0; pointer-events:none;">
                             <div class="left-indicator">
                                 <div class="led-dot top"></div>
@@ -485,19 +525,32 @@
                             
                             <div class="t-corner-glow"></div>
                         </div>
-                        
-                        <div class="t-hint-group" style="left: 12px; align-items: flex-start;">
-                            <div class="t-arrow">⬆</div>
-                            <div class="t-text-box">亮燈代表<br>10分鐘內 進站</div>
-                        </div>
+                    </div>
 
-                        <div class="t-hint-group" style="right: 15px; align-items: flex-end;">
-                            <div class="t-arrow">⬆</div>
-                            <div class="t-text-box" style="text-align: right;">點擊卡片查看<br>完整停靠站</div>
+                    <div class="static-hint-bar">
+                        <div class="hint-group">
+                            <div class="led-pair-mini">
+                                <div class="led-dot top"></div>
+                                <div class="led-dot bottom"></div>
+                            </div>
+                            <div class="hint-text-col">
+                                <span>10分鐘內</span>
+                                <span>發車</span>
+                            </div>
+                        </div>
+                        
+                        <div class="hint-divider"></div>
+                        
+                        <div class="hint-group">
+                            <span style="font-size:1.2rem">👆</span>
+                            <div class="hint-text-col">
+                                <span>點擊卡片</span>
+                                <span class="sub">查看詳細站點</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="tutorial-container">
+                    <div class="tutorial-container" style="margin-bottom: 0;">
                         <div class="card" style="border-left-color: #DF3F1F; margin:0; pointer-events:none;">
                             <div class="status-badge-container"><div class="status-tag delay">誤點 15 分</div></div>
                             <div class="train-info" style="color:#DF3F1F;">自強 456 次</div>
@@ -508,14 +561,18 @@
                             </div>
                             <div class="sub-time">原定 10:00 ➔ 10:10</div>
                         </div>
-
-                        <div class="t-hint-group" style="right: 60px; align-items: flex-end;">
-                            <div class="t-arrow">⬆</div>
-                            <div class="t-text-box" style="text-align: right;">大字是實際時間<br>(已加上誤點時間)</div>
-                        </div>
                     </div>
 
-                    <button class="menu-btn btn-start" style="text-align:center; justify-content:center; margin-top:30px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用</button>
+                    <div class="t-center-group">
+                        <div class="t-arrow-side">⬆</div>
+                        <div class="t-center-text">
+                            大字是實際時間
+                            <span class="sub">(已加上誤點時間)</span>
+                        </div>
+                        <div class="t-arrow-side">⬆</div>
+                    </div>
+
+                    <button class="menu-btn btn-start" style="text-align:center; justify-content:center; margin-top:10px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用</button>
                 </div>
             </div>
 
