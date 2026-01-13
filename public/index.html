@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TRAIN LIVE | 列車時刻即時看板</title>
-
-    <meta property="og:image" content="https://benjamindai-train-app.vercel.app/icon.png">
-    <meta property="og:url" content="https://benjamindai-train-app.vercel.app/">
+    
+    <meta property="og:title" content="TRAIN LIVE | 列車時刻即時看板">
+    <meta property="og:description" content="誤點自動計算！一眼看出現在該搭哪一班車。">
+    <meta property="og:image" content="https://你的網址.vercel.app/icon.png"> <meta property="og:url" content="https://你的網址.vercel.app/">
     <meta property="og:type" content="website">
+
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#151517">
     <link rel="apple-touch-icon" href="/icon.png">
@@ -320,7 +322,7 @@
         .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
         .btn-primary { background: #007AFF; color: white; }
 
-        /* --- [新版] Tutorial 樣式優化 (窄螢幕友善版) --- */
+        /* --- [新版] Tutorial & How Style Optimization (窄螢幕友善版) --- */
         
         /* 靜態提示條 (模仿底部 Footer，但用於教學頁面) */
         .static-hint-bar {
@@ -330,10 +332,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 15px; /* 項目間距 */
+            gap: 15px;
             padding: 12px 10px;
-            margin-top: 8px; /* 與上方卡片的距離 */
-            margin-bottom: 25px; /* 與下方卡片的距離 */
+            margin-top: 8px;
+            margin-bottom: 25px;
             font-size: 0.75rem;
             color: #666;
         }
@@ -345,7 +347,7 @@
             justify-content: center;
             gap: 10px;
             margin-top: 15px;
-            margin-bottom: 30px; /* 確保不跟按鈕重疊 */
+            margin-bottom: 30px;
             text-align: center;
         }
         
@@ -355,7 +357,6 @@
             font-size: 0.9rem;
             line-height: 1.4;
         }
-        
         .t-center-text .sub {
             display: block;
             font-size: 0.75rem;
@@ -364,7 +365,7 @@
             margin-top: 2px;
         }
 
-        /* 箭頭樣式微調 */
+        /* 箭頭樣式 */
         .t-arrow-side {
             font-size: 1.2rem;
             color: #e6b800;
@@ -374,6 +375,42 @@
             0%, 100% { transform: translateY(0); } 
             50% { transform: translateY(-3px); } 
         }
+
+        /* [PageHow] Carousel Styles */
+        .how-container { position: relative; overflow: hidden; min-height: 380px; display: flex; flex-direction: column; }
+        .how-slider-wrapper { flex: 1; display: flex; transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1); }
+        .how-slide { 
+            min-width: 100%; flex-shrink: 0; 
+            padding: 10px 5px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .how-slide.active { opacity: 1; }
+        
+        /* PageHow Mockups */
+        .mock-ui-box { width: 100%; margin-bottom: 20px; pointer-events: none; }
+        .mock-row { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; width: 100%; justify-content: center; }
+        .mock-btn-group { display: flex; gap: 8px; margin-bottom: 15px; width: 100%; }
+        .mock-desc-text { color: #ccc; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; }
+        .mock-desc-sub { color: #666; font-size: 0.8rem; line-height: 1.4; }
+        
+        .mock-v-group {
+            display: flex; align-items: center; width: 100%; gap: 15px; margin-bottom: 20px;
+            background: #1a1a1c; padding: 15px; border-radius: 12px; border: 1px solid #333;
+        }
+        .mock-v-text { text-align: left; flex: 1; font-size: 0.85rem; color: #ccc; line-height: 1.4; }
+
+        /* Controls */
+        .how-controls {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 15px 0; margin-top: auto; border-top: 1px solid #333;
+        }
+        .how-btn { background: none; border: none; color: #4d7f5e; font-size: 1rem; font-weight: bold; cursor: pointer; padding: 5px 15px; }
+        .how-btn:disabled { color: #444; cursor: default; }
+        .how-dots { display: flex; gap: 8px; }
+        .how-dot { width: 8px; height: 8px; border-radius: 50%; background: #333; transition: all 0.2s; }
+        .how-dot.active { background: #4d7f5e; transform: scale(1.2); }
+
     </style>
 </head>
 <body class="tick-a">
@@ -404,8 +441,9 @@
         <div class="hint-group">
             <span style="font-size:1.2rem">👆</span>
             <div class="hint-text-col">
-                <span>點擊車次卡片查看</span>
-                <span class="sub">即時位置 & 完整停靠站</span>
+                <span>點擊列車卡片</span>
+                <span class="sub">查看即時位置</span>
+                <span class="sub">& 完整停靠站</span>
             </div>
         </div>
     </div>
@@ -492,33 +530,139 @@
                <div style="height:10px"></div>
                <button class="modal-close" style="margin-top:15px;" onclick="closeModal()">關閉</button>
             </div>
+            
             <div id="pageWhy" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">設計理念</div></div>
                 <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
             </div>
+
             <div id="pageHow" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
-                <div class="modal-text">
-                    <strong>操作邏輯：</strong><br><br>
-                    1. <strong>上方搜尋列：</strong>輸入站名快速切換。<br>
-                    2. <strong>常用路線 (橫條)：</strong>點擊快速載入收藏或歷史路線。<br>
-                    3. <strong>自動更新：</strong>系統每 15 秒會自動檢查「是否駛離」，不消耗流量。<br><br>
-                    <strong>重試機制：</strong><br>
-                    錯誤或系統忙碌都會自動重試，請耐心等候。
+                <div class="how-container">
+                    <div class="how-slider-wrapper" id="howSlider">
+                        
+                        <div class="how-slide active">
+                            <div class="mock-ui-box">
+                                <div class="search-row">
+                                    <div class="search-target" style="display:flex;align-items:center;justify-content:center;color:#888;">起點</div>
+                                    <div class="search-box" style="color:#aaa;">輸入站名...</div>
+                                </div>
+                                <div class="selector-row">
+                                    <div class="selector-label">起點</div>
+                                    <div class="select-group">
+                                        <div class="region-select">臺北市</div><div class="station-select">臺北</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="static-hint-bar" style="width:100%;">
+                                <div class="hint-group">
+                                    <span style="font-size:1.2rem">👆</span>
+                                    <div class="hint-text-col">
+                                        <span>輸入站名 / 選單</span>
+                                        <span class="sub">快速切換起訖站</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="how-slide">
+                            <div class="mock-v-group">
+                                <button class="btn-static-search" style="margin:0; width:auto; padding:8px 15px; font-size:0.8rem;">🔍 查詢路線</button>
+                                <div class="mock-v-text">每分鐘限搜 3 次<br>頻繁操作暫時鎖定</div>
+                            </div>
+                            <div class="mock-v-group">
+                                <button class="toolbar-btn refresh" style="margin:0; width:auto; padding:8px 15px; flex:none;">🔄 更新</button>
+                                <div class="mock-v-text">防止洗版<br>按鍵冷卻 30 秒</div>
+                            </div>
+                        </div>
+
+                        <div class="how-slide">
+                            <div class="mock-row" style="justify-content:center;">
+                                <button class="btn-fav-compact fav-active" style="width:auto;">★<br>已收藏</button>
+                                <div class="route-chip fav" style="padding:8px 15px;">臺北<span class="chip-arrow">➔</span>高雄</div>
+                            </div>
+                            <div class="t-center-group">
+                                <div class="t-arrow-side">⬆</div>
+                                <div class="t-center-text">點擊上方按鈕<span class="sub">快速載入路線</span></div>
+                                <div class="t-arrow-side">⬆</div>
+                            </div>
+                        </div>
+
+                        <div class="how-slide">
+                            <div class="mock-v-group">
+                                <button class="toolbar-btn active" style="margin:0; width:auto; padding:8px 15px; flex:none;">👁️ 已駛離</button>
+                                <div class="mock-v-text">顯示/隱藏<br>已開走的班次</div>
+                            </div>
+                            <div class="mock-v-group">
+                                <button class="toolbar-btn" style="margin:0; width:auto; padding:8px 15px; flex:none;">🕒 AM/PM</button>
+                                <div class="mock-v-text">切換<br>12 / 24 小時制</div>
+                            </div>
+                        </div>
+
+                        <div class="how-slide">
+                            <div class="card" style="border-left-color: #4d7f5e; width:100%; pointer-events:none;">
+                                <div class="left-indicator"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
+                                <div class="train-info" style="color:#4d7f5e;">自強 123 次</div>
+                                <div class="main-time">
+                                    <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:00</div></div>
+                                    <span class="arrow">➔</span>
+                                    <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:10</div></div>
+                                </div>
+                                <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold;">● 準點</span></div>
+                            </div>
+                            <div class="static-hint-bar" style="width:100%; margin-top:10px;">
+                                <div class="hint-group">
+                                    <div class="led-pair-mini"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
+                                    <div class="hint-text-col"><span>10分鐘內</span><span>發車</span></div>
+                                </div>
+                                <div class="hint-divider"></div>
+                                <div class="hint-group">
+                                    <span style="font-size:1.2rem">👆</span>
+                                    <div class="hint-text-col"><span>點擊列車卡片</span><span class="sub">查看即時位置</span><span class="sub">& 完整停靠站</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="how-slide">
+                            <div class="card" style="border-left-color: #DF3F1F; width:100%; pointer-events:none;">
+                                <div class="status-badge-container"><div class="status-tag delay">誤點 15 分</div></div>
+                                <div class="train-info" style="color:#DF3F1F;">自強 456 次</div>
+                                <div class="main-time">
+                                    <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part" style="color:#e6b800">10:15</div></div>
+                                    <span class="arrow">➔</span>
+                                    <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part" style="color:#e6b800">10:25</div></div>
+                                </div>
+                                <div class="sub-time">原定 10:00 ➔ 10:10</div>
+                            </div>
+                            <div class="t-center-group">
+                                <div class="t-arrow-side">⬆</div>
+                                <div class="t-center-text">大字是實際時間<span class="sub">(已加上誤點時間)</span></div>
+                                <div class="t-arrow-side">⬆</div>
+                            </div>
+                        </div>
+
+                    </div>
+                    
+                    <div class="how-controls">
+                        <button class="how-btn" onclick="prevHowPage()" id="btnPrevHow">❮</button>
+                        <div class="how-dots" id="howDots">
+                            <div class="how-dot active"></div><div class="how-dot"></div><div class="how-dot"></div>
+                            <div class="how-dot"></div><div class="how-dot"></div><div class="how-dot"></div>
+                        </div>
+                        <button class="how-btn" onclick="nextHowPage()" id="btnNextHow">❯</button>
+                    </div>
                 </div>
             </div>
 
             <div id="pageTutorial" class="modal-page">
-                <div class="modal-header-row"><div class="modal-title">TRAIN LIVE 介面說明:</div></div>
+                <div class="modal-header-row"><div class="modal-title">TRAIN LIVE 介面說明</div></div>
                 <div class="modal-text" style="font-size:0.95rem;">
-                    <div style="text-align:center; margin-bottom:15px; color:#ccc;">我會自動幫您算好時間!</div>
-                    <div style="text-align:center; margin-bottom:15px; color:#ccc;">"以下為舉例說明 非實際班次"</div>
+                    <div style="text-align:center; margin-bottom:5px; color:#fff; font-weight:bold;">自動幫您算好時間！</div>
+                    <div style="text-align:center; margin-bottom:15px; color:#666; font-size:0.8rem;">(舉例說明 非實際班次)</div>
+                    
                     <div class="tutorial-container" style="margin-bottom: 5px;">
                         <div class="card" style="border-left-color: #4d7f5e; margin:0; pointer-events:none;">
-                            <div class="left-indicator">
-                                <div class="led-dot top"></div>
-                                <div class="led-dot bottom"></div>
-                            </div>
+                            <div class="left-indicator"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
                             <div class="train-info" style="color:#4d7f5e;">自強 123 次</div>
                             <div class="main-time">
                                 <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:00</div></div>
@@ -526,32 +670,19 @@
                                 <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:10</div></div>
                             </div>
                             <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span></div>
-                            
                             <div class="t-corner-glow"></div>
                         </div>
                     </div>
 
                     <div class="static-hint-bar">
                         <div class="hint-group">
-                            <div class="led-pair-mini">
-                                <div class="led-dot top"></div>
-                                <div class="led-dot bottom"></div>
-                            </div>
-                            <div class="hint-text-col">
-                                <span>10分鐘內</span>
-                                <span>發車</span>
-                            </div>
+                            <div class="led-pair-mini"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
+                            <div class="hint-text-col"><span>10分鐘內</span><span>發車</span></div>
                         </div>
-                        
                         <div class="hint-divider"></div>
-                        
                         <div class="hint-group">
                             <span style="font-size:1.2rem">👆</span>
-                            <div class="hint-text-col">
-                                <span>點擊車次卡片</span>
-                                <span class="sub">查看即時位置</span>
-                                <span class="sub"> & 完整停靠站</span>
-                            </div>
+                            <div class="hint-text-col"><span>點擊列車卡片</span><span class="sub">查看即時位置</span><span class="sub">& 完整停靠站</span></div>
                         </div>
                     </div>
 
@@ -570,10 +701,7 @@
 
                     <div class="t-center-group">
                         <div class="t-arrow-side">⬆</div>
-                        <div class="t-center-text">
-                            大字是實際時間
-                            <span class="sub">(已加上誤點時間)</span>
-                        </div>
+                        <div class="t-center-text">大字是實際時間<span class="sub">(已加上誤點時間)</span></div>
                         <div class="t-arrow-side">⬆</div>
                     </div>
 
@@ -712,9 +840,7 @@
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
         
-        // [新增] 新版導覽已讀 Key
         const LS_TUTORIAL_SEEN="tl_intro_seen_v2";
-        // [新增] 骨架屏數量 Key
         const LS_SKELETON_COUNT="tl_skeleton_count";
 
         const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
@@ -723,7 +849,7 @@
         const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
         const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
         const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
-        const resumePill = document.getElementById('resumePill'); // [新增] 獨立膠囊
+        const resumePill = document.getElementById('resumePill');
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
@@ -741,12 +867,11 @@
 
         let isNextDayLoaded = false;
         let currentTrainData = null;
-        let lastUpdateTime = 0; // 用於喚醒檢查
-        let isResumeHintActive = false; // 紀錄是否正在顯示喚醒提示
+        let lastUpdateTime = 0; 
+        let isResumeHintActive = false; 
         
         let serverLoggingEnabled = true;
 
-        // Session ID
         let SESSION_ID = localStorage.getItem('tl_session_v2'); 
         if (!SESSION_ID) {
             const now = new Date();
@@ -966,22 +1091,18 @@ ${logs}`;
             }, 15000);
         }
 
-        // [新增] 斷線偵測
         window.addEventListener('offline', () => { statusMsg.innerText = "⚠️ 網路已中斷"; statusMsg.className = "status-left alert"; });
         window.addEventListener('online', () => { statusMsg.innerText = "網路已恢復"; setTimeout(() => statusMsg.innerText="", 2000); });
 
-        // [新增] 喚醒檢查
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 const now = Date.now();
-                // 3分鐘 = 180000ms
                 if (lastUpdateTime > 0 && (now - lastUpdateTime > 180000)) {
                     showResumeHint();
                 }
             }
         });
 
-        // [修正] 顯示喚醒提示膠囊 (改為獨立膠囊)
         function showResumeHint() {
             isResumeHintActive = true;
             resumePill.style.display = 'flex';
@@ -1078,10 +1199,8 @@ ${logs}`;
             logSystem("App Started"); 
             startTicker(); 
             updateToggleBtns();
-            
             document.getElementById('rowTools').style.display = 'none';
 
-            // [新增] Cache 安全性檢查
             try {
                 const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
                 const savedSR = localStorage.getItem(PREF_START_R_KEY);
@@ -1144,32 +1263,22 @@ ${logs}`;
             }
         }
         function markAsChanged() {
-            // [新增] 只要動了選單，立刻隱藏獨立膠囊
-            if (isResumeHintActive) {
-                closeResumePill();
-            }
-
+            if (isResumeHintActive) closeResumePill();
             if(!startStation.value||!endStation.value) return;
             localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
             localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
-            
             isNextDayLoaded = false;
-            
             attemptLoadCache(false);
             updateStarState();
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
 
         function reRenderLocal() {
-            if (currentTrainData) {
-                renderCards(currentTrainData);
-                return;
-            }
+            if (currentTrainData) { renderCards(currentTrainData); return; }
             const baseKey = getCacheKey();
             const fullKey = baseKey + "_full";
             const cFull = localStorage.getItem(fullKey);
             const c = localStorage.getItem(baseKey);
-
             if(cFull) {
                 const d = JSON.parse(cFull);
                 if(Date.now()-d.timestamp < 60000) { renderCards(d.payload); isNextDayLoaded=true; return; }
@@ -1179,13 +1288,11 @@ ${logs}`;
 
         function attemptLoadCache(isInit) {
             if(!startStation.value||!endStation.value) return;
-            
             const baseKey = getCacheKey();
             const fullKey = baseKey + "_full";
             const cFull = localStorage.getItem(fullKey);
             const c = localStorage.getItem(baseKey);
             let hitData = null;
-
             if (cFull) {
                 const d = JSON.parse(cFull);
                 if (Date.now() - d.timestamp < 60000) { hitData = d; isNextDayLoaded = true; }
@@ -1194,7 +1301,6 @@ ${logs}`;
                 const d = JSON.parse(c);
                 if (Date.now() - d.timestamp < 60000) { hitData = d; }
             }
-
             if(hitData) {
                 if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
                 renderCards(hitData.payload); 
@@ -1238,21 +1344,14 @@ ${logs}`;
         }
         function doRefresh(skip=false) {
             const now = Date.now();
-            
-            // [新增] 按下更新時，如果有喚醒膠囊，立刻清除
-            if (isResumeHintActive) {
-                closeResumePill();
-            }
-
+            if (isResumeHintActive) closeResumePill();
             if(!skip) {
                 const uL = getUiLockedUntil();
                 if(uL > now) return; 
             }
             const rL = getRefreshLockedUntil();
-            
             if(rL > now && !skip) {
                 logSystem("Action: Soft Refresh (Cache)");
-                
                 reRenderLocal(); 
                 statusMsg.innerText = "資料有效中 (快取)";
                 statusMsg.className = "status-left";
@@ -1277,7 +1376,6 @@ ${logs}`;
             const statusHint = document.getElementById('autoUploadHint');
             const now = Date.now();
             const rpm = requestHistory.filter(t => now - t < 60000).length;
-            
             const reportData = {
                 timestamp: new Date().toLocaleString(),
                 user_agent: navigator.userAgent,
@@ -1288,7 +1386,6 @@ ${logs}`;
                 logs: systemLogs,
                 user_desc: desc || "(Auto Upload on Open)"
             };
-
             try {
                 const res = await fetch('/api/index', {
                     method: 'POST',
@@ -1296,7 +1393,6 @@ ${logs}`;
                     body: JSON.stringify(reportData)
                 });
                 const json = await res.json();
-                
                 if (json.status === 'ok') {
                     if (isAuto) {
                         statusHint.style.opacity = '1';
@@ -1308,19 +1404,10 @@ ${logs}`;
                 } else {
                     if (!isAuto) alert('❌ 上傳失敗: ' + (json.error || 'Unknown'));
                 }
-            } catch (e) {
-                if (!isAuto) alert('❌ 上傳錯誤: ' + e.message);
-            }
+            } catch (e) { if (!isAuto) alert('❌ 上傳錯誤: ' + e.message); }
         }
-        
-        function uploadReport() {
-            uploadReportInternal("", true);
-        }
-        
-        function manualUploadReport() {
-            const desc = document.getElementById('userDesc').value;
-            uploadReportInternal(desc, false);
-        }
+        function uploadReport() { uploadReportInternal("", true); }
+        function manualUploadReport() { const desc = document.getElementById('userDesc').value; uploadReportInternal(desc, false); }
 
         function parseDiagnostics(diag, isCdn) {
             const parseDiag = (str, isC) => {
@@ -1338,7 +1425,6 @@ ${logs}`;
         }
 
         function getSkeletonHTML() {
-            // [新增] 讀取上次數量，動態生成
             const lastCount = parseInt(localStorage.getItem(LS_SKELETON_COUNT) || "3");
             const count = Math.min(Math.max(lastCount, 3), 10);
             let html = ''; 
@@ -1348,51 +1434,31 @@ ${logs}`;
 
         async function fetchData(mode) {
             if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
-            
-            if(mode !== "load_next_day") {
-                list.innerHTML = getSkeletonHTML(); 
-                list.style.opacity="1"; 
-            }
+            if(mode !== "load_next_day") { list.innerHTML = getSkeletonHTML(); list.style.opacity="1"; }
             statusMsg.innerText="載入中..."; 
             if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
 
             const s=startStation.value; const e=endStation.value; 
-            
             const needNextDay = (mode === "load_next_day" || isNextDayLoaded) ? 1 : 0;
             const cacheKeySuffix = needNextDay ? "_full" : ""; 
             const cacheKey = getCacheKey() + cacheKeySuffix; 
-            
             const now = Date.now();
-            const rpmVal = requestHistory.filter(t => now - t < 60000).length;
-
             recordRequest();
             try {
                 let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}&mode=${mode}`;
-                if(serverLoggingEnabled) {
-                    url += `&sid=${SESSION_ID}`;
-                }
-
+                if(serverLoggingEnabled) { url += `&sid=${SESSION_ID}`; }
                 const res=await fetch(url);
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
-
-                if(json.logging_enabled !== undefined) {
-                    serverLoggingEnabled = json.logging_enabled;
-                }
-
+                if(json.logging_enabled !== undefined) { serverLoggingEnabled = json.logging_enabled; }
                 lastFetchedPair={start:s,end:e};
-                
                 if (needNextDay) isNextDayLoaded = true;
-
                 const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
-                
                 localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
-
                 logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
-
                 if(json.delay_failed) {
                     scheduleRetry("誤點資料失敗", "status-left warning");
                     setUpdateText(`更新時間：${json.update_time} (僅時刻)`);
@@ -1401,42 +1467,27 @@ ${logs}`;
                     statusMsg.innerText = "更新完成";
                     setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
                 }
-                
                 if(mode==="search"){ 
                     setTimeout(()=>btnSearch.disabled=false,500); 
-                    setRefreshLockedUntil(now+90000); 
-                    setUiLockedUntil(now+30000);
-                    lockRefreshButton(30);            
+                    setRefreshLockedUntil(now+90000); setUiLockedUntil(now+30000); lockRefreshButton(30);            
                 }
-                if(mode==="refresh"){ 
-                    setRefreshLockedUntil(now+90000); 
-                    setUiLockedUntil(now+30000);
-                    lockRefreshButton(30);            
-                }
-                
+                if(mode==="refresh"){ setRefreshLockedUntil(now+90000); setUiLockedUntil(now+30000); lockRefreshButton(30); }
                 if (mode === "load_next_day") {
                     const divider = document.getElementById('tomorrow-divider');
                     if (divider) {
                         divider.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         setTimeout(() => window.scrollBy({ top: -60, behavior: 'smooth' }), 500);
                     }
-                } else {
-                    scrollToFirstActive(); 
-                }
-
-                lastUpdateTime = Date.now(); // 記錄成功更新時間
-
-                // [新增] 檢查並顯示新手導覽 (強制所有用戶看到)
+                } else { scrollToFirstActive(); }
+                lastUpdateTime = Date.now();
                 if (localStorage.getItem(LS_TUTORIAL_SEEN) !== '1') {
                     setTimeout(() => {
                         document.getElementById('aboutModal').style.display='flex';
                         document.body.classList.add('noscroll');
-                        // 加入 History，讓手機返回鍵生效
                         history.pushState({modal: true}, '', '');
                         goToPage('Tutorial');
                     }, 500);
                 }
-
             } catch(err) {
                 console.error(err); logSystem("API Error: " + err.message);
                 scheduleRetry("連線錯誤", "status-left alert");
@@ -1445,17 +1496,14 @@ ${logs}`;
         }
         
         function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
-
         function scheduleRetry(msg="誤點資訊無法取得", cls="status-left warning") {
-            let c=30; 
-            if(retryTimer) clearInterval(retryTimer);
+            let c=30; if(retryTimer) clearInterval(retryTimer);
             statusMsg.className = cls; statusMsg.innerText = `${msg} (30s)`;
             retryTimer=setInterval(()=>{
                 c--; statusMsg.innerText=`${msg} (${c}s)`;
                 if(c<=0){ clearInterval(retryTimer); retryTimer=null; doRefresh(true); }
             },1000);
         }
-
         function lockSearchButton(s) {
             if(searchLockTimer) clearInterval(searchLockTimer);
             statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-left alert";
@@ -1479,224 +1527,139 @@ ${logs}`;
                 } s--;
             }; t(); refreshTimer=setInterval(t,1000);
         }
-
         function getStrictDateStr(ts) {
             const d = new Date(ts * 1000);
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
-
         function renderCards(data) {
             currentTrainData = data; 
-            
-            // [新增] 儲存數量供骨架屏使用
             if(data.trains) localStorage.setItem(LS_SKELETON_COUNT, data.trains.length);
-
             const elTools = document.getElementById('rowTools');
             const hasTrains = data.trains && data.trains.length > 0;
             const originalCount = (data.stats && data.stats.original_count) ? data.stats.original_count : 0;
-            const showTools = hasTrains || originalCount > 0;
-            elTools.style.display = showTools ? 'flex' : 'none';
-
+            elTools.style.display = (hasTrains || originalCount > 0) ? 'flex' : 'none';
             const footerHints = document.getElementById('fixedFooterHints');
             const hintArrival = document.getElementById('hintArrival');
             const hintDivider = document.getElementById('hintDivider');
-
             if(hasTrains) {
                 footerHints.style.display = 'flex';
-
                 let cardsHtml = '';
-                let anyArriving = false; 
-                let has = false;
-                let hasShownNextDayDivider = false;
-                let lastTrainTs = 0;
-                let foundFirstActive = false;
+                let anyArriving = false; let has = false;
+                let hasShownNextDayDivider = false; let lastTrainTs = 0; let foundFirstActive = false;
                 const nowSec = Math.floor(Date.now() / 1000);
-
                 const now = new Date();
                 const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-                
-                const nowHour = now.getHours();
-                const isLateNight = nowHour >= 22; 
-
-                data.trains.forEach((t, index) => {
+                const isLateNight = now.getHours() >= 22; 
+                data.trains.forEach((t) => {
                     const diffSec = t.sort_key - nowSec;
                     const diffMin = Math.floor(diffSec / 60);
                     let isDeparted = diffSec < 0; 
                     let isArriving = !isDeparted && diffMin <= 10;
                     if(isArriving) anyArriving = true;
-
                     if (!isShowAll && diffMin < -10) return;
-
                     const trainDate = getStrictDateStr(t.sort_key);
                     const isStrictTomorrow = trainDate > todayStr;
-
                     if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
-                        const lastTrainDate = getStrictDateStr(lastTrainTs);
-                        if (trainDate !== lastTrainDate) {
+                        if (trainDate !== getStrictDateStr(lastTrainTs)) {
                             cardsHtml += `<div id="tomorrow-divider" style="text-align:center; padding:20px 0 10px 0; color:#4d7f5e; font-size:0.9rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px; scroll-margin-top: 160px;">⬇ 明日班次 ⬇</div>`;
                             hasShownNextDayDivider = true;
                         }
                     }
-                    lastTrainTs = t.sort_key;
-                    has = true;
-
+                    lastTrainTs = t.sort_key; has = true;
                     let activeId = "";
                     if (!isDeparted && !foundFirstActive) { activeId = 'id="firstActive"'; foundFirstActive = true; }
-
-                    let leftIndicatorHtml = '';
-                    if (isArriving) {
-                        leftIndicatorHtml = `
-                        <div class="left-indicator">
-                            <div class="led-dot top"></div>
-                            <div class="led-dot bottom"></div>
-                        </div>`;
-                    }
-
-                    let rightBadgesHtml = '';
-                    if (isDeparted) {
-                        rightBadgesHtml = `<div class="status-tag departed">已駛離</div>`;
-                    } else {
-                        if (!isStrictTomorrow && !data.delay_failed && t.delay > 0) {
-                            rightBadgesHtml += `<div class="status-tag delay">誤點 ${t.delay} 分</div>`;
-                        }
-                    }
-
+                    let leftIndicatorHtml = isArriving ? `<div class="left-indicator"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>` : '';
+                    let rightBadgesHtml = isDeparted ? `<div class="status-tag departed">已駛離</div>` : (!isStrictTomorrow && !data.delay_failed && t.delay > 0 ? `<div class="status-tag delay">誤點 ${t.delay} 分</div>` : '');
                     const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                    let cardClass = "card"; if (isDeparted) cardClass += " departed-card";
-
+                    let cardClass = "card" + (isDeparted ? " departed-card" : "");
                     const depDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
                     const arrDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
-
-                    let subTimeContent = '';
-                    if (!isStrictTomorrow && !data.delay_failed && t.delay === 0) {
-                        subTimeContent = `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>`;
-                    } else {
-                        subTimeContent = `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`;
-                    }
-
-                    // [新增] 誤點時間變色邏輯
-                    let delayColorStyle = "";
-                    if (!isStrictTomorrow && !data.delay_failed && t.delay > 0) {
-                        delayColorStyle = 'style="color:#e6b800"';
-                    }
-
+                    let subTimeContent = (!isStrictTomorrow && !data.delay_failed && t.delay === 0) ? `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>` : `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`;
+                    let delayColorStyle = (!isStrictTomorrow && !data.delay_failed && t.delay > 0) ? 'style="color:#e6b800"' : '';
                     cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
                             ${leftIndicatorHtml}
                             <div class="status-badge-container">${rightBadgesHtml}</div>
                             <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">${t.type} ${t.no} 次</div>
                             <div class="main-time">
-                                <div class="time-group">
-                                    <div class="time-date-label" style="color:#4d7f5e;">${startStation.value} ${depDateLabel}</div>
-                                    <div class="time-part" ${delayColorStyle}>${formatTime(t.act_dep)}</div>
-                                </div>
+                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">${startStation.value} ${depDateLabel}</div><div class="time-part" ${delayColorStyle}>${formatTime(t.act_dep)}</div></div>
                                 <span class="arrow">➔</span>
-                                <div class="time-group">
-                                    <div class="time-date-label" style="color:#4d7f5e;">${endStation.value} ${arrDateLabel}</div>
-                                    <div class="time-part" ${delayColorStyle}>${formatTime(t.act_arr)}</div>
-                                </div>
+                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">${endStation.value} ${arrDateLabel}</div><div class="time-part" ${delayColorStyle}>${formatTime(t.act_arr)}</div></div>
                             </div>
                             <div class="sub-time">${subTimeContent}</div>
-                        </div>
-                    </a>`;
+                        </div></a>`;
                 });
-
                 if (isLateNight && !isNextDayLoaded) {
-                    cardsHtml += `
-                        <div style="padding: 20px 0 40px 0; display: flex; justify-content: center;">
-                            <button id="btnLoadNext" onclick="handleLoadNextDay()" style="
-                                background: #222; color: #aaa; border: 1px solid #444; 
-                                padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; 
-                                cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;">
-                                ⬇ 載入明日班次
-                            </button>
-                        </div>
-                    `;
+                    cardsHtml += `<div style="padding: 20px 0 40px 0; display: flex; justify-content: center;"><button id="btnLoadNext" onclick="handleLoadNextDay()" style="background: #222; color: #aaa; border: 1px solid #444; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;">⬇ 載入明日班次</button></div>`;
                 }
-
-                if (anyArriving) {
-                    hintArrival.style.display = 'flex';
-                    hintDivider.style.display = 'block';
-                    footerHints.classList.remove('centered'); 
-                } else {
-                    hintArrival.style.display = 'none';
-                    hintDivider.style.display = 'none';
-                    footerHints.classList.add('centered'); 
-                }
-
+                if (anyArriving) { hintArrival.style.display = 'flex'; hintDivider.style.display = 'block'; footerHints.classList.remove('centered'); } 
+                else { hintArrival.style.display = 'none'; hintDivider.style.display = 'none'; footerHints.classList.add('centered'); }
                 list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
                 return;
             }
-
             footerHints.style.display = 'none';
-
             if (originalCount > 0) {
-                 const nowHour = new Date().getHours();
-                 const isLateNight = nowHour >= 22;
-                 let extraBtn = "";
-                 if (isLateNight && !isNextDayLoaded) {
-                     extraBtn = `<div style="padding: 20px 0; display: flex; justify-content: center;">
-                            <button id="btnLoadNext" onclick="handleLoadNextDay()" style="
-                                background: #222; color: #aaa; border: 1px solid #444; 
-                                padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; 
-                                cursor: pointer; transition: all 0.2s;">
-                                ⬇ 載入明日班次
-                            </button>
-                        </div>`;
-                 }
+                 const isLateNight = new Date().getHours() >= 22;
+                 let extraBtn = (isLateNight && !isNextDayLoaded) ? `<div style="padding: 20px 0; display: flex; justify-content: center;"><button id="btnLoadNext" onclick="handleLoadNextDay()" style="background: #222; color: #aaa; border: 1px solid #444; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;">⬇ 載入明日班次</button></div>` : "";
                  list.innerHTML = `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` + extraBtn;
-            } else {
-                 list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`;
-            }
+            } else { list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`; }
         }
 
-        // [新增] 關閉教學並寫入已讀
-        function closeTutorial() {
-            localStorage.setItem(LS_TUTORIAL_SEEN, '1');
-            // 強制隱藏 Modal (確保關閉)
-            document.getElementById('aboutModal').style.display = 'none';
-            document.body.classList.remove('noscroll');
+        // [PageHow] Carousel Logic
+        let currentHowPage = 0;
+        const totalHowPages = 6;
+        function showHowPage(index) {
+            const wrapper = document.getElementById('howSlider');
+            const dots = document.querySelectorAll('.how-dot');
+            const slides = document.querySelectorAll('.how-slide');
+            
+            if(index < 0) index = 0;
+            if(index >= totalHowPages) index = totalHowPages - 1;
+            currentHowPage = index;
+
+            wrapper.style.transform = `translateX(-${index * 100}%)`;
+            
+            slides.forEach((s, i) => {
+                if(i === index) s.classList.add('active');
+                else s.classList.remove('active');
+            });
+            
+            dots.forEach((d, i) => {
+                if(i === index) d.classList.add('active');
+                else d.classList.remove('active');
+            });
+
+            document.getElementById('btnPrevHow').disabled = (index === 0);
+            const nextBtn = document.getElementById('btnNextHow');
+            if(index === totalHowPages - 1) {
+                nextBtn.innerHTML = "✅";
+                nextBtn.onclick = function() { closeModal(); }; // 完成關閉
+            } else {
+                nextBtn.innerHTML = "❯";
+                nextBtn.onclick = function() { nextHowPage(); };
+            }
+        }
+        function nextHowPage() { showHowPage(currentHowPage + 1); }
+        function prevHowPage() { showHowPage(currentHowPage - 1); }
+
+        // [新增] 當進入 How 頁面時重置
+        const originalGoToPage = goToPage;
+        goToPage = function(id) {
+            originalGoToPage(id);
+            if(id === 'How') {
+                setTimeout(() => showHowPage(0), 50);
+            }
         }
 
         // [補回] 遺失的輔助函式 (Log, Modal, Favs)
-        function logSystem(d){
-            const time = new Date().toLocaleTimeString('en-GB', {hour12:false});
-            systemLogs.push(`[${time}] ${d}`);
-            if(systemLogs.length>30)systemLogs.shift();
-        }
+        function logSystem(d){ const time = new Date().toLocaleTimeString('en-GB', {hour12:false}); systemLogs.push(`[${time}] ${d}`); if(systemLogs.length>30)systemLogs.shift(); }
         function recordRequest(){requestHistory.push(Date.now());}
-        
-        // [修改] 開啟時加入 noscroll 與 History State
-        function openModal(){
-            document.getElementById('aboutModal').style.display='flex';
-            document.body.classList.add('noscroll');
-            history.pushState({modal: true}, '', '');
-            goToPage('Menu');
-        }
-        
-        // [修改] 關閉時執行 history.back()
-        function closeModal(){
-            history.back();
-        }
-
-        // [新增] 監聽 popstate (手機返回鍵)
+        function openModal(){ document.getElementById('aboutModal').style.display='flex'; document.body.classList.add('noscroll'); history.pushState({modal: true}, '', ''); goToPage('Menu'); }
+        function closeModal(){ history.back(); }
         window.addEventListener('popstate', () => {
             const modal = document.getElementById('aboutModal');
-            if (modal.style.display === 'flex') {
-                modal.style.display = 'none';
-                document.body.classList.remove('noscroll');
-            }
+            if (modal.style.display === 'flex') { modal.style.display = 'none'; document.body.classList.remove('noscroll'); }
         });
-
-        function goToPage(id){
-            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
-            document.getElementById('page'+id).classList.add('active');
-            if(id==='Report'){
-                // [修改] 刪除舊的資料來源顯示程式碼，只保留 Log
-                document.getElementById('terminalView').innerText = systemLogs.join("\n");
-                uploadReport(); 
-            }
-        }
 
         const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
         const MAX_HIST = 3; const MAX_FAV = 6;
@@ -1704,10 +1667,7 @@ ${logs}`;
         const quickArea = document.getElementById('quickRouteArea');
 
         function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
-        function isFavorite(s, e) {
-            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            return favs.some(f => f.start === s && f.end === e);
-        }
+        function isFavorite(s, e) { const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]"); return favs.some(f => f.start === s && f.end === e); }
         function toggleFavorite() {
             const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
             let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
@@ -1727,20 +1687,12 @@ ${logs}`;
         }
         function updateStarState() {
             const cur = getCurrentPair();
-            if (isFavorite(cur.start, cur.end)) { 
-                btnStar.innerHTML = '★<br>已收藏'; 
-                btnStar.classList.add('fav-active'); 
-            } else { 
-                btnStar.innerHTML = '☆ 收藏<br>路線'; 
-                btnStar.classList.remove('fav-active'); 
-            }
+            if (isFavorite(cur.start, cur.end)) { btnStar.innerHTML = '★<br>已收藏'; btnStar.classList.add('fav-active'); } 
+            else { btnStar.innerHTML = '☆ 收藏<br>路線'; btnStar.classList.remove('fav-active'); }
         }
         function loadRoute(s, e) {
             const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
-            if (sR && eR) {
-                setMenu('start', sR, s); setMenu('end', eR, e);
-                markAsChanged(); doSearch(); 
-            }
+            if (sR && eR) { setMenu('start', sR, s); setMenu('end', eR, e); markAsChanged(); doSearch(); }
         }
         function renderQuickRoutes() {
             const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
@@ -1749,31 +1701,17 @@ ${logs}`;
             favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
             hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
             quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
-
             const elRow = document.getElementById('rowQuickRoute');
-            if (favs.length === 0 && hist.length === 0) {
-                elRow.style.display = 'none';
-            } else {
-                elRow.style.display = 'flex';
-                setTimeout(updateScrollHint, 100);
-            }
+            if (favs.length === 0 && hist.length === 0) { elRow.style.display = 'none'; } 
+            else { elRow.style.display = 'flex'; setTimeout(updateScrollHint, 100); }
         }
-
         function updateScrollHint() {
             const el = document.getElementById('quickRouteArea');
             const hint = document.getElementById('scrollHint');
             if (el.scrollWidth > el.clientWidth) {
                 hint.style.opacity = '1';
-                el.onscroll = () => {
-                    if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
-                        hint.style.opacity = '0';
-                    } else {
-                        hint.style.opacity = '1';
-                    }
-                };
-            } else {
-                hint.style.opacity = '0';
-            }
+                el.onscroll = () => { hint.style.opacity = (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) ? '0' : '1'; };
+            } else { hint.style.opacity = '0'; }
         }
 
         init();
