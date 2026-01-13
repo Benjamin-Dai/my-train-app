@@ -185,7 +185,7 @@
         .led-pair-mini { display: flex; flex-direction: column; gap: 3px; }
 
         /* Card */
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; overflow: hidden; /* for corner glow */ }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
@@ -232,46 +232,37 @@
         /* [新增] Start Button Active State */
         .btn-start:active { transform: scale(0.95); opacity: 0.9; }
 
-        /* Tutorial Pointers (Line Style) */
-        .tutorial-container { position: relative; margin-bottom: 70px; /* 預留底部文字空間 */ }
+        /* Tutorial Pointers (Arrow Style) */
+        .tutorial-container { position: relative; margin-bottom: 60px; /* 預留底部文字空間 */ }
         .t-hint-group {
             position: absolute;
             top: 100%; /* 卡片底部 */
-            width: 1px;
-            background: #e6b800;
             z-index: 20;
-            /* 預設隱藏線，由子元素控制 */
-            background: transparent; 
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
-        
-        /* 線條與文字 */
-        .t-line {
-            width: 1px; background: #e6b800; 
-            position: absolute; bottom: 0;
-            /* 高度由 inline style 控制 */
-        }
+        .t-arrow { font-size: 1.2rem; color: #e6b800; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); line-height: 1; }
         .t-text-box {
-            position: absolute; top: 0; 
             white-space: nowrap;
             color: #e6b800; font-weight: bold; font-size: 0.85rem;
-            text-align: center; line-height: 1.4;
-            padding-top: 8px;
+            line-height: 1.4;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
 
-        /* 藍色柔光球 (Blue Glow) */
-        .t-glow {
-            position: absolute; top: -5px; left: -20px;
-            width: 40px; height: 40px;
-            background: radial-gradient(circle, rgba(0,122,255,0.6) 0%, rgba(0,122,255,0) 70%);
-            border-radius: 50%;
-            animation: pulse-blue 2s infinite;
+        /* 1/4 圓 藍色角落光暈 (Corner Glow) */
+        .t-corner-glow {
+            position: absolute; bottom: 0; right: 0;
+            width: 60px; height: 60px;
+            background: radial-gradient(circle at 100% 100%, rgba(0,122,255,0.6) 0%, rgba(0,122,255,0) 70%);
+            border-bottom-right-radius: 12px; /* 配合卡片圓角 */
             pointer-events: none;
+            animation: pulse-blue-corner 2s infinite;
         }
-        @keyframes pulse-blue { 
-            0% {opacity: 0.5; transform: scale(0.8);} 
-            50% {opacity: 1; transform: scale(1.2);} 
-            100% {opacity: 0.5; transform: scale(0.8);} 
+        @keyframes pulse-blue-corner { 
+            0% {opacity: 0.4;} 
+            50% {opacity: 1;} 
+            100% {opacity: 0.4;} 
         }
 
         /* God Mode Styles */
@@ -491,16 +482,18 @@
                                 <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:10</div></div>
                             </div>
                             <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span></div>
+                            
+                            <div class="t-corner-glow"></div>
                         </div>
                         
-                        <div class="t-hint-group" style="left: 28px;">
-                            <div class="t-line" style="height: 60px; bottom: 0;"></div>
-                            <div class="t-text-box" style="transform: translateX(-20%);">亮燈代表<br>10分鐘內進站</div>
+                        <div class="t-hint-group" style="left: 12px; align-items: flex-start;">
+                            <div class="t-arrow">⬆</div>
+                            <div class="t-text-box">亮燈代表<br>10分鐘內 進站</div>
                         </div>
 
-                        <div class="t-hint-group" style="right: 15px;">
-                            <div class="t-glow" style="top: -65px;"></div> <div class="t-line" style="height: 65px; bottom: 0;"></div>
-                            <div class="t-text-box" style="transform: translateX(-70%);">點擊卡片查看<br>完整停靠站</div>
+                        <div class="t-hint-group" style="right: 15px; align-items: flex-end;">
+                            <div class="t-arrow">⬆</div>
+                            <div class="t-text-box" style="text-align: right;">點擊卡片查看<br>完整停靠站</div>
                         </div>
                     </div>
 
@@ -516,9 +509,9 @@
                             <div class="sub-time">原定 10:00 ➔ 10:10</div>
                         </div>
 
-                        <div class="t-hint-group" style="right: 65px;">
-                            <div class="t-line" style="height: 60px; bottom: 0;"></div>
-                            <div class="t-text-box" style="transform: translateX(-40%);">大字是實際時間<br>(已加上誤點時間)</div>
+                        <div class="t-hint-group" style="right: 60px; align-items: flex-end;">
+                            <div class="t-arrow">⬆</div>
+                            <div class="t-text-box" style="text-align: right;">大字是實際時間<br>(已加上誤點時間)</div>
                         </div>
                     </div>
 
@@ -1592,119 +1585,6 @@ ${logs}`;
                  list.innerHTML = `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` + extraBtn;
             } else {
                  list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`;
-            }
-        }
-
-        // [新增] 關閉教學並寫入已讀
-        function closeTutorial() {
-            localStorage.setItem(LS_TUTORIAL_SEEN, '1');
-            // 強制隱藏 Modal (確保關閉)
-            document.getElementById('aboutModal').style.display = 'none';
-            document.body.classList.remove('noscroll');
-        }
-
-        // [補回遺失的輔助函式]
-        function logSystem(d){
-            const time = new Date().toLocaleTimeString('en-GB', {hour12:false});
-            systemLogs.push(`[${time}] ${d}`);
-            if(systemLogs.length>30)systemLogs.shift();
-        }
-        function recordRequest(){requestHistory.push(Date.now());}
-        
-        // [修改] 開啟時加入 noscroll 與 History State
-        function openModal(){
-            document.getElementById('aboutModal').style.display='flex';
-            document.body.classList.add('noscroll');
-            history.pushState({modal: true}, '', '');
-            goToPage('Menu');
-        }
-        
-        // [修改] 關閉時執行 history.back()
-        function closeModal(){
-            history.back();
-        }
-
-        // [新增] 監聽 popstate (手機返回鍵)
-        window.addEventListener('popstate', () => {
-            const modal = document.getElementById('aboutModal');
-            if (modal.style.display === 'flex') {
-                modal.style.display = 'none';
-                document.body.classList.remove('noscroll');
-            }
-        });
-
-        function goToPage(id){
-            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
-            document.getElementById('page'+id).classList.add('active');
-            if(id==='Report'){
-                // [修改] 刪除舊的資料來源顯示程式碼，只保留 Log
-                document.getElementById('terminalView').innerText = systemLogs.join("\n");
-                uploadReport(); 
-            }
-        }
-        function copyReportOnly() {
-            let final = document.getElementById('reportContent').value; 
-        }
-        function openMailClient() { }
-
-        const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
-        const MAX_HIST = 3; const MAX_FAV = 6;
-        const btnStar = document.getElementById('btnStar');
-        const quickArea = document.getElementById('quickRouteArea');
-
-        function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
-        function isFavorite(s, e) {
-            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            return favs.some(f => f.start === s && f.end === e);
-        }
-        function toggleFavorite() {
-            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
-            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
-            if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav: Removed"); } 
-            else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav: Added"); }
-            localStorage.setItem(LS_FAV, JSON.stringify(favs));
-            updateStarState(); renderQuickRoutes();
-        }
-        function addToHistory() {
-            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
-            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
-            hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop();
-            localStorage.setItem(LS_HIST, JSON.stringify(hist));
-            renderQuickRoutes();
-        }
-        function updateStarState() {
-            const cur = getCurrentPair();
-            if (isFavorite(cur.start, cur.end)) { 
-                btnStar.innerHTML = '★<br>已收藏'; 
-                btnStar.classList.add('fav-active'); 
-            } else { 
-                btnStar.innerHTML = '☆ 收藏<br>路線'; 
-                btnStar.classList.remove('fav-active'); 
-            }
-        }
-        function loadRoute(s, e) {
-            const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
-            if (sR && eR) {
-                setMenu('start', sR, s); setMenu('end', eR, e);
-                markAsChanged(); doSearch(); 
-            }
-        }
-        function renderQuickRoutes() {
-            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            let html = '';
-            favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
-            hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
-            quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
-
-            const elRow = document.getElementById('rowQuickRoute');
-            if (favs.length === 0 && hist.length === 0) {
-                elRow.style.display = 'none';
-            } else {
-                elRow.style.display = 'flex';
-                setTimeout(updateScrollHint, 100);
             }
         }
 
