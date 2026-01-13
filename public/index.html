@@ -19,7 +19,7 @@
         html { scroll-behavior: smooth; }
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
         
-        /* [新增] 鎖定背景捲動 (解決 iOS 穿透問題) */
+        /* 鎖定背景捲動 (解決 iOS 穿透問題) */
         body.noscroll { overflow: hidden; }
 
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 100px; }
@@ -29,7 +29,6 @@
         .header-static-part { padding: 15px 15px 15px 15px; background: #151517; position: relative; z-index: 10; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
         
-        /* 隱形 Logo */
         .app-title { 
             font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; 
             cursor: default; user-select: none; -webkit-user-select: none; 
@@ -50,8 +49,10 @@
         /* --- Search & Selectors --- */
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
         .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
-        .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
+        /* [iOS 優化] font-size: 16px 防止輸入時畫面放大 */
+        .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 16px; }
         .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
+        
         .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
         .select-group { flex: 1; display: flex; gap: 5px; }
@@ -119,16 +120,29 @@
         .btn-fav-compact.fav-active { color: #e6b800; border-color: #e6b800; background: rgba(230,184,0,0.1); font-weight: bold; }
 
         /* Row 2: Tools */
-        .sticky-row-tools { display: flex; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #222; }
+        .sticky-row-tools { display: flex; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #222; position: relative; }
         .toolbar-btn {
             flex: 1; background: #222; border: 1px solid #444; color: #ccc; 
             padding: 8px 0; border-radius: 8px; font-size: 0.85rem; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.1s;
+            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.1s; position: relative;
         }
         .toolbar-btn:active { transform: scale(0.96); background: #333; }
         .toolbar-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77,127,94,0.1); }
         .toolbar-btn.refresh { background: #4d7f5e; color: white; border-color: #4d7f5e; font-weight: bold; }
         .toolbar-btn.refresh:disabled { background: #333; color: #888; border-color: #333; cursor: not-allowed; }
+
+        /* Resume Prompt Arrow */
+        .resume-arrow-hint {
+            position: absolute; top: -35px; left: 16%; transform: translateX(-50%);
+            background: #e6b800; color: #000; padding: 4px 8px; border-radius: 4px;
+            font-size: 0.75rem; font-weight: bold; pointer-events: none;
+            animation: bounce-y 1s infinite; display: none; z-index: 200;
+        }
+        .resume-arrow-hint::after {
+            content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+            border-width: 5px 5px 0; border-style: solid; border-color: #e6b800 transparent transparent transparent;
+        }
+        @keyframes bounce-y { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
         /* Row 3: Status */
         .sticky-row-status {
@@ -190,7 +204,8 @@
         .card.departed-card:active { transform: none; background-color: #151517; }
 
         /* Skeleton & Modal */
-        .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; }
+        /* [修正] 骨架高度調整為 110px 配合真實卡片 */
+        .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; min-height: 110px; }
         @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .sk-line { background: #333; border-radius: 4px; }
         .sk-title { height: 14px; width: 60%; margin-bottom: 12px; }
@@ -209,6 +224,16 @@
         .modal-page { display: none; }
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Tutorial Modal Styles */
+        .tutorial-card { background: #2c2c2e; border-radius: 12px; padding: 15px; margin-bottom: 20px; border-left: 5px solid #4d7f5e; position: relative; }
+        .tutorial-card.delay-demo { border-left-color: #DF3F1F; }
+        .t-label { position: absolute; top: -10px; left: 10px; background: #4d7f5e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .t-label.delay { background: #DF3F1F; }
+        .t-row { display: flex; justify-content: space-between; align-items: center; }
+        .t-time { font-size: 1.5rem; font-weight: bold; }
+        .t-desc { font-size: 0.8rem; color: #aaa; margin-top: 5px; line-height: 1.4; }
+        .t-highlight { color: #e6b800; font-weight: bold; }
 
         /* God Mode Styles */
         .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
@@ -229,7 +254,6 @@
         .gm-list-item:hover { background: #222; color: #fff; }
         .gm-list-item.active { background: #1a3320; color: #4d7f5e; border-left: 3px solid #4d7f5e; }
         
-        /* 終端機風格 (Log & Report) */
         .gm-terminal, .terminal-box, .dev-terminal {
             flex: 1; background: #000; border: 1px solid #333; border-radius: 8px;
             color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px;
@@ -244,6 +268,8 @@
         .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #4d7f5e; }
         input:checked + .slider:before { transform: translateX(20px); }
+        /* [修正] Toggle Disabled 狀態 */
+        input:disabled + .slider { background-color: #444; cursor: not-allowed; opacity: 0.5; }
 
         .report-list-item { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; color: #ccc; font-size: 0.8rem; }
         .report-list-item:hover { background: #333; }
@@ -355,6 +381,7 @@
                 </div>
 
                 <div id="rowTools" class="sticky-row-tools">
+                    <div id="resumeArrow" class="resume-arrow-hint">資料已過期</div>
                     <button id="btnRefresh" class="toolbar-btn refresh" onclick="doRefresh()">🔄 更新</button>
                     <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 已駛離</button>
                     <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 AM/PM</button>
@@ -400,6 +427,39 @@
                     3. <strong>自動更新：</strong>系統每 15 秒會自動檢查「是否駛離」，不消耗流量。<br><br>
                     <strong>重試機制：</strong><br>
                     錯誤或系統忙碌都會自動重試，請耐心等候。
+                </div>
+            </div>
+
+            <div id="pageTutorial" class="modal-page">
+                <div class="modal-header-row"><div class="modal-title">歡迎使用 TRAIN LIVE 🎉</div></div>
+                <div class="modal-text" style="font-size:0.95rem;">
+                    <div style="text-align:center; margin-bottom:15px; color:#ccc;">我們已經幫您算好時間了！</div>
+                    
+                    <div class="tutorial-card">
+                        <div class="t-label">✅ 準點範例</div>
+                        <div class="t-row">
+                            <div class="t-time">10:00</div>
+                            <div style="font-size:1.2rem;">➔</div>
+                            <div class="t-time">10:30</div>
+                        </div>
+                        <div class="t-desc">大字就是<strong>「真的」</strong>要搭車的時間。<br><span class="t-highlight">✨ 左邊亮燈：10分鐘內進站</span></div>
+                    </div>
+
+                    <div class="tutorial-card delay-demo">
+                        <div class="t-label delay">⚠️ 誤點範例</div>
+                        <div class="t-row">
+                            <div class="t-time" style="color:#e6b800">10:15</div>
+                            <div style="font-size:1.2rem;">➔</div>
+                            <div class="t-time" style="color:#e6b800">10:45</div>
+                        </div>
+                        <div class="t-desc">這是<span class="t-highlight">「加完誤點後」</span>的實際時間。<br>(不用自己算，原定時間在右下角)</div>
+                    </div>
+
+                    <div style="text-align:center; font-size:0.9rem; color:#888; margin-top:10px;">
+                        👆 點擊卡片可查看 <strong>即時位置</strong>
+                    </div>
+                    
+                    <button class="menu-btn" style="text-align:center; justify-content:center; margin-top:15px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用 🚀</button>
                 </div>
             </div>
 
@@ -453,10 +513,13 @@
                 <div class="modal-text">
                     <div class="toggle-row">
                         <span>資料收集開關</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="loggingToggle" onchange="toggleLogging()">
-                            <span class="slider"></span>
-                        </label>
+                        <div style="display:flex; align-items:center; gap:5px;">
+                            <span id="toggleStatusLabel" style="font-size:0.8rem; color:#666;">(Loading)</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="loggingToggle" disabled onchange="toggleLogging()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="dev-tabs">
@@ -530,6 +593,11 @@
         const CACHE_PREFIX="train_data_v2_";
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
+        
+        // [新增] 新版導覽已讀 Key
+        const LS_TUTORIAL_SEEN="tl_intro_seen_v2";
+        // [新增] 骨架屏數量 Key
+        const LS_SKELETON_COUNT="tl_skeleton_count";
 
         const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
         const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
@@ -554,8 +622,8 @@
 
         let isNextDayLoaded = false;
         let currentTrainData = null;
+        let lastUpdateTime = 0; // 用於喚醒檢查
         
-        // [修改] 預設為 true (樂觀模式)，確保第一發請求帶參數
         let serverLoggingEnabled = true;
 
         // Session ID
@@ -603,7 +671,6 @@
             if (logoClickCount >= 5) { clearTimeout(logoClickTimer); logoClickCount = 0; activateGodMode(); }
         }
         function activateGodMode() {
-            // [修正] 開啟上帝模式時，也要加入歷史紀錄與鎖定背景，這樣「關閉」按鈕才會有作用
             document.getElementById('aboutModal').style.display = 'flex';
             document.body.classList.add('noscroll');
             history.pushState({modal: true}, '', '');
@@ -642,11 +709,17 @@
         }
 
         async function fetchConfig() {
+            const toggle = document.getElementById('loggingToggle');
+            const label = document.getElementById('toggleStatusLabel');
             try {
+                toggle.disabled = true; label.innerText = "(Loading)";
                 const res = await fetch(`/api/index?debug=godmode&action=get_config&u=${adminAuth.u}&p=${adminAuth.p}`);
                 const json = await res.json();
-                document.getElementById('loggingToggle').checked = (json.logging_enabled === "1");
-            } catch(e) {}
+                toggle.checked = (json.logging_enabled === "1");
+                toggle.disabled = false; label.innerText = "";
+            } catch(e) {
+                label.innerText = "(Err)";
+            }
         }
         async function toggleLogging() {
             const val = document.getElementById('loggingToggle').checked ? "1" : "0";
@@ -773,6 +846,28 @@ ${logs}`;
             }, 15000);
         }
 
+        // [新增] 斷線偵測
+        window.addEventListener('offline', () => { statusMsg.innerText = "⚠️ 網路已中斷"; statusMsg.className = "status-left alert"; });
+        window.addEventListener('online', () => { statusMsg.innerText = "網路已恢復"; setTimeout(() => statusMsg.innerText="", 2000); });
+
+        // [新增] 喚醒檢查
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                const now = Date.now();
+                // 3分鐘 = 180000ms
+                if (lastUpdateTime > 0 && (now - lastUpdateTime > 180000)) {
+                    // 資料過期：展開工具列、顯示箭頭提示
+                    const sticky = document.getElementById('stickyHeader');
+                    const arrow = document.getElementById('resumeArrow');
+                    if (sticky) sticky.classList.add('is-fixed'); // 稍微展開一下讓 header 醒目
+                    if (arrow) {
+                        arrow.style.display = 'block';
+                        setTimeout(() => arrow.style.display = 'none', 8000);
+                    }
+                }
+            }
+        });
+
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
         function getSearchResetTime(){return parseInt(localStorage.getItem(LS_SEARCH_RESET)||"0");}
@@ -861,21 +956,29 @@ ${logs}`;
             
             document.getElementById('rowTools').style.display = 'none';
 
-            const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
-            const savedSR = localStorage.getItem(PREF_START_R_KEY);
-            if (savedSR) {
-                startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
-                setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
-                setMenu('end',localStorage.getItem(PREF_END_R_KEY)||"屏東縣",localStorage.getItem(PREF_END_S_KEY)||"潮州");
-                checkLocksOnLoad(); loadDataOrFetch();
-            } else {
-                startRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts; 
-                endRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts;
-                startStation.innerHTML=endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
-                list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
-                statusMsg.innerText="等待輸入...";
-                checkLocksOnLoad();
+            // [新增] Cache 安全性檢查
+            try {
+                const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
+                const savedSR = localStorage.getItem(PREF_START_R_KEY);
+                if (savedSR) {
+                    startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
+                    setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
+                    setMenu('end',localStorage.getItem(PREF_END_R_KEY)||"屏東縣",localStorage.getItem(PREF_END_S_KEY)||"潮州");
+                    checkLocksOnLoad(); loadDataOrFetch();
+                } else {
+                    startRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts; 
+                    endRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts;
+                    startStation.innerHTML=endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
+                    list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
+                    statusMsg.innerText="等待輸入...";
+                    checkLocksOnLoad();
+                }
+            } catch(e) {
+                console.error("Cache corrupted, clearing...", e);
+                localStorage.clear();
+                window.location.reload();
             }
+            
             renderQuickRoutes();
             updateStarState();
         }
@@ -905,16 +1008,10 @@ ${logs}`;
             markAsChanged();
         }
         function handleSearch() {
-            // [修改] 搜尋邏輯：自動將「台」轉為「臺」
-            const rawVal = searchInput.value.trim();
-            const tgt = searchTarget.value; 
-            if (!rawVal) return;
-            
-            const val = rawVal.replace(/台/g, '臺'); // 核心修改在這裡
-
-            let found = STATION_INDEX[val] ? val : Object.keys(STATION_INDEX).find(s => s.includes(val));
-            if (found) {
-                // [修改] Log 格式
+            const rawVal=searchInput.value.trim(); const tgt=searchTarget.value; if(!rawVal) return;
+            const val = rawVal.replace(/台/g, '臺'); // [新增] 自動轉臺
+            let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
+            if(found) {
                 logSystem(`Action: InputSearch\n             ${found}`); 
                 setMenu(tgt,STATION_INDEX[found],found);
                 searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
@@ -971,7 +1068,6 @@ ${logs}`;
             if(hitData) {
                 if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
                 renderCards(hitData.payload); 
-                // [修改] 簡化顯示，只留時間
                 setUpdateText(`更新時間：${hitData.payload.update_time}`);
                 statusMsg.innerText=""; statusMsg.className="status-left"; 
                 list.style.opacity="1"; 
@@ -1037,7 +1133,6 @@ ${logs}`;
         
         function handleLoadNextDay() {
             logSystem("Action: Load Next Day");
-            // [修改] 按鈕回饋
             const btn = document.getElementById('btnLoadNext');
             if(btn) { btn.disabled=true; btn.innerText = "⏳ 載入中..."; }
             fetchData("load_next_day");
@@ -1108,7 +1203,11 @@ ${logs}`;
         }
 
         function getSkeletonHTML() {
-            let html = ''; for(let i=0; i<3; i++) html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
+            // [新增] 讀取上次數量，動態生成
+            const lastCount = parseInt(localStorage.getItem(LS_SKELETON_COUNT) || "3");
+            const count = Math.min(Math.max(lastCount, 3), 10);
+            let html = ''; 
+            for(let i=0; i<count; i++) html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
             return html;
         }
 
@@ -1133,7 +1232,6 @@ ${logs}`;
 
             recordRequest();
             try {
-                // [修改] 移除 RPM，改傳 mode 參數
                 let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}&mode=${mode}`;
                 if(serverLoggingEnabled) {
                     url += `&sid=${SESSION_ID}`;
@@ -1158,14 +1256,12 @@ ${logs}`;
                 localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
                 renderCards(json);
 
-                // [修改] Log 格式 (簡潔版，顯示額度)
                 logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
 
                 if(json.delay_failed) {
                     scheduleRetry("誤點資料失敗", "status-left warning");
                     setUpdateText(`更新時間：${json.update_time} (僅時刻)`);
                 } else {
-                    // [修改] 簡化時間顯示
                     setUpdateText(`更新時間：${json.update_time}`);
                     statusMsg.innerText = "更新完成";
                     setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
@@ -1191,6 +1287,17 @@ ${logs}`;
                     }
                 } else {
                     scrollToFirstActive(); 
+                }
+
+                lastUpdateTime = Date.now(); // 記錄成功更新時間
+
+                // [新增] 檢查並顯示新手導覽
+                if (localStorage.getItem(LS_TUTORIAL_SEEN) !== '1') {
+                    setTimeout(() => {
+                        document.getElementById('aboutModal').style.display='flex';
+                        document.body.classList.add('noscroll');
+                        goToPage('Tutorial');
+                    }, 500);
                 }
 
             } catch(err) {
@@ -1244,6 +1351,9 @@ ${logs}`;
         function renderCards(data) {
             currentTrainData = data; 
             
+            // [新增] 儲存數量供骨架屏使用
+            if(data.trains) localStorage.setItem(LS_SKELETON_COUNT, data.trains.length);
+
             const elTools = document.getElementById('rowTools');
             const hasTrains = data.trains && data.trains.length > 0;
             const originalCount = (data.stats && data.stats.original_count) ? data.stats.original_count : 0;
@@ -1269,7 +1379,6 @@ ${logs}`;
                 const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
                 
                 const nowHour = now.getHours();
-                // [修改] 深夜邏輯：只看 22:00 ~ 23:59
                 const isLateNight = nowHour >= 22; 
 
                 data.trains.forEach((t, index) => {
@@ -1380,7 +1489,6 @@ ${logs}`;
 
             if (originalCount > 0) {
                  const nowHour = new Date().getHours();
-                 // [修改] 深夜邏輯：只看 22:00 ~ 23:59
                  const isLateNight = nowHour >= 22;
                  let extraBtn = "";
                  if (isLateNight && !isNextDayLoaded) {
@@ -1397,6 +1505,12 @@ ${logs}`;
             } else {
                  list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`;
             }
+        }
+
+        // [新增] 關閉教學並寫入已讀
+        function closeTutorial() {
+            localStorage.setItem(LS_TUTORIAL_SEEN, '1');
+            history.back(); // 正常關閉 Modal
         }
 
         // [補回遺失的輔助函式]
