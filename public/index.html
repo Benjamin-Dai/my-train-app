@@ -142,21 +142,23 @@
         .status-left.warning { color: #e6b800; }
         .status-right { font-size: 0.75rem; color: #666; font-family: monospace; }
         
-        /* [新增] 狀態列喚醒提示膠囊 */
-        .status-chip {
+        /* [新增] 獨立喚醒提示膠囊 (Resume Pill) */
+        .resume-pill {
+            position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
             background: #e6b800; color: #000;
-            padding: 2px 8px; border-radius: 12px;
-            font-size: 0.75rem; font-weight: bold;
-            display: inline-flex; align-items: center; gap: 6px;
-            animation: chip-bounce 2s infinite; cursor: pointer;
+            padding: 10px 20px; border-radius: 50px;
+            font-size: 0.95rem; font-weight: bold;
+            display: none; align-items: center; gap: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+            z-index: 900; cursor: pointer;
+            animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
         }
-        .status-chip .chip-close {
-            font-size: 1rem; line-height: 1; opacity: 0.6; padding: 0 2px;
+        .resume-pill:active { transform: translateX(-50%) scale(0.95); opacity: 0.9; }
+        .resume-pill .pill-close {
+            font-size: 1.2rem; line-height: 1; opacity: 0.5; padding: 0 5px;
+            border-left: 1px solid rgba(0,0,0,0.2); margin-left: 5px;
         }
-        @keyframes chip-bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-2px); }
-        }
+        @keyframes slideUp { from { transform: translate(-50%, 100%); opacity:0; } to { transform: translate(-50%, 0); opacity:1; } }
 
         /* Bottom Hints */
         .fixed-footer-hints {
@@ -181,12 +183,6 @@
         body.tick-a .led-dot.top { opacity: 1; box-shadow: 0 0 6px #4d7f5e; }
         body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px #4d7f5e; }
         .led-pair-mini { display: flex; flex-direction: column; gap: 3px; }
-
-        /* [新增] LED 閃爍動畫 (for Tutorial) */
-        @keyframes led-blink {
-            0% { opacity: 0.4; box-shadow: 0 0 2px #4d7f5e; }
-            100% { opacity: 1; box-shadow: 0 0 8px #4d7f5e; }
-        }
 
         /* Card */
         .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; }
@@ -236,26 +232,11 @@
         /* [新增] Start Button Active State */
         .btn-start:active { transform: scale(0.95); opacity: 0.9; }
 
-        /* Tutorial Pointers (Text Below Card, Arrow Up) */
-        .tutorial-container { position: relative; margin-bottom: 60px; /* 增加底部空間給文字 */ }
-        .t-pointer { 
-            position: absolute; 
-            top: 100%; /* 卡片正下方 */
-            margin-top: 10px; 
-            color: #e6b800; 
-            font-weight: bold; 
-            font-size: 0.9rem; 
-            z-index: 10; 
-            display: flex; 
-            align-items: flex-start; 
-            gap: 5px; 
-            line-height: 1.4; /* 增加行距 */
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8); 
-        }
-        .t-pointer.led-hint { left: 5px; }
-        .t-pointer.led-hint::before { content: '⬆'; margin-top: 2px; }
-        .t-pointer.delay-hint { right: 5px; text-align: right; justify-content: flex-end; }
-        .t-pointer.delay-hint::after { content: '⬆'; margin-left: 5px; margin-top: 2px; }
+        /* Tutorial Pointers (Line Style) */
+        .tutorial-container { position: relative; margin-bottom: 70px; }
+        .t-hint { position: absolute; top: 100%; display: flex; flex-direction: column; align-items: center; z-index: 20; margin-top: -10px; pointer-events: none;}
+        .t-line { width: 1px; background: #e6b800; height: 35px; margin-top: -25px; position: relative; z-index: 15; }
+        .t-text { color: #e6b800; font-size: 0.85rem; font-weight: bold; margin-top: 5px; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8); line-height: 1.3;}
 
         /* God Mode Styles */
         .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
@@ -330,6 +311,11 @@
         <div style="color:#fff; font-size:1.1rem; line-height:1.6;">請切換至瀏覽器開啟</div>
         <div class="guide-highlight">1. 點擊選單 (⋮)<br><br>2. 選擇「在瀏覽器開啟」</div>
         <div style="font-size:0.8rem; color:#aaa; margin-top:20px;">(點擊任意處關閉)</div>
+    </div>
+
+    <div id="resumePill" class="resume-pill" onclick="doRefresh()">
+        <span>🔄 資料可更新</span>
+        <span class="pill-close" onclick="closeResumePill(event)">×</span>
     </div>
 
     <div id="fixedFooterHints" class="fixed-footer-hints">
@@ -459,8 +445,8 @@
                     <div class="tutorial-container">
                         <div class="card" style="border-left-color: #4d7f5e; margin:0; pointer-events:none;">
                             <div class="left-indicator">
-                                <div class="led-dot top" style="opacity:1; box-shadow:0 0 6px #4d7f5e; animation: led-blink 1s infinite alternate;"></div>
-                                <div class="led-dot bottom" style="opacity:1; box-shadow:0 0 6px #4d7f5e; animation: led-blink 1s infinite alternate;"></div>
+                                <div class="led-dot top"></div>
+                                <div class="led-dot bottom"></div>
                             </div>
                             <div class="train-info" style="color:#4d7f5e;">自強 123 次</div>
                             <div class="main-time">
@@ -470,7 +456,16 @@
                             </div>
                             <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span></div>
                         </div>
-                        <div class="t-pointer led-hint">亮燈代表<br>10分鐘內 進站</div>
+                        
+                        <div class="t-hint" style="left: 18px;">
+                            <div class="t-line"></div>
+                            <div class="t-text">亮燈代表<br>10分鐘內 進站</div>
+                        </div>
+
+                        <div class="t-hint" style="left: 50%; transform: translateX(-50%);">
+                            <div class="t-line" style="height: 55px; margin-top: -45px;"></div>
+                            <div class="t-text">點擊卡片查看<br>完整停靠站</div>
+                        </div>
                     </div>
 
                     <div class="tutorial-container">
@@ -484,7 +479,11 @@
                             </div>
                             <div class="sub-time">原定 10:00 ➔ 10:10</div>
                         </div>
-                        <div class="t-pointer delay-hint">大字是「實際」<br>發車時間 (已加)</div>
+
+                        <div class="t-hint" style="right: 20px;">
+                            <div class="t-line"></div>
+                            <div class="t-text">大字是實際時間<br>(已加)</div>
+                        </div>
                     </div>
 
                     <button class="menu-btn btn-start" style="text-align:center; justify-content:center; margin-top:30px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用</button>
@@ -633,6 +632,7 @@
         const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
         const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
         const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
+        const resumePill = document.getElementById('resumePill'); // [新增] 獨立膠囊
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
@@ -890,23 +890,16 @@ ${logs}`;
             }
         });
 
-        // [新增] 顯示喚醒提示膠囊
+        // [修正] 顯示喚醒提示膠囊 (改為獨立膠囊)
         function showResumeHint() {
             isResumeHintActive = true;
-            statusMsg.innerHTML = `<div class="status-chip" onclick="doRefresh()"><span class="chip-arrow">⬆</span> 資料可更新 <span class="chip-close" onclick="closeResumeChip(event)">×</span></div>`;
-            statusMsg.className = "status-left"; 
-            
-            // [新增] 強制展開工具列 (無條件)
-            const elTools = document.getElementById('rowTools');
-            if (elTools) {
-                elTools.style.display = 'flex';
-            }
+            resumePill.style.display = 'flex';
         }
 
-        function closeResumeChip(e) {
+        function closeResumePill(e) {
             if(e) e.stopPropagation();
             isResumeHintActive = false;
-            statusMsg.innerHTML = "";
+            resumePill.style.display = 'none';
         }
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
@@ -1060,10 +1053,9 @@ ${logs}`;
             }
         }
         function markAsChanged() {
-            // [新增] 只要動了選單，立刻隱藏喚醒提示
+            // [新增] 只要動了選單，立刻隱藏獨立膠囊
             if (isResumeHintActive) {
-                isResumeHintActive = false;
-                statusMsg.innerHTML = "";
+                closeResumePill();
             }
 
             if(!startStation.value||!endStation.value) return;
@@ -1156,10 +1148,9 @@ ${logs}`;
         function doRefresh(skip=false) {
             const now = Date.now();
             
-            // [新增] 按下更新時，如果有喚醒提示膠囊，立刻清除
+            // [新增] 按下更新時，如果有喚醒膠囊，立刻清除
             if (isResumeHintActive) {
-                isResumeHintActive = false;
-                statusMsg.innerHTML = "";
+                closeResumePill();
             }
 
             if(!skip) {
