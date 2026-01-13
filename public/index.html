@@ -227,23 +227,16 @@
         .modal-page { display: none; }
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* [新增] Start Button Active State */
+        .btn-start:active { transform: scale(0.95); opacity: 0.9; }
 
-        /* Tutorial Pointers */
-        .tutorial-container { position: relative; margin-bottom: 25px; }
-        .t-pointer { position: absolute; color: #e6b800; font-weight: bold; font-size: 0.9rem; z-index: 10; display: flex; align-items: center; gap: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
-        .t-pointer.led-hint { left: -10px; top: 40px; transform: translateX(-100%); width: 120px; justify-content: flex-end; text-align: right; }
-        .t-pointer.led-hint::after { content: '➜'; margin-left: 5px; }
-        .t-pointer.delay-hint { top: 45px; right: -5px; transform: translateX(100%); width: 120px; justify-content: flex-start; text-align: left; }
-        .t-pointer.delay-hint::before { content: '👈'; margin-right: 5px; }
-        
-        /* 手機版調整 Tutorial Pointer 位置，避免超出螢幕 */
-        @media (max-width: 380px) {
-            .t-pointer.led-hint { left: 40px; top: -25px; transform: none; width: auto; }
-            .t-pointer.led-hint::after { content: '👇'; margin-left: 5px; transform: rotate(0); }
-            .t-pointer.delay-hint { right: auto; left: 50%; top: -25px; transform: translateX(-50%); width: auto; justify-content: center; }
-            .t-pointer.delay-hint::before { content: ''; margin-right: 0; }
-            .t-pointer.delay-hint::after { content: '👇'; margin-left: 5px; }
-        }
+        /* Tutorial Pointers (Vertical Layout) */
+        .tutorial-container { position: relative; margin-top: 30px; margin-bottom: 15px; }
+        .t-pointer { position: absolute; color: #e6b800; font-weight: bold; font-size: 0.9rem; z-index: 10; display: flex; align-items: center; gap: 5px; top: -25px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .t-pointer.led-hint { left: 5px; }
+        .t-pointer.led-hint::before { content: '👇'; margin-right: 5px; }
+        .t-pointer.delay-hint { right: 5px; }
+        .t-pointer.delay-hint::before { content: '👇'; margin-right: 5px; }
 
         /* God Mode Styles */
         .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
@@ -440,16 +433,16 @@
             </div>
 
             <div id="pageTutorial" class="modal-page">
-                <div class="modal-header-row"><div class="modal-title">歡迎使用 TRAIN LIVE 🎉</div></div>
+                <div class="modal-header-row"><div class="modal-title">歡迎使用 TRAIN LIVE</div></div>
                 <div class="modal-text" style="font-size:0.95rem;">
-                    <div style="text-align:center; margin-bottom:25px; color:#ccc;">我們已經幫您算好時間了！</div>
+                    <div style="text-align:center; margin-bottom:10px; color:#ccc;">我們已經幫您算好時間了！</div>
                     
                     <div class="tutorial-container">
-                        <div class="t-pointer led-hint">👈 亮燈代表<br>10分鐘內 進站</div>
+                        <div class="t-pointer led-hint">亮燈代表<br>10分鐘內 進站</div>
                         <div class="card" style="border-left-color: #4d7f5e; margin:0; pointer-events:none;">
                             <div class="left-indicator">
-                                <div class="led-dot top" style="opacity:1; box-shadow:0 0 6px #4d7f5e;"></div>
-                                <div class="led-dot bottom" style="opacity:1; box-shadow:0 0 6px #4d7f5e;"></div>
+                                <div class="led-dot top" style="opacity:1; box-shadow:0 0 6px #4d7f5e; animation: led-blink 1s infinite alternate;"></div>
+                                <div class="led-dot bottom" style="opacity:1; box-shadow:0 0 6px #4d7f5e; animation: led-blink 1s infinite alternate;"></div>
                             </div>
                             <div class="train-info" style="color:#4d7f5e;">自強 123 次</div>
                             <div class="main-time">
@@ -462,20 +455,20 @@
                     </div>
 
                     <div class="tutorial-container">
-                        <div class="t-pointer delay-hint">👆 大字是「實際」<br>發車時間 (已加)</div>
+                        <div class="t-pointer delay-hint">大字是「實際」<br>發車時間 (已加)</div>
                         <div class="card" style="border-left-color: #DF3F1F; margin:0; pointer-events:none;">
                             <div class="status-badge-container"><div class="status-tag delay">誤點 15 分</div></div>
                             <div class="train-info" style="color:#DF3F1F;">自強 456 次</div>
                             <div class="main-time">
-                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:15</div></div>
+                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part" style="color:#e6b800">10:15</div></div>
                                 <span class="arrow">➔</span>
-                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:25</div></div>
+                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part" style="color:#e6b800">10:25</div></div>
                             </div>
                             <div class="sub-time">原定 10:00 ➔ 10:10</div>
                         </div>
                     </div>
 
-                    <button class="menu-btn" style="text-align:center; justify-content:center; margin-top:20px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用 🚀</button>
+                    <button class="menu-btn btn-start" style="text-align:center; justify-content:center; margin-top:20px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用</button>
                 </div>
             </div>
 
@@ -883,6 +876,12 @@ ${logs}`;
             isResumeHintActive = true;
             statusMsg.innerHTML = `<div class="status-chip" onclick="doRefresh()"><span class="chip-arrow">⬆</span> 資料可更新 <span class="chip-close" onclick="closeResumeChip(event)">×</span></div>`;
             statusMsg.className = "status-left"; 
+            
+            // [新增] 強制展開工具列
+            const elTools = document.getElementById('rowTools');
+            if (currentTrainData && elTools.style.display !== 'flex') {
+                elTools.style.display = 'flex';
+            }
         }
 
         function closeResumeChip(e) {
@@ -1474,6 +1473,12 @@ ${logs}`;
                         subTimeContent = `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`;
                     }
 
+                    // [新增] 誤點時間變色邏輯
+                    let delayColorStyle = "";
+                    if (!isStrictTomorrow && !data.delay_failed && t.delay > 0) {
+                        delayColorStyle = 'style="color:#e6b800"';
+                    }
+
                     cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
                         <div class="${cardClass}" style="border-left-color:${t.color};">
                             ${leftIndicatorHtml}
@@ -1482,12 +1487,12 @@ ${logs}`;
                             <div class="main-time">
                                 <div class="time-group">
                                     <div class="time-date-label" style="color:#4d7f5e;">${startStation.value} ${depDateLabel}</div>
-                                    <div class="time-part">${formatTime(t.act_dep)}</div>
+                                    <div class="time-part" ${delayColorStyle}>${formatTime(t.act_dep)}</div>
                                 </div>
                                 <span class="arrow">➔</span>
                                 <div class="time-group">
                                     <div class="time-date-label" style="color:#4d7f5e;">${endStation.value} ${arrDateLabel}</div>
-                                    <div class="time-part">${formatTime(t.act_arr)}</div>
+                                    <div class="time-part" ${delayColorStyle}>${formatTime(t.act_arr)}</div>
                                 </div>
                             </div>
                             <div class="sub-time">${subTimeContent}</div>
