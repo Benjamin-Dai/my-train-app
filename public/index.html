@@ -233,10 +233,47 @@
         .btn-start:active { transform: scale(0.95); opacity: 0.9; }
 
         /* Tutorial Pointers (Line Style) */
-        .tutorial-container { position: relative; margin-bottom: 70px; }
-        .t-hint { position: absolute; top: 100%; display: flex; flex-direction: column; align-items: center; z-index: 20; margin-top: -10px; pointer-events: none;}
-        .t-line { width: 1px; background: #e6b800; height: 35px; margin-top: -25px; position: relative; z-index: 15; }
-        .t-text { color: #e6b800; font-size: 0.85rem; font-weight: bold; margin-top: 5px; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8); line-height: 1.3;}
+        .tutorial-container { position: relative; margin-bottom: 70px; /* 預留底部文字空間 */ }
+        .t-hint-group {
+            position: absolute;
+            top: 100%; /* 卡片底部 */
+            width: 1px;
+            background: #e6b800;
+            z-index: 20;
+            /* 預設隱藏線，由子元素控制 */
+            background: transparent; 
+        }
+        
+        /* 線條與文字 */
+        .t-line {
+            width: 1px; background: #e6b800; 
+            position: absolute; bottom: 0;
+            /* 高度由 inline style 控制 */
+        }
+        .t-text-box {
+            position: absolute; top: 0; 
+            transform: translateX(-50%);
+            white-space: nowrap;
+            color: #e6b800; font-weight: bold; font-size: 0.85rem;
+            text-align: center; line-height: 1.4;
+            padding-top: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* 藍色柔光球 (Blue Glow) */
+        .t-glow {
+            position: absolute; top: -5px; left: -20px;
+            width: 40px; height: 40px;
+            background: radial-gradient(circle, rgba(0,122,255,0.6) 0%, rgba(0,122,255,0) 70%);
+            border-radius: 50%;
+            animation: pulse-blue 2s infinite;
+            pointer-events: none;
+        }
+        @keyframes pulse-blue { 
+            0% {opacity: 0.5; transform: scale(0.8);} 
+            50% {opacity: 1; transform: scale(1.2);} 
+            100% {opacity: 0.5; transform: scale(0.8);} 
+        }
 
         /* God Mode Styles */
         .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
@@ -457,14 +494,14 @@
                             <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span></div>
                         </div>
                         
-                        <div class="t-hint" style="left: 18px;">
-                            <div class="t-line"></div>
-                            <div class="t-text">亮燈代表<br>10分鐘內 進站</div>
+                        <div class="t-hint-group" style="left: 12px;">
+                            <div class="t-line" style="height: 60px; bottom: 0;"></div>
+                            <div class="t-text-box">亮燈代表<br>10分鐘內 進站</div>
                         </div>
 
-                        <div class="t-hint" style="left: 50%; transform: translateX(-50%);">
-                            <div class="t-line" style="height: 55px; margin-top: -45px;"></div>
-                            <div class="t-text">點擊卡片查看<br>完整停靠站</div>
+                        <div class="t-hint-group" style="right: 25px;">
+                            <div class="t-glow" style="top: -65px;"></div> <div class="t-line" style="height: 65px; bottom: 0;"></div>
+                            <div class="t-text-box">點擊卡片查看<br>完整停靠站</div>
                         </div>
                     </div>
 
@@ -480,9 +517,9 @@
                             <div class="sub-time">原定 10:00 ➔ 10:10</div>
                         </div>
 
-                        <div class="t-hint" style="right: 20px;">
-                            <div class="t-line"></div>
-                            <div class="t-text">大字是實際時間<br>(已加)</div>
+                        <div class="t-hint-group" style="right: 20px;">
+                            <div class="t-line" style="height: 60px; bottom: 0;"></div>
+                            <div class="t-text-box">大字是實際時間<br>(已加)</div>
                         </div>
                     </div>
 
