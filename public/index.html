@@ -7,7 +7,8 @@
     
     <meta property="og:title" content="TRAIN LIVE | 列車時刻即時看板">
     <meta property="og:description" content="誤點自動計算！一眼看出現在該搭哪一班車。">
-    <meta property="og:image" content="https://你的網址.vercel.app/icon.png"> <meta property="og:url" content="https://你的網址.vercel.app/">
+    <meta property="og:image" content="https://你的網址.vercel.app/icon.png">
+    <meta property="og:url" content="https://你的網址.vercel.app/">
     <meta property="og:type" content="website">
 
     <link rel="manifest" href="/manifest.json">
@@ -17,45 +18,35 @@
 
     <style>
         /* --- 基礎設定 --- */
-        *, *::before, *::after { 
-            box-sizing: border-box; 
-            -webkit-tap-highlight-color: transparent;
-            outline: none; 
-        }
+        *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         html { scroll-behavior: smooth; }
         body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
-        
-        /* 鎖定背景捲動 (解決 iOS 穿透問題) */
         body.noscroll { overflow: hidden; }
-
         .container { max-width: 500px; margin: 0 auto; padding-bottom: 100px; }
 
         /* --- Header --- */
         .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
         .header-static-part { padding: 15px 15px 15px 15px; background: #151517; position: relative; z-index: 10; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
-        
-        .app-title { 
-            font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; 
-            cursor: default; user-select: none; -webkit-user-select: none; 
-        }
-
+        .app-title { font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; cursor: default; user-select: none; }
         .top-actions { display: flex; align-items: center; gap: 8px; }
+        
         .install-btn-top {
             background: #4d7f5e; color: #fff; border: none; padding: 0 12px; height: 36px; border-radius: 8px; 
             font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none;
             align-items: center; gap: 4px; animation: fadeIn 0.5s; white-space: nowrap;
         }
         .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
+        
         .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
+        
         @keyframes pulse-white-gold { 0%, 100% { color: #fff; border-color: #444; } 50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); } }
         .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
 
         /* --- Search & Selectors --- */
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
         .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
-        /* [iOS 優化] font-size: 16px 防止輸入時畫面放大 */
         .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 16px; }
         .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
         
@@ -66,6 +57,7 @@
         .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
         .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
         .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
+        
         .btn-static-search {
             width: 100%; background: #eee; color: #000; border: none; 
             padding: 10px; border-radius: 10px; font-size: 1rem; font-weight: bold; 
@@ -89,38 +81,30 @@
         #stickyPlaceholder { display: none; }
 
         /* Row 1: Quick Route */
-        .sticky-row-top { 
-            display: flex; align-items: center; border-bottom: 1px solid #222; min-height: 50px; 
-            position: relative; 
-        }
-        .quick-route-scroll-container {
-            flex: 1; overflow-x: auto; white-space: nowrap; padding: 5px 10px; height: 100%; display: flex; align-items: center;
-            -ms-overflow-style: none; scrollbar-width: none; 
-        }
+        .sticky-row-top { display: flex; align-items: center; border-bottom: 1px solid #222; min-height: 50px; position: relative; }
+        .quick-route-scroll-container { flex: 1; overflow-x: auto; white-space: nowrap; padding: 5px 10px; height: 100%; display: flex; align-items: center; -ms-overflow-style: none; scrollbar-width: none; }
         .quick-route-scroll-container::-webkit-scrollbar { display: none; }
         .scroll-hint-overlay {
             position: absolute; right: 85px; top: 0; bottom: 0; width: 40px;
-            background: linear-gradient(to right, transparent, #151517);
-            pointer-events: none; 
-            display: flex; align-items: center; justify-content: flex-end;
-            padding-right: 5px; opacity: 0; transition: opacity 0.3s;
+            background: linear-gradient(to right, transparent, #151517); pointer-events: none; 
+            display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; opacity: 0; transition: opacity 0.3s;
         }
         .scroll-hint-arrow { color: #4d7f5e; font-weight: bold; font-size: 1.2rem; animation: bounce-x 1s infinite; }
         @keyframes bounce-x { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+        
         .route-chip { 
             display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
-            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; margin-right: 6px; 
-            user-select: none; flex-shrink: 0;
+            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; margin-right: 6px; flex-shrink: 0; user-select: none;
         }
         .route-chip:active { transform: scale(0.95); background: #333; }
         .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
         .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
         .route-chip.hist { border-style: dashed; }
+        
         .btn-side-container { padding: 5px 10px; border-left: 1px solid #222; height: 100%; display: flex; align-items: center; min-width: 85px; justify-content: center; z-index: 5;}
         .btn-fav-compact {
             background: #222; color: #ccc; border: 1px solid #444; padding: 4px 8px; border-radius: 8px; 
-            font-size: 0.75rem; cursor: pointer; white-space: pre-wrap; line-height: 1.2; text-align: center;
-            transition: all 0.1s; width: 100%;
+            font-size: 0.75rem; cursor: pointer; white-space: pre-wrap; line-height: 1.2; text-align: center; transition: all 0.1s; width: 100%;
         }
         .btn-fav-compact:active { transform: scale(0.95); background: #333; }
         .btn-fav-compact.fav-active { color: #e6b800; border-color: #e6b800; background: rgba(230,184,0,0.1); font-weight: bold; }
@@ -140,42 +124,31 @@
         /* Row 3: Status */
         .sticky-row-status {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 6px 15px 8px 15px; background: #111; 
-            border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+            padding: 6px 15px 8px 15px; background: #111; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
         }
         .status-left { font-size: 0.8rem; color: #aaa; font-weight: bold; display: flex; align-items: center; gap: 5px; min-height: 1.2em;}
         .status-left.alert { color: #ff4d4d; }
         .status-left.warning { color: #e6b800; }
         .status-right { font-size: 0.75rem; color: #666; font-family: monospace; }
         
-        /* [新增] 獨立喚醒提示膠囊 (Resume Pill) */
+        /* Resume Pill */
         .resume-pill {
             position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
-            background: #e6b800; color: #000;
-            padding: 10px 20px; border-radius: 50px;
-            font-size: 0.95rem; font-weight: bold;
-            display: none; align-items: center; gap: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.8);
-            z-index: 900; cursor: pointer;
+            background: #e6b800; color: #000; padding: 10px 20px; border-radius: 50px;
+            font-size: 0.95rem; font-weight: bold; display: none; align-items: center; gap: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.8); z-index: 900; cursor: pointer;
             animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
         }
         .resume-pill:active { transform: translateX(-50%) scale(0.95); opacity: 0.9; }
-        .resume-pill .pill-close {
-            font-size: 1.2rem; line-height: 1; opacity: 0.5; padding: 0 5px;
-            border-left: 1px solid rgba(0,0,0,0.2); margin-left: 5px;
-        }
+        .resume-pill .pill-close { font-size: 1.2rem; line-height: 1; opacity: 0.5; padding: 0 5px; border-left: 1px solid rgba(0,0,0,0.2); margin-left: 5px; }
         @keyframes slideUp { from { transform: translate(-50%, 100%); opacity:0; } to { transform: translate(-50%, 0); opacity:1; } }
 
         /* Bottom Hints */
         .fixed-footer-hints {
-            position: fixed; bottom: 0; left: 0; width: 100%;
-            background: #1a1a1c; border-top: 1px solid #333;
-            display: none; /* JS 控制 */
-            align-items: center; justify-content: center; gap: 20px; 
-            padding: 10px 15px; font-size: 0.75rem; color: #666; 
-            z-index: 200; 
-            padding-bottom: max(10px, env(safe-area-inset-bottom));
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.8);
+            position: fixed; bottom: 0; left: 0; width: 100%; background: #1a1a1c; border-top: 1px solid #333;
+            display: none; align-items: center; justify-content: center; gap: 20px; 
+            padding: 10px 15px; font-size: 0.75rem; color: #666; z-index: 200; 
+            padding-bottom: max(10px, env(safe-area-inset-bottom)); box-shadow: 0 -5px 20px rgba(0,0,0,0.8);
         }
         .fixed-footer-hints.centered { justify-content: center; } 
         .hint-group { display: flex; align-items: center; gap: 8px; }
@@ -191,7 +164,7 @@
         .led-pair-mini { display: flex; flex-direction: column; gap: 3px; }
 
         /* Card */
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; overflow: hidden; /* for corner glow */ }
+        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; overflow: hidden; }
         a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
         .card:active { transform: scale(0.98); background-color: #222; }
         .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
@@ -215,7 +188,6 @@
         .card.departed-card:active { transform: none; background-color: #151517; }
 
         /* Skeleton & Modal */
-        /* [修正] 骨架高度調整為 110px 配合真實卡片 */
         .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; min-height: 110px; }
         @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .sk-line { background: #333; border-radius: 4px; }
@@ -235,53 +207,31 @@
         .modal-page { display: none; }
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        /* [新增] Start Button Active State */
         .btn-start:active { transform: scale(0.95); opacity: 0.9; }
 
-        /* Tutorial Pointers (Arrow Style) */
-        .tutorial-container { position: relative; margin-bottom: 60px; /* 預留底部文字空間 */ }
+        /* Tutorial & PageHow Styles (窄螢幕優化版) */
+        .tutorial-container { position: relative; margin-bottom: 60px; }
         
-        /* 1/4 圓 藍色角落光暈 (Corner Glow) */
         .t-corner-glow {
-            position: absolute; bottom: 0; right: 0;
-            width: 60px; height: 60px;
+            position: absolute; bottom: 0; right: 0; width: 60px; height: 60px;
             background: radial-gradient(circle at 100% 100%, rgba(0,122,255,0.6) 0%, rgba(0,122,255,0) 70%);
-            border-bottom-right-radius: 12px; /* 配合卡片圓角 */
-            pointer-events: none;
-            animation: pulse-blue-corner 2s infinite;
+            border-bottom-right-radius: 12px; pointer-events: none; animation: pulse-blue-corner 2s infinite;
         }
-        @keyframes pulse-blue-corner { 
-            0% {opacity: 0.4;} 
-            50% {opacity: 1;} 
-            100% {opacity: 0.4;} 
-        }
+        @keyframes pulse-blue-corner { 0% {opacity: 0.4;} 50% {opacity: 1;} 100% {opacity: 0.4;} }
 
-        /* God Mode Styles */
+        /* God Mode */
         .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
         .dev-tab { flex: 1; padding: 10px; text-align: center; background: #1a1a1c; color: #666; cursor: pointer; border-top-left-radius: 8px; border-top-right-radius: 8px; }
         .dev-tab.active { background: #222; color: #fff; font-weight: bold; border-bottom: 2px solid #4d7f5e; }
         .dev-panel { display: none; }
         .dev-panel.active { display: block; }
-        
         .gm-container { display: flex; flex-direction: column; height: 350px; gap: 10px; }
-        .gm-list { 
-            height: 120px; background: #0d0d0d; border: 1px solid #333; border-radius: 8px; 
-            overflow-y: auto; padding: 5px; 
-        }
-        .gm-list-item { 
-            padding: 8px; border-bottom: 1px solid #222; font-size: 0.8rem; color: #888; 
-            cursor: pointer; display: flex; justify-content: space-between; 
-        }
+        .gm-list { height: 120px; background: #0d0d0d; border: 1px solid #333; border-radius: 8px; overflow-y: auto; padding: 5px; }
+        .gm-list-item { padding: 8px; border-bottom: 1px solid #222; font-size: 0.8rem; color: #888; cursor: pointer; display: flex; justify-content: space-between; }
         .gm-list-item:hover { background: #222; color: #fff; }
         .gm-list-item.active { background: #1a3320; color: #4d7f5e; border-left: 3px solid #4d7f5e; }
+        .gm-terminal, .terminal-box, .dev-terminal { flex: 1; background: #000; border: 1px solid #333; border-radius: 8px; color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px; overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000; }
         
-        .gm-terminal, .terminal-box, .dev-terminal {
-            flex: 1; background: #000; border: 1px solid #333; border-radius: 8px;
-            color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px;
-            overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000;
-        }
-        
-        /* Toggle Switch */
         .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; background: #1a1a1c; padding: 10px; border-radius: 8px; border: 1px solid #333; }
         .toggle-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
@@ -289,7 +239,6 @@
         .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #4d7f5e; }
         input:checked + .slider:before { transform: translateX(20px); }
-        /* [修正] Toggle Disabled 狀態 */
         input:disabled + .slider { background-color: #444; cursor: not-allowed; opacity: 0.5; }
 
         .report-list-item { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; color: #ccc; font-size: 0.8rem; }
@@ -322,95 +271,37 @@
         .btn-secondary { background: #3a3a3c; color: #fff; border: 1px solid #555; }
         .btn-primary { background: #007AFF; color: white; }
 
-        /* --- [新版] Tutorial & How Style Optimization (窄螢幕友善版) --- */
-        
-        /* 靜態提示條 (模仿底部 Footer，但用於教學頁面) */
+        /* [PageHow] 樣式區塊 */
         .static-hint-bar {
-            background: #1a1a1c;
-            border: 1px solid #333;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            padding: 12px 10px;
-            margin-top: 8px;
-            margin-bottom: 25px;
-            font-size: 0.75rem;
-            color: #666;
+            background: #1a1a1c; border: 1px solid #333; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 15px;
+            padding: 12px 10px; margin-top: 8px; margin-bottom: 25px; font-size: 0.75rem; color: #666;
         }
-        
-        /* 誤點卡下方的置中文字區塊 */
         .t-center-group {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 15px;
-            margin-bottom: 30px;
-            text-align: center;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            margin-top: 15px; margin-bottom: 30px; text-align: center;
         }
-        
-        .t-center-text {
-            color: #e6b800;
-            font-weight: bold;
-            font-size: 0.9rem;
-            line-height: 1.4;
-        }
-        .t-center-text .sub {
-            display: block;
-            font-size: 0.75rem;
-            font-weight: normal;
-            opacity: 0.8;
-            margin-top: 2px;
-        }
+        .t-center-text { color: #e6b800; font-weight: bold; font-size: 0.9rem; line-height: 1.4; }
+        .t-center-text .sub { display: block; font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-top: 2px; }
+        .t-arrow-side { font-size: 1.2rem; color: #e6b800; animation: bounce-y 1s infinite; }
+        @keyframes bounce-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
-        /* 箭頭樣式 */
-        .t-arrow-side {
-            font-size: 1.2rem;
-            color: #e6b800;
-            animation: bounce-y 1s infinite;
-        }
-        @keyframes bounce-y { 
-            0%, 100% { transform: translateY(0); } 
-            50% { transform: translateY(-3px); } 
-        }
-
-        /* [PageHow] Carousel Styles */
+        /* Carousel Styles */
         .how-container { position: relative; overflow: hidden; min-height: 380px; display: flex; flex-direction: column; }
         .how-slider-wrapper { flex: 1; display: flex; transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1); }
-        .how-slide { 
-            min-width: 100%; flex-shrink: 0; 
-            padding: 10px 5px; 
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            opacity: 0; transition: opacity 0.3s;
-        }
+        .how-slide { min-width: 100%; flex-shrink: 0; padding: 10px 5px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; opacity: 0; transition: opacity 0.3s; }
         .how-slide.active { opacity: 1; }
-        
-        /* PageHow Mockups */
         .mock-ui-box { width: 100%; margin-bottom: 20px; pointer-events: none; }
         .mock-row { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; width: 100%; justify-content: center; }
         .mock-btn-group { display: flex; gap: 8px; margin-bottom: 15px; width: 100%; }
-        .mock-desc-text { color: #ccc; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; }
-        .mock-desc-sub { color: #666; font-size: 0.8rem; line-height: 1.4; }
-        
-        .mock-v-group {
-            display: flex; align-items: center; width: 100%; gap: 15px; margin-bottom: 20px;
-            background: #1a1a1c; padding: 15px; border-radius: 12px; border: 1px solid #333;
-        }
+        .mock-v-group { display: flex; align-items: center; width: 100%; gap: 15px; margin-bottom: 20px; background: #1a1a1c; padding: 15px; border-radius: 12px; border: 1px solid #333; }
         .mock-v-text { text-align: left; flex: 1; font-size: 0.85rem; color: #ccc; line-height: 1.4; }
-
-        /* Controls */
-        .how-controls {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 15px 0; margin-top: auto; border-top: 1px solid #333;
-        }
+        .how-controls { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; margin-top: auto; border-top: 1px solid #333; }
         .how-btn { background: none; border: none; color: #4d7f5e; font-size: 1rem; font-weight: bold; cursor: pointer; padding: 5px 15px; }
         .how-btn:disabled { color: #444; cursor: default; }
         .how-dots { display: flex; gap: 8px; }
         .how-dot { width: 8px; height: 8px; border-radius: 50%; background: #333; transition: all 0.2s; }
         .how-dot.active { background: #4d7f5e; transform: scale(1.2); }
-
     </style>
 </head>
 <body class="tick-a">
@@ -428,23 +319,13 @@
 
     <div id="fixedFooterHints" class="fixed-footer-hints">
         <div id="hintArrival" class="hint-group">
-            <div class="led-pair-mini">
-                <div class="led-dot top"></div>
-                <div class="led-dot bottom"></div>
-            </div>
-            <div class="hint-text-col">
-                <span>10分鐘內</span>
-                <span>發車</span>
-            </div>
+            <div class="led-pair-mini"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
+            <div class="hint-text-col"><span>10分鐘內</span><span>發車</span></div>
         </div>
         <div id="hintDivider" class="hint-divider"></div>
         <div class="hint-group">
             <span style="font-size:1.2rem">👆</span>
-            <div class="hint-text-col">
-                <span>點擊列車卡片</span>
-                <span class="sub">查看即時位置</span>
-                <span class="sub">& 完整停靠站</span>
-            </div>
+            <div class="hint-text-col"><span>點擊列車卡片</span><span class="sub">查看即時位置</span><span class="sub">& 完整停靠站</span></div>
         </div>
     </div>
 
@@ -453,20 +334,15 @@
             <div class="header-static-part">
                 <div class="header-top">
                     <div class="app-title" onclick="handleLogoClick()">TRAIN LIVE</div>
-
                     <div class="top-actions">
-                        <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
-                            📲 加到桌面
-                        </button>
+                        <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">📲 加到桌面</button>
                         <button class="menu-btn-trigger anim-gold-pulse" onclick="openModal()">☰</button>
                     </div>
                 </div>
-
                 <div class="search-row">
                     <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
                     <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站 (可打字輸入...)" oninput="handleSearch()">
                 </div>
-
                 <div class="selector-row">
                     <div class="selector-label">起點</div>
                     <div class="select-group">
@@ -482,41 +358,29 @@
                         <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
                     </div>
                 </div>
-
                 <button id="btnSearch" class="btn-static-search" onclick="doSearch()">🔍 查詢路線</button>
             </div>
-
             <div id="stickyHeader" class="header-sticky-part">
                 <div id="rowQuickRoute" class="sticky-row-top">
                     <div id="quickRouteArea" class="quick-route-scroll-container"></div>
-                    <div id="scrollHint" class="scroll-hint-overlay">
-                        <span class="scroll-hint-arrow">›</span>
-                    </div>
-                    <div class="btn-side-container">
-                         <button id="btnStar" class="btn-fav-compact" onclick="toggleFavorite()">★<br>已收藏</button>
-                    </div>
+                    <div id="scrollHint" class="scroll-hint-overlay"><span class="scroll-hint-arrow">›</span></div>
+                    <div class="btn-side-container"><button id="btnStar" class="btn-fav-compact" onclick="toggleFavorite()">★<br>已收藏</button></div>
                 </div>
-
                 <div id="rowTools" class="sticky-row-tools">
                     <button id="btnRefresh" class="toolbar-btn refresh" onclick="doRefresh()">🔄 更新</button>
                     <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 已駛離</button>
                     <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 AM/PM</button>
                 </div>
-
                 <div class="sticky-row-status">
-                    <div id="statusMsg" class="status-left"></div>
-                    <div id="updateTime" class="status-right"></div>
+                    <div id="statusMsg" class="status-left"></div><div id="updateTime" class="status-right"></div>
                 </div>
             </div>
             <div id="stickyPlaceholder"></div>
         </div>
-
         <div id="cardList"></div>
     </div>
 
-    <button id="btnBackToTop" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-        ↑
-    </button>
+    <button id="btnBackToTop" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
 
     <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
         <div class="modal-content" onclick="event.stopPropagation()">
@@ -540,115 +404,47 @@
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">操作說明</div></div>
                 <div class="how-container">
                     <div class="how-slider-wrapper" id="howSlider">
-                        
                         <div class="how-slide active">
                             <div class="mock-ui-box">
-                                <div class="search-row">
-                                    <div class="search-target" style="display:flex;align-items:center;justify-content:center;color:#888;">起點</div>
-                                    <div class="search-box" style="color:#aaa;">輸入站名...</div>
-                                </div>
-                                <div class="selector-row">
-                                    <div class="selector-label">起點</div>
-                                    <div class="select-group">
-                                        <div class="region-select">臺北市</div><div class="station-select">臺北</div>
-                                    </div>
-                                </div>
+                                <div class="search-row"><div class="search-target" style="display:flex;align-items:center;justify-content:center;color:#888;">起點</div><div class="search-box" style="color:#aaa;">輸入站名...</div></div>
+                                <div class="selector-row"><div class="selector-label">起點</div><div class="select-group"><div class="region-select">臺北市</div><div class="station-select">臺北</div></div></div>
                             </div>
-                            <div class="static-hint-bar" style="width:100%;">
-                                <div class="hint-group">
-                                    <span style="font-size:1.2rem">👆</span>
-                                    <div class="hint-text-col">
-                                        <span>輸入站名 / 選單</span>
-                                        <span class="sub">快速切換起訖站</span>
-                                    </div>
-                                </div>
-                            </div>
+                            <div class="static-hint-bar" style="width:100%;"><div class="hint-group"><span style="font-size:1.2rem">👆</span><div class="hint-text-col"><span>輸入站名 / 選單</span><span class="sub">快速切換起訖站</span></div></div></div>
                         </div>
-
                         <div class="how-slide">
-                            <div class="mock-v-group">
-                                <button class="btn-static-search" style="margin:0; width:auto; padding:8px 15px; font-size:0.8rem;">🔍 查詢路線</button>
-                                <div class="mock-v-text">每分鐘限搜 3 次<br>頻繁操作暫時鎖定</div>
-                            </div>
-                            <div class="mock-v-group">
-                                <button class="toolbar-btn refresh" style="margin:0; width:auto; padding:8px 15px; flex:none;">🔄 更新</button>
-                                <div class="mock-v-text">防止洗版<br>按鍵冷卻 30 秒</div>
-                            </div>
+                            <div class="mock-v-group"><button class="btn-static-search" style="margin:0; width:auto; padding:8px 15px; font-size:0.8rem;">🔍 查詢路線</button><div class="mock-v-text">每分鐘限搜 3 次<br>頻繁操作暫時鎖定</div></div>
+                            <div class="mock-v-group"><button class="toolbar-btn refresh" style="margin:0; width:auto; padding:8px 15px; flex:none;">🔄 更新</button><div class="mock-v-text">防止洗版<br>按鍵冷卻 30 秒</div></div>
                         </div>
-
                         <div class="how-slide">
-                            <div class="mock-row" style="justify-content:center;">
-                                <button class="btn-fav-compact fav-active" style="width:auto;">★<br>已收藏</button>
-                                <div class="route-chip fav" style="padding:8px 15px;">臺北<span class="chip-arrow">➔</span>高雄</div>
-                            </div>
-                            <div class="t-center-group">
-                                <div class="t-arrow-side">⬆</div>
-                                <div class="t-center-text">點擊上方按鈕<span class="sub">快速載入路線</span></div>
-                                <div class="t-arrow-side">⬆</div>
-                            </div>
+                            <div class="mock-row" style="justify-content:center;"><button class="btn-fav-compact fav-active" style="width:auto;">★<br>已收藏</button><div class="route-chip fav" style="padding:8px 15px;">臺北<span class="chip-arrow">➔</span>高雄</div></div>
+                            <div class="t-center-group"><div class="t-arrow-side">⬆</div><div class="t-center-text">點擊上方按鈕<span class="sub">快速載入路線</span></div><div class="t-arrow-side">⬆</div></div>
                         </div>
-
                         <div class="how-slide">
-                            <div class="mock-v-group">
-                                <button class="toolbar-btn active" style="margin:0; width:auto; padding:8px 15px; flex:none;">👁️ 已駛離</button>
-                                <div class="mock-v-text">顯示/隱藏<br>已開走的班次</div>
-                            </div>
-                            <div class="mock-v-group">
-                                <button class="toolbar-btn" style="margin:0; width:auto; padding:8px 15px; flex:none;">🕒 AM/PM</button>
-                                <div class="mock-v-text">切換<br>12 / 24 小時制</div>
-                            </div>
+                            <div class="mock-v-group"><button class="toolbar-btn active" style="margin:0; width:auto; padding:8px 15px; flex:none;">👁️ 已駛離</button><div class="mock-v-text">顯示/隱藏<br>已開走的班次</div></div>
+                            <div class="mock-v-group"><button class="toolbar-btn" style="margin:0; width:auto; padding:8px 15px; flex:none;">🕒 AM/PM</button><div class="mock-v-text">切換<br>12 / 24 小時制</div></div>
                         </div>
-
                         <div class="how-slide">
                             <div class="card" style="border-left-color: #4d7f5e; width:100%; pointer-events:none;">
                                 <div class="left-indicator"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
                                 <div class="train-info" style="color:#4d7f5e;">自強 123 次</div>
-                                <div class="main-time">
-                                    <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:00</div></div>
-                                    <span class="arrow">➔</span>
-                                    <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:10</div></div>
-                                </div>
+                                <div class="main-time"><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:00</div></div><span class="arrow">➔</span><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:10</div></div></div>
                                 <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold;">● 準點</span></div>
                             </div>
-                            <div class="static-hint-bar" style="width:100%; margin-top:10px;">
-                                <div class="hint-group">
-                                    <div class="led-pair-mini"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
-                                    <div class="hint-text-col"><span>10分鐘內</span><span>發車</span></div>
-                                </div>
-                                <div class="hint-divider"></div>
-                                <div class="hint-group">
-                                    <span style="font-size:1.2rem">👆</span>
-                                    <div class="hint-text-col"><span>點擊列車卡片</span><span class="sub">查看即時位置</span><span class="sub">& 完整停靠站</span></div>
-                                </div>
-                            </div>
+                            <div class="static-hint-bar" style="width:100%; margin-top:10px;"><div class="hint-group"><div class="led-pair-mini"><div class="led-dot top"></div><div class="led-dot bottom"></div></div><div class="hint-text-col"><span>10分鐘內</span><span>發車</span></div></div><div class="hint-divider"></div><div class="hint-group"><span style="font-size:1.2rem">👆</span><div class="hint-text-col"><span>點擊列車卡片</span><span class="sub">查看即時位置</span><span class="sub">& 完整停靠站</span></div></div></div>
                         </div>
-
                         <div class="how-slide">
                             <div class="card" style="border-left-color: #DF3F1F; width:100%; pointer-events:none;">
                                 <div class="status-badge-container"><div class="status-tag delay">誤點 15 分</div></div>
                                 <div class="train-info" style="color:#DF3F1F;">自強 456 次</div>
-                                <div class="main-time">
-                                    <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part" style="color:#e6b800">10:15</div></div>
-                                    <span class="arrow">➔</span>
-                                    <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part" style="color:#e6b800">10:25</div></div>
-                                </div>
+                                <div class="main-time"><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part" style="color:#e6b800">10:15</div></div><span class="arrow">➔</span><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part" style="color:#e6b800">10:25</div></div></div>
                                 <div class="sub-time">原定 10:00 ➔ 10:10</div>
                             </div>
-                            <div class="t-center-group">
-                                <div class="t-arrow-side">⬆</div>
-                                <div class="t-center-text">大字是實際時間<span class="sub">(已加上誤點時間)</span></div>
-                                <div class="t-arrow-side">⬆</div>
-                            </div>
+                            <div class="t-center-group"><div class="t-arrow-side">⬆</div><div class="t-center-text">大字是實際時間<span class="sub">(已加上誤點時間)</span></div><div class="t-arrow-side">⬆</div></div>
                         </div>
-
                     </div>
-                    
                     <div class="how-controls">
                         <button class="how-btn" onclick="prevHowPage()" id="btnPrevHow">❮</button>
-                        <div class="how-dots" id="howDots">
-                            <div class="how-dot active"></div><div class="how-dot"></div><div class="how-dot"></div>
-                            <div class="how-dot"></div><div class="how-dot"></div><div class="how-dot"></div>
-                        </div>
+                        <div class="how-dots" id="howDots"><div class="how-dot active"></div><div class="how-dot"></div><div class="how-dot"></div><div class="how-dot"></div><div class="how-dot"></div><div class="how-dot"></div></div>
                         <button class="how-btn" onclick="nextHowPage()" id="btnNextHow">❯</button>
                     </div>
                 </div>
@@ -659,89 +455,53 @@
                 <div class="modal-text" style="font-size:0.95rem;">
                     <div style="text-align:center; margin-bottom:5px; color:#fff; font-weight:bold;">自動幫您算好時間！</div>
                     <div style="text-align:center; margin-bottom:15px; color:#666; font-size:0.8rem;">(舉例說明 非實際班次)</div>
-                    
                     <div class="tutorial-container" style="margin-bottom: 5px;">
                         <div class="card" style="border-left-color: #4d7f5e; margin:0; pointer-events:none;">
                             <div class="left-indicator"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
                             <div class="train-info" style="color:#4d7f5e;">自強 123 次</div>
-                            <div class="main-time">
-                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:00</div></div>
-                                <span class="arrow">➔</span>
-                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:10</div></div>
-                            </div>
-                            <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span></div>
-                            <div class="t-corner-glow"></div>
+                            <div class="main-time"><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:00</div></div><span class="arrow">➔</span><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:10</div></div></div>
+                            <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span></div><div class="t-corner-glow"></div>
                         </div>
                     </div>
-
                     <div class="static-hint-bar">
-                        <div class="hint-group">
-                            <div class="led-pair-mini"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
-                            <div class="hint-text-col"><span>10分鐘內</span><span>發車</span></div>
-                        </div>
+                        <div class="hint-group"><div class="led-pair-mini"><div class="led-dot top"></div><div class="led-dot bottom"></div></div><div class="hint-text-col"><span>10分鐘內</span><span>發車</span></div></div>
                         <div class="hint-divider"></div>
-                        <div class="hint-group">
-                            <span style="font-size:1.2rem">👆</span>
-                            <div class="hint-text-col"><span>點擊列車卡片</span><span class="sub">查看即時位置</span><span class="sub">& 完整停靠站</span></div>
-                        </div>
+                        <div class="hint-group"><span style="font-size:1.2rem">👆</span><div class="hint-text-col"><span>點擊列車卡片</span><span class="sub">查看即時位置</span><span class="sub">& 完整停靠站</span></div></div>
                     </div>
-
                     <div class="tutorial-container" style="margin-bottom: 0;">
                         <div class="card" style="border-left-color: #DF3F1F; margin:0; pointer-events:none;">
                             <div class="status-badge-container"><div class="status-tag delay">誤點 15 分</div></div>
                             <div class="train-info" style="color:#DF3F1F;">自強 456 次</div>
-                            <div class="main-time">
-                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part" style="color:#e6b800">10:15</div></div>
-                                <span class="arrow">➔</span>
-                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part" style="color:#e6b800">10:25</div></div>
-                            </div>
+                            <div class="main-time"><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part" style="color:#e6b800">10:15</div></div><span class="arrow">➔</span><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part" style="color:#e6b800">10:25</div></div></div>
                             <div class="sub-time">原定 10:00 ➔ 10:10</div>
                         </div>
                     </div>
-
-                    <div class="t-center-group">
-                        <div class="t-arrow-side">⬆</div>
-                        <div class="t-center-text">大字是實際時間<span class="sub">(已加上誤點時間)</span></div>
-                        <div class="t-arrow-side">⬆</div>
-                    </div>
-
+                    <div class="t-center-group"><div class="t-arrow-side">⬆</div><div class="t-center-text">大字是實際時間<span class="sub">(已加上誤點時間)</span></div><div class="t-arrow-side">⬆</div></div>
                     <button class="menu-btn btn-start" style="text-align:center; justify-content:center; margin-top:10px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用</button>
                 </div>
             </div>
 
             <div id="pageReport" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">系統診斷</div></div>
-                
                 <div style="margin-bottom:15px;">
                     <textarea id="userDesc" class="search-box" style="width:100%; resize:none; font-size:1rem; padding:10px;" rows="5" placeholder="遇到什麼問題？(選填)"></textarea>
                     <button class="menu-btn" style="width:100%; text-align:center; justify-content:center; margin-top:10px;" onclick="manualUploadReport()">☁️ 送出回報</button>
                     <div id="autoUploadHint" style="color:#4d7f5e; font-size:0.8rem; text-align:center; margin-top:5px; opacity:0; transition:opacity 1s;">✅ 系統資料已自動歸檔</div>
                 </div>
-
-                <div class="diag-section" style="border:none;">
-                    <div class="diag-title">系統紀錄 (Log)</div>
-                    <div id="terminalView" class="terminal-box"></div>
-                </div>
+                <div class="diag-section" style="border:none;"><div class="diag-title">系統紀錄 (Log)</div><div id="terminalView" class="terminal-box"></div></div>
             </div>
 
             <div id="pageAuthor" class="modal-page">
                 <div class="modal-header-row"><button class="back-btn" onclick="goToPage('Menu')">‹</button><div class="modal-title">關於作者</div></div>
                 <div class="modal-text" style="text-align:center;">
-                    <div style="font-size:0.95rem; color:#fff; font-weight:bold; margin-bottom:10px;">
-                        BenjaminDai 與 Gemini
-                    </div>
-                    <a href="https://www.instagram.com/d16benjamin_?igsh=N2c3M25ia3M0a3c4" target="_blank" style="font-size:0.85rem; color:#4d7f5e; display:inline-block; margin-bottom:5px; text-decoration:none;">
-                        @d16benjamin_
-                    </a>
+                    <div style="font-size:0.95rem; color:#fff; font-weight:bold; margin-bottom:10px;">BenjaminDai 與 Gemini</div>
+                    <a href="https://www.instagram.com/d16benjamin_?igsh=N2c3M25ia3M0a3c4" target="_blank" style="font-size:0.85rem; color:#4d7f5e; display:inline-block; margin-bottom:5px; text-decoration:none;">@d16benjamin_</a>
                     <div style="font-size:0.7rem; color:#444; margin-top:10px;">Start: 2026/1/6</div>
                 </div>
             </div>
             
             <div id="pageLogin" class="modal-page">
-                <div class="modal-header-row">
-                    <div class="modal-title">🔐 身分驗證</div>
-                    <button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button>
-                </div>
+                <div class="modal-header-row"><div class="modal-title">🔐 身分驗證</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
                 <div class="modal-text">
                     <div style="margin-bottom:15px; color:#aaa; font-size:0.85rem;">請輸入開發者帳號密碼</div>
                     <input type="text" id="loginUser" class="search-box" placeholder="User" style="width:100%; margin-bottom:10px;" autocomplete="off">
@@ -751,50 +511,21 @@
             </div>
 
             <div id="pageDev" class="modal-page">
-                <div class="modal-header-row">
-                    <div class="modal-title" style="color:#334439;">開發者頁面</div>
-                    <button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button>
-                </div>
-                
+                <div class="modal-header-row"><div class="modal-title" style="color:#334439;">開發者頁面</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
                 <div class="modal-text">
                     <div class="toggle-row">
                         <span>資料收集開關</span>
-                        <div style="display:flex; align-items:center; gap:5px;">
-                            <span id="toggleStatusLabel" style="font-size:0.8rem; color:#666;">(Loading)</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="loggingToggle" disabled onchange="toggleLogging()">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
+                        <div style="display:flex; align-items:center; gap:5px;"><span id="toggleStatusLabel" style="font-size:0.8rem; color:#666;">(Loading)</span><label class="toggle-switch"><input type="checkbox" id="loggingToggle" disabled onchange="toggleLogging()"><span class="slider"></span></label></div>
                     </div>
-
-                    <div class="dev-tabs">
-                        <div class="dev-tab active" onclick="switchDevTab('sessions')">即時 Sessions</div>
-                        <div class="dev-tab" onclick="switchDevTab('reports')">歸檔報告</div>
-                    </div>
-
+                    <div class="dev-tabs"><div class="dev-tab active" onclick="switchDevTab('sessions')">即時 Sessions</div><div class="dev-tab" onclick="switchDevTab('reports')">歸檔報告</div></div>
                     <div id="panelSessions" class="dev-panel active">
-                        <div class="gm-container">
-                            <div id="gmSessionList" class="gm-list">Loading...</div>
-                            <div id="gmLogView" class="gm-terminal">Select a user...</div>
-                        </div>
-                        <div style="margin-top:10px; display:flex; gap:10px;">
-                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchSessionList()">🔄 刷新</button>
-                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="copyDevContent('session')">📋 複製 Log</button>
-                            <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearSessions()">🗑️ 清空</button>
-                        </div>
+                        <div class="gm-container"><div id="gmSessionList" class="gm-list">Loading...</div><div id="gmLogView" class="gm-terminal">Select a user...</div></div>
+                        <div style="margin-top:10px; display:flex; gap:10px;"><button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchSessionList()">🔄 刷新</button><button class="menu-btn" style="flex:1; padding:8px;" onclick="copyDevContent('session')">📋 複製 Log</button><button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearSessions()">🗑️ 清空</button></div>
                     </div>
-
                     <div id="panelReports" class="dev-panel">
-                        <div style="margin-bottom:10px; display:flex; gap:10px;">
-                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchReportList()">🔄 刷新列表</button>
-                            <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空報告</button>
-                        </div>
+                        <div style="margin-bottom:10px; display:flex; gap:10px;"><button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchReportList()">🔄 刷新列表</button><button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空報告</button></div>
                         <div id="reportListContainer" class="terminal-box" style="height:120px; margin-bottom:10px;"></div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0 5px 0;">
-                            <div class="info-label">報告內容：</div>
-                            <button class="btn-fav-compact" style="width:auto; padding:2px 8px;" onclick="copyDevContent('report')">📋 複製內容</button>
-                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0 5px 0;"><div class="info-label">報告內容：</div><button class="btn-fav-compact" style="width:auto; padding:2px 8px;" onclick="copyDevContent('report')">📋 複製內容</button></div>
                         <div id="reportDetailContainer" class="dev-terminal" style="height:150px;">點擊上方列表查看...</div>
                     </div>
                 </div>
@@ -802,17 +533,12 @@
 
             <div id="pageIOS" class="modal-page">
                 <div class="modal-header-row"><div class="modal-title">安裝教學 (iOS)</div><button class="modal-close" style="width:auto; padding:5px 15px;" onclick="closeModal()">關閉</button></div>
-                <div class="ios-instruction">
-                    <div class="ios-step">1. 點擊 <span class="ios-icon">⎋</span> <strong>分享</strong> 按鈕</div>
-                    <div class="ios-step">2. 選擇 <span class="ios-icon">⊞</span> <strong>加入主畫面</strong></div>
-                    <div class="ios-step">3. 點擊右上角的「加入」</div>
-                </div>
+                <div class="ios-instruction"><div class="ios-step">1. 點擊 <span class="ios-icon">⎋</span> <strong>分享</strong> 按鈕</div><div class="ios-step">2. 選擇 <span class="ios-icon">⊞</span> <strong>加入主畫面</strong></div><div class="ios-step">3. 點擊右上角的「加入」</div></div>
             </div>
         </div>
     </div>
 
     <script>
-        // ... (Station Data, Constants) ...
         const STATION_DATA = {
             "基隆市": ["基隆", "三坑", "八堵", "七堵", "百福", "暖暖", "海科館"],
             "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "侯硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
@@ -832,16 +558,17 @@
             "花蓮縣": ["和平", "和仁", "崇德", "新城", "景美", "北埔", "花蓮", "吉安", "志學", "平和", "壽豐", "豐田", "林榮新光", "南平", "鳳林", "萬榮", "光復", "大富", "富源", "瑞穗", "三民", "玉里", "東里", "東竹", "富里"],
             "臺東縣": ["池上", "海端", "關山", "瑞和", "瑞源", "鹿野", "山里", "臺東", "康樂", "知本", "太麻里", "金崙", "瀧溪", "大武"]
         };
-
         const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
         const DEFAULT_STATIONS = {"基隆市": "基隆", "新北市": "板橋", "臺北市": "臺北", "桃園市": "桃園", "新竹縣市": "新竹", "苗栗縣": "苗栗", "臺中市": "臺中", "彰化縣": "彰化", "南投縣": "集集", "雲林縣": "斗六", "嘉義縣市": "嘉義", "臺南市": "臺南", "高雄市": "高雄", "屏東縣": "屏東", "宜蘭縣": "羅東", "花蓮縣": "花蓮", "臺東縣": "臺東"};
-
         const CACHE_PREFIX="train_data_v2_";
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
-        
-        const LS_TUTORIAL_SEEN="tl_intro_seen_v2";
-        const LS_SKELETON_COUNT="tl_skeleton_count";
+        const LS_TUTORIAL_SEEN="tl_intro_seen_v2"; const LS_SKELETON_COUNT="tl_skeleton_count";
+        const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history"; const MAX_HIST = 3; const MAX_FAV = 6;
+        const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
+        const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
+        const LS_UI_LOCK = "tl_ui_button_locked_until"; const LS_IS_24H="tl_pref_is_24h"; 
+        const MAX_SEARCH_PER_MIN=3;
 
         const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
         const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
@@ -850,37 +577,23 @@
         const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
         const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
         const resumePill = document.getElementById('resumePill');
+        const btnStar = document.getElementById('btnStar'); const quickArea = document.getElementById('quickRouteArea');
 
         let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
-        const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
-        const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
-        const LS_UI_LOCK = "tl_ui_button_locked_until"; 
-
-        const LS_IS_24H="tl_pref_is_24h"; 
-
-        const MAX_SEARCH_PER_MIN=3;
         let lastFetchedPair={start:"",end:""};
         let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
         let isShowAll = false;
         let lastDiagnostics = { route_source: "--", route_quota: "--", delay_source: "--", delay_quota: "--" };
         let systemLogs=[]; let requestHistory=[];
-
-        let isNextDayLoaded = false;
-        let currentTrainData = null;
-        let lastUpdateTime = 0; 
-        let isResumeHintActive = false; 
-        
+        let isNextDayLoaded = false; let currentTrainData = null; let lastUpdateTime = 0; let isResumeHintActive = false; 
         let serverLoggingEnabled = true;
-
         let SESSION_ID = localStorage.getItem('tl_session_v2'); 
         if (!SESSION_ID) {
             const now = new Date();
             const timeStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
-            SESSION_ID = `u_${timeStr}`;
-            localStorage.setItem('tl_session_v2', SESSION_ID); 
+            SESSION_ID = `u_${timeStr}`; localStorage.setItem('tl_session_v2', SESSION_ID); 
         }
         let adminAuth = { u: "", p: "" }; 
-
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone) || window.matchMedia('(display-mode: standalone)').matches;
@@ -908,7 +621,7 @@
             if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
         }
 
-        // --- God Mode Logic ---
+        // God Mode Logic
         let logoClickCount = 0; let logoClickTimer = null;
         function handleLogoClick() {
             logoClickCount++;
@@ -916,203 +629,69 @@
             if (logoClickCount >= 5) { clearTimeout(logoClickTimer); logoClickCount = 0; activateGodMode(); }
         }
         function activateGodMode() {
-            document.getElementById('aboutModal').style.display = 'flex';
-            document.body.classList.add('noscroll');
+            document.getElementById('aboutModal').style.display = 'flex'; document.body.classList.add('noscroll');
             history.pushState({modal: true}, '', '');
-
-            if (adminAuth.u && adminAuth.p) {
-                goToPage('Dev');
-                fetchSessionList();
-                fetchConfig(); 
-            } else {
-                goToPage('Login');
-            }
+            if (adminAuth.u && adminAuth.p) { goToPage('Dev'); fetchSessionList(); fetchConfig(); } else { goToPage('Login'); }
         }
         function doLogin() {
-            const u = document.getElementById('loginUser').value;
-            const p = document.getElementById('loginPass').value;
+            const u = document.getElementById('loginUser').value; const p = document.getElementById('loginPass').value;
             if (!u || !p) return;
-            adminAuth = { u, p };
-            document.getElementById('loginUser').value = "";
-            document.getElementById('loginPass').value = "";
-            goToPage('Dev');
-            fetchSessionList();
-            fetchConfig(); 
+            adminAuth = { u, p }; document.getElementById('loginUser').value = ""; document.getElementById('loginPass').value = "";
+            goToPage('Dev'); fetchSessionList(); fetchConfig(); 
         }
-        
         function switchDevTab(tab) {
-            document.querySelectorAll('.dev-tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            document.querySelectorAll('.dev-tab').forEach(t => t.classList.remove('active')); event.target.classList.add('active');
             document.querySelectorAll('.dev-panel').forEach(p => p.classList.remove('active'));
-            if (tab === 'sessions') {
-                document.getElementById('panelSessions').classList.add('active');
-                fetchSessionList();
-            } else {
-                document.getElementById('panelReports').classList.add('active');
-                fetchReportList();
-            }
+            if (tab === 'sessions') { document.getElementById('panelSessions').classList.add('active'); fetchSessionList(); } 
+            else { document.getElementById('panelReports').classList.add('active'); fetchReportList(); }
         }
-
         async function fetchConfig() {
-            const toggle = document.getElementById('loggingToggle');
-            const label = document.getElementById('toggleStatusLabel');
-            try {
-                toggle.disabled = true; label.innerText = "(Loading)";
-                const res = await fetch(`/api/index?debug=godmode&action=get_config&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                toggle.checked = (json.logging_enabled === "1");
-                toggle.disabled = false; label.innerText = "";
-            } catch(e) {
-                label.innerText = "(Err)";
-            }
+            const toggle = document.getElementById('loggingToggle'); const label = document.getElementById('toggleStatusLabel');
+            try { toggle.disabled = true; label.innerText = "(Loading)"; const res = await fetch(`/api/index?debug=godmode&action=get_config&u=${adminAuth.u}&p=${adminAuth.p}`); const json = await res.json(); toggle.checked = (json.logging_enabled === "1"); toggle.disabled = false; label.innerText = ""; } catch(e) { label.innerText = "(Err)"; }
         }
         async function toggleLogging() {
             const val = document.getElementById('loggingToggle').checked ? "1" : "0";
             await fetch(`/api/index?debug=godmode&action=set_config&key=logging_enabled&val=${val}&u=${adminAuth.u}&p=${adminAuth.p}`);
         }
-
         async function fetchSessionList() {
-            const listEl = document.getElementById('gmSessionList');
-            listEl.innerHTML = "Loading...";
-            try {
-                const res = await fetch(`/api/index?debug=godmode&action=list_sessions&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                if (json.sessions && json.sessions.length > 0) {
-                    let html = '';
-                    json.sessions.forEach(s => {
-                        const isMe = s.id === SESSION_ID ? " (Me)" : "";
-                        const status = s.ttl > 86000 ? "🟢" : "⚪"; 
-                        html += `<div class="gm-list-item" onclick="loadSessionLogs('${s.id}', this)">
-                                    <span>[${s.last_active_str}] ${status} ${s.id}${isMe}</span>
-                                 </div>`;
-                    });
-                    listEl.innerHTML = html;
-                } else { listEl.innerHTML = "No active sessions."; }
-            } catch (e) { listEl.innerHTML = "Error: " + e.message; }
+            const listEl = document.getElementById('gmSessionList'); listEl.innerHTML = "Loading...";
+            try { const res = await fetch(`/api/index?debug=godmode&action=list_sessions&u=${adminAuth.u}&p=${adminAuth.p}`); const json = await res.json(); if (json.sessions && json.sessions.length > 0) { let html = ''; json.sessions.forEach(s => { const isMe = s.id === SESSION_ID ? " (Me)" : ""; const status = s.ttl > 86000 ? "🟢" : "⚪"; html += `<div class="gm-list-item" onclick="loadSessionLogs('${s.id}', this)"><span>[${s.last_active_str}] ${status} ${s.id}${isMe}</span></div>`; }); listEl.innerHTML = html; } else { listEl.innerHTML = "No active sessions."; } } catch (e) { listEl.innerHTML = "Error: " + e.message; }
         }
-
-        async function clearSessions() {
-            if(!confirm("確定清空所有 Session 紀錄？")) return;
-            await fetch(`/api/index?debug=godmode&action=clear_sessions&u=${adminAuth.u}&p=${adminAuth.p}`);
-            fetchSessionList();
-        }
-        async function clearReports() {
-            if(!confirm("確定清空所有報告？")) return;
-            await fetch(`/api/index?debug=godmode&action=clear_reports&u=${adminAuth.u}&p=${adminAuth.p}`);
-            fetchReportList();
-        }
-
+        async function clearSessions() { if(!confirm("確定清空所有 Session 紀錄？")) return; await fetch(`/api/index?debug=godmode&action=clear_sessions&u=${adminAuth.u}&p=${adminAuth.p}`); fetchSessionList(); }
+        async function clearReports() { if(!confirm("確定清空所有報告？")) return; await fetch(`/api/index?debug=godmode&action=clear_reports&u=${adminAuth.u}&p=${adminAuth.p}`); fetchReportList(); }
         async function loadSessionLogs(sid, el) {
-            document.querySelectorAll('.gm-list-item').forEach(i => i.classList.remove('active'));
-            if(el) el.classList.add('active');
-            const logView = document.getElementById('gmLogView');
-            logView.innerHTML = `Loading logs for ${sid}...`;
-            try {
-                const res = await fetch(`/api/index?debug=godmode&action=get_session_logs&sid=${sid}&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                if (json.logs && json.logs.length > 0) { logView.innerHTML = json.logs.join('\n'); } 
-                else { logView.innerHTML = "No logs found."; }
-            } catch (e) { logView.innerHTML = "Error: " + e.message; }
+            document.querySelectorAll('.gm-list-item').forEach(i => i.classList.remove('active')); if(el) el.classList.add('active');
+            const logView = document.getElementById('gmLogView'); logView.innerHTML = `Loading logs for ${sid}...`;
+            try { const res = await fetch(`/api/index?debug=godmode&action=get_session_logs&sid=${sid}&u=${adminAuth.u}&p=${adminAuth.p}`); const json = await res.json(); if (json.logs && json.logs.length > 0) { logView.innerHTML = json.logs.join('\n'); } else { logView.innerHTML = "No logs found."; } } catch (e) { logView.innerHTML = "Error: " + e.message; }
         }
-
         async function fetchReportList() {
-            const container = document.getElementById('reportListContainer');
-            container.innerHTML = "Loading...";
-            try {
-                const res = await fetch(`/api/index?debug=godmode&action=list_reports&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                if (json.reports && json.reports.length > 0) {
-                    let html = '';
-                    json.reports.forEach(key => {
-                        const displayTime = key.replace('report:', '').split('_')[0] + ' ' + key.split('_')[1];
-                        html += `<div class="report-list-item" onclick="loadReportDetail('${key}')">
-                                    <span class="report-timestamp">${displayTime}</span>
-                                    <span>📄</span>
-                                 </div>`;
-                    });
-                    container.innerHTML = html;
-                } else { container.innerHTML = "沒有歸檔報告"; }
-            } catch (e) { container.innerHTML = "Error: " + e.message; }
+            const container = document.getElementById('reportListContainer'); container.innerHTML = "Loading...";
+            try { const res = await fetch(`/api/index?debug=godmode&action=list_reports&u=${adminAuth.u}&p=${adminAuth.p}`); const json = await res.json(); if (json.reports && json.reports.length > 0) { let html = ''; json.reports.forEach(key => { const displayTime = key.replace('report:', '').split('_')[0] + ' ' + key.split('_')[1]; html += `<div class="report-list-item" onclick="loadReportDetail('${key}')"><span class="report-timestamp">${displayTime}</span><span>📄</span></div>`; }); container.innerHTML = html; } else { container.innerHTML = "沒有歸檔報告"; } } catch (e) { container.innerHTML = "Error: " + e.message; }
         }
-
-        function formatReport(data) {
-            const logs = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs";
-            
-            return `📅 時間: ${data.timestamp || '--'}
-📱 裝置: ${data.user_agent || 'Unknown'}
-📏 畫面: ${data.screen || '--'}
---------------------------------
-[系統紀錄]
-${logs}`;
-        }
-
+        function formatReport(data) { const logs = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs"; return `📅 時間: ${data.timestamp || '--'}\n📱 裝置: ${data.user_agent || 'Unknown'}\n📏 畫面: ${data.screen || '--'}\n--------------------------------\n[系統紀錄]\n${logs}`; }
         async function loadReportDetail(reportId) {
-            const detailBox = document.getElementById('reportDetailContainer');
-            detailBox.innerHTML = "Loading content...";
-            try {
-                const res = await fetch(`/api/index?debug=godmode&action=get_report&id=${reportId}&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                if (json.report_content) { 
-                    detailBox.innerText = formatReport(json.report_content); 
-                } 
-                else { detailBox.innerHTML = "Error: Not Found"; }
-            } catch (e) { detailBox.innerHTML = "Fetch Error: " + e.message; }
+            const detailBox = document.getElementById('reportDetailContainer'); detailBox.innerHTML = "Loading content...";
+            try { const res = await fetch(`/api/index?debug=godmode&action=get_report&id=${reportId}&u=${adminAuth.u}&p=${adminAuth.p}`); const json = await res.json(); if (json.report_content) { detailBox.innerText = formatReport(json.report_content); } else { detailBox.innerHTML = "Error: Not Found"; } } catch (e) { detailBox.innerHTML = "Fetch Error: " + e.message; }
         }
-        
         function copyDevContent(type) {
-            let text = "";
-            if(type === 'session') {
-                const el = document.getElementById('gmLogView');
-                text = el ? el.innerText : "";
-            } else {
-                const el = document.getElementById('reportDetailContainer');
-                text = el ? el.innerText : "";
-            }
-            if(!text || text.includes("Loading") || text.includes("Select a user")) {
-                alert("沒有內容可複製"); return;
-            }
-            navigator.clipboard.writeText(text).then(() => {
-                alert("已複製到剪貼簿 ✅");
-            }).catch(err => {
-                alert("複製失敗: " + err);
-            });
+            let text = ""; if(type === 'session') { const el = document.getElementById('gmLogView'); text = el ? el.innerText : ""; } else { const el = document.getElementById('reportDetailContainer'); text = el ? el.innerText : ""; }
+            if(!text || text.includes("Loading") || text.includes("Select a user")) { alert("沒有內容可複製"); return; }
+            navigator.clipboard.writeText(text).then(() => { alert("已複製到剪貼簿 ✅"); }).catch(err => { alert("複製失敗: " + err); });
         }
-        
+
+        // --- Core Functions (Missing in previous snippet) ---
         function startTicker() {
             setInterval(() => {
-                if (document.body.classList.contains('tick-a')) {
-                    document.body.classList.remove('tick-a'); document.body.classList.add('tick-b');
-                } else {
-                    document.body.classList.remove('tick-b'); document.body.classList.add('tick-a');
-                }
+                if (document.body.classList.contains('tick-a')) { document.body.classList.remove('tick-a'); document.body.classList.add('tick-b'); } else { document.body.classList.remove('tick-b'); document.body.classList.add('tick-a'); }
             }, 500);
-            setInterval(() => {
-                if (currentTrainData && !document.hidden) renderCards(currentTrainData);
-            }, 15000);
+            setInterval(() => { if (currentTrainData && !document.hidden) renderCards(currentTrainData); }, 15000);
         }
-
         window.addEventListener('offline', () => { statusMsg.innerText = "⚠️ 網路已中斷"; statusMsg.className = "status-left alert"; });
         window.addEventListener('online', () => { statusMsg.innerText = "網路已恢復"; setTimeout(() => statusMsg.innerText="", 2000); });
-
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                const now = Date.now();
-                if (lastUpdateTime > 0 && (now - lastUpdateTime > 180000)) {
-                    showResumeHint();
-                }
-            }
-        });
-
-        function showResumeHint() {
-            isResumeHintActive = true;
-            resumePill.style.display = 'flex';
-        }
-
-        function closeResumePill(e) {
-            if(e) e.stopPropagation();
-            isResumeHintActive = false;
-            resumePill.style.display = 'none';
-        }
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { const now = Date.now(); if (lastUpdateTime > 0 && (now - lastUpdateTime > 180000)) { showResumeHint(); } } });
+        
+        function showResumeHint() { isResumeHintActive = true; resumePill.style.display = 'flex'; }
+        function closeResumePill(e) { if(e) e.stopPropagation(); isResumeHintActive = false; resumePill.style.display = 'none'; }
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
@@ -1126,594 +705,146 @@ ${logs}`;
         function setUiLockedUntil(v){localStorage.setItem(LS_UI_LOCK,v);}
 
         function updateToggleBtns() {
-            const btnTime = document.getElementById('btnTimeFormat');
-            if (!is24Hour) btnTime.classList.add('active'); else btnTime.classList.remove('active');
-            const btnAll = document.getElementById('btnShowAll');
-            if (isShowAll) {
-                btnAll.innerHTML = '👁️ 已駛離';
-                btnAll.classList.add('active'); 
-            } else {
-                btnAll.innerHTML = '👁️ 已駛離'; 
-                btnAll.classList.remove('active');
-            }
+            const btnTime = document.getElementById('btnTimeFormat'); if (!is24Hour) btnTime.classList.add('active'); else btnTime.classList.remove('active');
+            const btnAll = document.getElementById('btnShowAll'); if (isShowAll) { btnAll.innerHTML = '👁️ 已駛離'; btnAll.classList.add('active'); } else { btnAll.innerHTML = '👁️ 已駛離'; btnAll.classList.remove('active'); }
         }
         function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
         function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
-
-        function formatTime(t) {
-            if(!t) return "";
-            if(is24Hour) return t;
-            const p = t.split(':'); if(p.length < 2) return t;
-            let h = parseInt(p[0]); let suffix = "AM";
-            if(h >= 12) { suffix = "PM"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; }
-            return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
-        }
+        function formatTime(t) { if(!t) return ""; if(is24Hour) return t; const p = t.split(':'); if(p.length < 2) return t; let h = parseInt(p[0]); let suffix = "AM"; if(h >= 12) { suffix = "PM"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; } return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`; }
 
         let lastScroll = 0; let currentTranslate = 0;
-        
-        const sticky = document.getElementById('stickyHeader');
-        const placeholder = document.getElementById('stickyPlaceholder');
-        const backToTop = document.getElementById('btnBackToTop');
-        const staticPart = document.querySelector('.header-static-part');
-        const headerEl = document.querySelector('.header');
-
+        const sticky = document.getElementById('stickyHeader'); const placeholder = document.getElementById('stickyPlaceholder'); const backToTop = document.getElementById('btnBackToTop'); const staticPart = document.querySelector('.header-static-part'); const headerEl = document.querySelector('.header');
         window.addEventListener('scroll', () => {
-            const current = window.scrollY;
-            const headerOffset = headerEl ? headerEl.offsetTop : 0;
-            const threshold = staticPart ? (staticPart.offsetHeight + headerOffset) : 150;
-            const stickyHeight = sticky.offsetHeight || 150;
-
+            const current = window.scrollY; const headerOffset = headerEl ? headerEl.offsetTop : 0; const threshold = staticPart ? (staticPart.offsetHeight + headerOffset) : 150; const stickyHeight = sticky.offsetHeight || 150;
             if(current > 300) backToTop.classList.add('visible'); else backToTop.classList.remove('visible');
-
-            if (current <= threshold - 1) {
-                sticky.classList.remove('is-fixed');
-                sticky.style.transform = 'translateY(0)';
-                placeholder.style.display = 'none';
-                currentTranslate = 0;
-            } else if (current > threshold) {
-                if (!sticky.classList.contains('is-fixed')) {
-                      placeholder.style.height = stickyHeight + 'px'; 
-                      placeholder.style.display = 'block';
-                      sticky.classList.add('is-fixed');
-                }
-                const diff = current - lastScroll;
-                currentTranslate -= diff;
-                if (currentTranslate > 0) currentTranslate = 0;
-                if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight;
-                if (current < threshold + stickyHeight + 10) currentTranslate = 0;
-                sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
-            }
-            lastScroll = current <= 0 ? 0 : current;
+            if (current <= threshold - 1) { sticky.classList.remove('is-fixed'); sticky.style.transform = 'translateY(0)'; placeholder.style.display = 'none'; currentTranslate = 0; } 
+            else if (current > threshold) {
+                if (!sticky.classList.contains('is-fixed')) { placeholder.style.height = stickyHeight + 'px'; placeholder.style.display = 'block'; sticky.classList.add('is-fixed'); }
+                const diff = current - lastScroll; currentTranslate -= diff; if (currentTranslate > 0) currentTranslate = 0; if (currentTranslate < -stickyHeight) currentTranslate = -stickyHeight; if (current < threshold + stickyHeight + 10) currentTranslate = 0; sticky.style.transform = `translateX(-50%) translateY(${currentTranslate}px)`;
+            } lastScroll = current <= 0 ? 0 : current;
         });
+        function scrollToFirstActive() { setTimeout(() => { const el = document.getElementById("firstActive"); if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); } }, 300); }
 
-        function scrollToFirstActive() {
-            setTimeout(() => {
-                const el = document.getElementById("firstActive");
-                if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                }
-            }, 300); 
-        }
-
-        function init() {
-            logSystem("App Started"); 
-            startTicker(); 
-            updateToggleBtns();
-            document.getElementById('rowTools').style.display = 'none';
-
-            try {
-                const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
-                const savedSR = localStorage.getItem(PREF_START_R_KEY);
-                if (savedSR) {
-                    startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
-                    setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
-                    setMenu('end',localStorage.getItem(PREF_END_R_KEY)||"屏東縣",localStorage.getItem(PREF_END_S_KEY)||"潮州");
-                    checkLocksOnLoad(); loadDataOrFetch();
-                } else {
-                    startRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts; 
-                    endRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts;
-                    startStation.innerHTML=endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
-                    list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
-                    statusMsg.innerText="等待輸入...";
-                    checkLocksOnLoad();
-                }
-            } catch(e) {
-                console.error("Cache corrupted, clearing...", e);
-                localStorage.clear();
-                window.location.reload();
-            }
-            
-            renderQuickRoutes();
-            updateStarState();
-        }
         function checkLocksOnLoad() {
-            const now=Date.now();
-            const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
-            const uL=getUiLockedUntil(); if(uL>now) lockRefreshButton(Math.ceil((uL-now)/1000));
+            const now=Date.now(); const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000)); const uL=getUiLockedUntil(); if(uL>now) lockRefreshButton(Math.ceil((uL-now)/1000));
         }
         function setMenu(type,rV,sV) {
-            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            if(!STATION_DATA[rV]) { rSel.value = ""; return; }
-            rSel.value=rV; sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join('');
-            if(STATION_DATA[rV].includes(sV)) sSel.value=sV; else sSel.selectedIndex=0;
+            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation; if(!STATION_DATA[rV]) { rSel.value = ""; return; } rSel.value=rV; sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join(''); if(STATION_DATA[rV].includes(sV)) sSel.value=sV; else sSel.selectedIndex=0;
         }
         function updateStationList(type) {
-            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            const rVal = rSel.value; if (!rVal) return;
-            sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join('');
-            const def=DEFAULT_STATIONS[rVal]; 
-            if(def&&STATION_DATA[rVal].includes(def)) sSel.value=def; else sSel.selectedIndex=0;
-            if(startStation.value&&endStation.value) markAsChanged();
+            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation; const rVal = rSel.value; if (!rVal) return; sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join(''); const def=DEFAULT_STATIONS[rVal]; if(def&&STATION_DATA[rVal].includes(def)) sSel.value=def; else sSel.selectedIndex=0; if(startStation.value&&endStation.value) markAsChanged();
         }
         function swapStations() {
-            if(!startStation.value||!endStation.value) return; logSystem("Action: Swap");
-            const sR=startRegion.value; const sS=startStation.value;
-            setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
-            markAsChanged();
+            if(!startStation.value||!endStation.value) return; logSystem("Action: Swap"); const sR=startRegion.value; const sS=startStation.value; setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS); markAsChanged();
         }
         function handleSearch() {
-            const rawVal=searchInput.value.trim(); const tgt=searchTarget.value; if(!rawVal) return;
-            const val = rawVal.replace(/台/g, '臺'); // [新增] 自動轉臺
-            let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
-            if(found) {
-                logSystem(`Action: InputSearch\n             ${found}`); 
-                setMenu(tgt,STATION_INDEX[found],found);
-                searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
-                if(startStation.value&&endStation.value) markAsChanged();
-            }
+            const rawVal=searchInput.value.trim(); const tgt=searchTarget.value; if(!rawVal) return; const val = rawVal.replace(/台/g, '臺'); let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
+            if(found) { logSystem(`Action: InputSearch ${found}`); setMenu(tgt,STATION_INDEX[found],found); searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500); if(startStation.value&&endStation.value) markAsChanged(); }
         }
         function markAsChanged() {
-            if (isResumeHintActive) closeResumePill();
-            if(!startStation.value||!endStation.value) return;
-            localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
-            localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
-            isNextDayLoaded = false;
-            attemptLoadCache(false);
-            updateStarState();
+            if (isResumeHintActive) closeResumePill(); if(!startStation.value||!endStation.value) return; localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value); localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value); isNextDayLoaded = false; attemptLoadCache(false); updateStarState();
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
-
         function reRenderLocal() {
-            if (currentTrainData) { renderCards(currentTrainData); return; }
-            const baseKey = getCacheKey();
-            const fullKey = baseKey + "_full";
-            const cFull = localStorage.getItem(fullKey);
-            const c = localStorage.getItem(baseKey);
-            if(cFull) {
-                const d = JSON.parse(cFull);
-                if(Date.now()-d.timestamp < 60000) { renderCards(d.payload); isNextDayLoaded=true; return; }
-            }
-            if(c) renderCards(JSON.parse(c).payload); 
+            if (currentTrainData) { renderCards(currentTrainData); return; } const baseKey = getCacheKey(); const fullKey = baseKey + "_full"; const cFull = localStorage.getItem(fullKey); const c = localStorage.getItem(baseKey); if(cFull) { const d = JSON.parse(cFull); if(Date.now()-d.timestamp < 60000) { renderCards(d.payload); isNextDayLoaded=true; return; } } if(c) renderCards(JSON.parse(c).payload); 
         }
-
         function attemptLoadCache(isInit) {
-            if(!startStation.value||!endStation.value) return;
-            const baseKey = getCacheKey();
-            const fullKey = baseKey + "_full";
-            const cFull = localStorage.getItem(fullKey);
-            const c = localStorage.getItem(baseKey);
-            let hitData = null;
-            if (cFull) {
-                const d = JSON.parse(cFull);
-                if (Date.now() - d.timestamp < 60000) { hitData = d; isNextDayLoaded = true; }
-            }
-            if (!hitData && c) {
-                const d = JSON.parse(c);
-                if (Date.now() - d.timestamp < 60000) { hitData = d; }
-            }
-            if(hitData) {
-                if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
-                renderCards(hitData.payload); 
-                setUpdateText(`更新時間：${hitData.payload.update_time}`);
-                statusMsg.innerText=""; statusMsg.className="status-left"; 
-                list.style.opacity="1"; 
-                lastFetchedPair={start:startStation.value,end:endStation.value}; 
-                scrollToFirstActive(); 
-            } else {
-                if(isInit) {
-                    statusMsg.innerText="等待查詢"; list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
-                } else {
-                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更"; statusMsg.className="status-left warning";
-                }
-            }
-            updateButtonMode();
+            if(!startStation.value||!endStation.value) return; const baseKey = getCacheKey(); const fullKey = baseKey + "_full"; const cFull = localStorage.getItem(fullKey); const c = localStorage.getItem(baseKey); let hitData = null; if (cFull) { const d = JSON.parse(cFull); if (Date.now() - d.timestamp < 60000) { hitData = d; isNextDayLoaded = true; } } if (!hitData && c) { const d = JSON.parse(c); if (Date.now() - d.timestamp < 60000) { hitData = d; } }
+            if(hitData) { if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); renderCards(hitData.payload); setUpdateText(`更新時間：${hitData.payload.update_time}`); statusMsg.innerText=""; statusMsg.className="status-left"; list.style.opacity="1"; lastFetchedPair={start:startStation.value,end:endStation.value}; scrollToFirstActive(); } else { if(isInit) { statusMsg.innerText="等待查詢"; list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>'; } else { list.style.opacity="0.4"; statusMsg.innerText="設定已變更"; statusMsg.className="status-left warning"; } } updateButtonMode();
         }
         function loadDataOrFetch(){attemptLoadCache(true);}
-        function updateButtonMode() {
-            if(getSearchLockedUntil()>Date.now()) return;
-            if(startStation.value!==lastFetchedPair.start||endStation.value!==lastFetchedPair.end) btnSearch.disabled=false;
-        }
-
+        function updateButtonMode() { if(getSearchLockedUntil()>Date.now()) return; if(startStation.value!==lastFetchedPair.start||endStation.value!==lastFetchedPair.end) btnSearch.disabled=false; }
+        
         function doSearch() {
-            const sS=startStation.value; const eS=endStation.value;
-            if(!sS||!eS) { statusMsg.innerText="請先選擇起點與終點"; statusMsg.className="status-left alert"; setTimeout(()=>statusMsg.innerText="",2000); return; }
-            markAsChanged();
-            if(sS===lastFetchedPair.start&&eS===lastFetchedPair.end) { doRefresh(); return; }
-            const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime();
-            if(now-rst>60000) { cnt=0; setSearchCount(0); rst=now; setSearchResetTime(now); }
-            if(cnt===0) { rst=now; setSearchResetTime(now); }
-            if(cnt>=MAX_SEARCH_PER_MIN) {
-                const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60;
-                setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit: Search Limit"); return;
-            }
-            addToHistory();
-            cnt++; setSearchCount(cnt); 
-            const spaces = "            "; 
-            logSystem(`Action: Search(${cnt}/${MAX_SEARCH_PER_MIN})\n${spaces}${sS} -> ${eS}`); 
-            fetchData("search");
+            const sS=startStation.value; const eS=endStation.value; if(!sS||!eS) { statusMsg.innerText="請先選擇起點與終點"; statusMsg.className="status-left alert"; setTimeout(()=>statusMsg.innerText="",2000); return; } markAsChanged(); if(sS===lastFetchedPair.start&&eS===lastFetchedPair.end) { doRefresh(); return; } const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime(); if(now-rst>60000) { cnt=0; setSearchCount(0); rst=now; setSearchResetTime(now); } if(cnt===0) { rst=now; setSearchResetTime(now); } if(cnt>=MAX_SEARCH_PER_MIN) { const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60; setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit: Search Limit"); return; } addToHistory(); cnt++; setSearchCount(cnt); logSystem(`Action: Search(${cnt}/${MAX_SEARCH_PER_MIN}) ${sS} -> ${eS}`); fetchData("search");
         }
         function doRefresh(skip=false) {
-            const now = Date.now();
-            if (isResumeHintActive) closeResumePill();
-            if(!skip) {
-                const uL = getUiLockedUntil();
-                if(uL > now) return; 
-            }
-            const rL = getRefreshLockedUntil();
-            if(rL > now && !skip) {
-                logSystem("Action: Soft Refresh (Cache)");
-                reRenderLocal(); 
-                statusMsg.innerText = "資料有效中 (快取)";
-                statusMsg.className = "status-left";
-                setTimeout(() => statusMsg.innerText="", 2000);
-                setUiLockedUntil(now + 30000); 
-                lockRefreshButton(30);
-                return; 
-            }
-            const spaces = "            "; 
-            logSystem(`Action: Refresh\n${spaces}${startStation.value} -> ${endStation.value}`); 
-            fetchData("refresh");
+            const now = Date.now(); if (isResumeHintActive) closeResumePill(); if(!skip) { const uL = getUiLockedUntil(); if(uL > now) return; } const rL = getRefreshLockedUntil(); if(rL > now && !skip) { logSystem("Action: Soft Refresh (Cache)"); reRenderLocal(); statusMsg.innerText = "資料有效中 (快取)"; statusMsg.className = "status-left"; setTimeout(() => statusMsg.innerText="", 2000); setUiLockedUntil(now + 30000); lockRefreshButton(30); return; } logSystem(`Action: Refresh ${startStation.value} -> ${endStation.value}`); fetchData("refresh");
         }
-        
-        function handleLoadNextDay() {
-            logSystem("Action: Load Next Day");
-            const btn = document.getElementById('btnLoadNext');
-            if(btn) { btn.disabled=true; btn.innerText = "⏳ 載入中..."; }
-            fetchData("load_next_day");
-        }
-
+        function handleLoadNextDay() { logSystem("Action: Load Next Day"); const btn = document.getElementById('btnLoadNext'); if(btn) { btn.disabled=true; btn.innerText = "⏳ 載入中..."; } fetchData("load_next_day"); }
         async function uploadReportInternal(desc, isAuto) {
-            const statusHint = document.getElementById('autoUploadHint');
-            const now = Date.now();
-            const rpm = requestHistory.filter(t => now - t < 60000).length;
-            const reportData = {
-                timestamp: new Date().toLocaleString(),
-                user_agent: navigator.userAgent,
-                screen: `${window.innerWidth}x${window.innerHeight}`,
-                rpm: rpm,
-                total_requests: requestHistory.length,
-                diagnostics: lastDiagnostics,
-                logs: systemLogs,
-                user_desc: desc || "(Auto Upload on Open)"
-            };
-            try {
-                const res = await fetch('/api/index', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(reportData)
-                });
-                const json = await res.json();
-                if (json.status === 'ok') {
-                    if (isAuto) {
-                        statusHint.style.opacity = '1';
-                        setTimeout(() => { statusHint.style.opacity = '0'; }, 3000);
-                    } else {
-                        alert("✅ 感謝回報！開發者已收到您的訊息。");
-                        document.getElementById('userDesc').value = ""; 
-                    }
-                } else {
-                    if (!isAuto) alert('❌ 上傳失敗: ' + (json.error || 'Unknown'));
-                }
-            } catch (e) { if (!isAuto) alert('❌ 上傳錯誤: ' + e.message); }
+            const statusHint = document.getElementById('autoUploadHint'); const now = Date.now(); const rpm = requestHistory.filter(t => now - t < 60000).length;
+            const reportData = { timestamp: new Date().toLocaleString(), user_agent: navigator.userAgent, screen: `${window.innerWidth}x${window.innerHeight}`, rpm: rpm, total_requests: requestHistory.length, diagnostics: lastDiagnostics, logs: systemLogs, user_desc: desc || "(Auto Upload on Open)" };
+            try { const res = await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reportData) }); const json = await res.json(); if (json.status === 'ok') { if (isAuto) { statusHint.style.opacity = '1'; setTimeout(() => { statusHint.style.opacity = '0'; }, 3000); } else { alert("✅ 感謝回報！開發者已收到您的訊息。"); document.getElementById('userDesc').value = ""; } } else { if (!isAuto) alert('❌ 上傳失敗: ' + (json.error || 'Unknown')); } } catch (e) { if (!isAuto) alert('❌ 上傳錯誤: ' + e.message); }
         }
         function uploadReport() { uploadReportInternal("", true); }
         function manualUploadReport() { const desc = document.getElementById('userDesc').value; uploadReportInternal(desc, false); }
-
         function parseDiagnostics(diag, isCdn) {
-            const parseDiag = (str, isC) => {
-                let source = "API"; let quota = "--";
-                if (isC) source = "Vercel";
-                else if (str.includes("Hit") || str.includes("Cache") || str.includes("Redis")) source = "Redis";
-                else if (str.includes("API")) source = "API";
-                const match = str.match(/\(剩:\s*(\d+)\)/); if (match) quota = match[1];
-                return { source, quota };
-            };
-            const rInfo = parseDiag(diag.route_status, isCdn);
-            const dInfo = diag.delay_status ? parseDiag(diag.delay_status, isCdn) : { source: "--", quota: "--" };
-            lastDiagnostics = { route_source: rInfo.source, route_quota: rInfo.quota, delay_source: dInfo.source, delay_quota: dInfo.quota };
-            return { rInfo, dInfo };
+            const parseDiag = (str, isC) => { let source = "API"; let quota = "--"; if (isC) source = "Vercel"; else if (str.includes("Hit") || str.includes("Cache") || str.includes("Redis")) source = "Redis"; else if (str.includes("API")) source = "API"; const match = str.match(/\(剩:\s*(\d+)\)/); if (match) quota = match[1]; return { source, quota }; };
+            const rInfo = parseDiag(diag.route_status, isCdn); const dInfo = diag.delay_status ? parseDiag(diag.delay_status, isCdn) : { source: "--", quota: "--" }; lastDiagnostics = { route_source: rInfo.source, route_quota: rInfo.quota, delay_source: dInfo.source, delay_quota: dInfo.quota }; return { rInfo, dInfo };
         }
-
         function getSkeletonHTML() {
-            const lastCount = parseInt(localStorage.getItem(LS_SKELETON_COUNT) || "3");
-            const count = Math.min(Math.max(lastCount, 3), 10);
-            let html = ''; 
-            for(let i=0; i<count; i++) html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
-            return html;
+            const lastCount = parseInt(localStorage.getItem(LS_SKELETON_COUNT) || "3"); const count = Math.min(Math.max(lastCount, 3), 10); let html = ''; for(let i=0; i<count; i++) html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`; return html;
         }
-
         async function fetchData(mode) {
-            if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
-            if(mode !== "load_next_day") { list.innerHTML = getSkeletonHTML(); list.style.opacity="1"; }
-            statusMsg.innerText="載入中..."; 
-            if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
-
-            const s=startStation.value; const e=endStation.value; 
-            const needNextDay = (mode === "load_next_day" || isNextDayLoaded) ? 1 : 0;
-            const cacheKeySuffix = needNextDay ? "_full" : ""; 
-            const cacheKey = getCacheKey() + cacheKeySuffix; 
-            const now = Date.now();
-            recordRequest();
+            if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true; if(mode !== "load_next_day") { list.innerHTML = getSkeletonHTML(); list.style.opacity="1"; } statusMsg.innerText="載入中..."; if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
+            const s=startStation.value; const e=endStation.value; const needNextDay = (mode === "load_next_day" || isNextDayLoaded) ? 1 : 0; const cacheKeySuffix = needNextDay ? "_full" : ""; const cacheKey = getCacheKey() + cacheKeySuffix; const now = Date.now(); recordRequest();
             try {
-                let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}&mode=${mode}`;
-                if(serverLoggingEnabled) { url += `&sid=${SESSION_ID}`; }
-                const res=await fetch(url);
-                const age = res.headers.get('Age');
-                const isVercelCache = age && parseInt(age) > 0;
-                const json=await res.json();
-                if(json.error) throw new Error(json.error);
-                if(json.logging_enabled !== undefined) { serverLoggingEnabled = json.logging_enabled; }
-                lastFetchedPair={start:s,end:e};
-                if (needNextDay) isNextDayLoaded = true;
-                const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
-                localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
-                renderCards(json);
-                logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
-                if(json.delay_failed) {
-                    scheduleRetry("誤點資料失敗", "status-left warning");
-                    setUpdateText(`更新時間：${json.update_time} (僅時刻)`);
-                } else {
-                    setUpdateText(`更新時間：${json.update_time}`);
-                    statusMsg.innerText = "更新完成";
-                    setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
-                }
-                if(mode==="search"){ 
-                    setTimeout(()=>btnSearch.disabled=false,500); 
-                    setRefreshLockedUntil(now+90000); setUiLockedUntil(now+30000); lockRefreshButton(30);            
-                }
+                let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}&mode=${mode}`; if(serverLoggingEnabled) { url += `&sid=${SESSION_ID}`; }
+                const res=await fetch(url); const age = res.headers.get('Age'); const isVercelCache = age && parseInt(age) > 0; const json=await res.json();
+                if(json.error) throw new Error(json.error); if(json.logging_enabled !== undefined) { serverLoggingEnabled = json.logging_enabled; }
+                lastFetchedPair={start:s,end:e}; if (needNextDay) isNextDayLoaded = true; const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
+                localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json})); renderCards(json); logSystem(`${rInfo.source} / ${dInfo.source}`);
+                if(json.delay_failed) { scheduleRetry("誤點資料失敗", "status-left warning"); setUpdateText(`更新時間：${json.update_time} (僅時刻)`); } else { setUpdateText(`更新時間：${json.update_time}`); statusMsg.innerText = "更新完成"; setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000); }
+                if(mode==="search"){ setTimeout(()=>btnSearch.disabled=false,500); setRefreshLockedUntil(now+90000); setUiLockedUntil(now+30000); lockRefreshButton(30); }
                 if(mode==="refresh"){ setRefreshLockedUntil(now+90000); setUiLockedUntil(now+30000); lockRefreshButton(30); }
-                if (mode === "load_next_day") {
-                    const divider = document.getElementById('tomorrow-divider');
-                    if (divider) {
-                        divider.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        setTimeout(() => window.scrollBy({ top: -60, behavior: 'smooth' }), 500);
-                    }
-                } else { scrollToFirstActive(); }
+                if (mode === "load_next_day") { const divider = document.getElementById('tomorrow-divider'); if (divider) { divider.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => window.scrollBy({ top: -60, behavior: 'smooth' }), 500); } } else { scrollToFirstActive(); }
                 lastUpdateTime = Date.now();
-                if (localStorage.getItem(LS_TUTORIAL_SEEN) !== '1') {
-                    setTimeout(() => {
-                        document.getElementById('aboutModal').style.display='flex';
-                        document.body.classList.add('noscroll');
-                        history.pushState({modal: true}, '', '');
-                        goToPage('Tutorial');
-                    }, 500);
-                }
-            } catch(err) {
-                console.error(err); logSystem("API Error: " + err.message);
-                scheduleRetry("連線錯誤", "status-left alert");
-                list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`;
-            }
+                if (localStorage.getItem(LS_TUTORIAL_SEEN) !== '1') { setTimeout(() => { document.getElementById('aboutModal').style.display='flex'; document.body.classList.add('noscroll'); history.pushState({modal: true}, '', ''); goToPage('Tutorial'); }, 500); }
+            } catch(err) { console.error(err); logSystem("API Error: " + err.message); scheduleRetry("連線錯誤", "status-left alert"); list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`; }
         }
-        
         function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
-        function scheduleRetry(msg="誤點資訊無法取得", cls="status-left warning") {
-            let c=30; if(retryTimer) clearInterval(retryTimer);
-            statusMsg.className = cls; statusMsg.innerText = `${msg} (30s)`;
-            retryTimer=setInterval(()=>{
-                c--; statusMsg.innerText=`${msg} (${c}s)`;
-                if(c<=0){ clearInterval(retryTimer); retryTimer=null; doRefresh(true); }
-            },1000);
-        }
-        function lockSearchButton(s) {
-            if(searchLockTimer) clearInterval(searchLockTimer);
-            statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-left alert";
-            btnSearch.disabled=true; btnSearch.innerText=`頻繁操作 (${s})`;
-            const t=()=>{
-                btnSearch.innerText=`頻繁操作 (${s})`;
-                if(s<=0){
-                    clearInterval(searchLockTimer); btnSearch.disabled=false; btnSearch.innerText="🔍 查詢路線";
-                    statusMsg.innerText=""; setSearchLockedUntil(0);
-                } s--;
-            }; t(); searchLockTimer=setInterval(t,1000);
-        }
-        function lockRefreshButton(s) {
-            if(refreshTimer) clearInterval(refreshTimer);
-            btnRefresh.disabled=true;
-            const t=()=>{
-                btnRefresh.innerText=`更新 (${s})`;
-                if(s<=0){
-                    clearInterval(refreshTimer); btnRefresh.disabled=false;
-                    btnRefresh.innerText="🔄 更新"; setRefreshLockedUntil(0);
-                } s--;
-            }; t(); refreshTimer=setInterval(t,1000);
-        }
-        function getStrictDateStr(ts) {
-            const d = new Date(ts * 1000);
-            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        }
+        function scheduleRetry(msg="誤點資訊無法取得", cls="status-left warning") { let c=30; if(retryTimer) clearInterval(retryTimer); statusMsg.className = cls; statusMsg.innerText = `${msg} (30s)`; retryTimer=setInterval(()=>{ c--; statusMsg.innerText=`${msg} (${c}s)`; if(c<=0){ clearInterval(retryTimer); retryTimer=null; doRefresh(true); } },1000); }
+        function lockSearchButton(s) { if(searchLockTimer) clearInterval(searchLockTimer); statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-left alert"; btnSearch.disabled=true; btnSearch.innerText=`頻繁操作 (${s})`; const t=()=>{ btnSearch.innerText=`頻繁操作 (${s})`; if(s<=0){ clearInterval(searchLockTimer); btnSearch.disabled=false; btnSearch.innerText="🔍 查詢路線"; statusMsg.innerText=""; setSearchLockedUntil(0); } s--; }; t(); searchLockTimer=setInterval(t,1000); }
+        function lockRefreshButton(s) { if(refreshTimer) clearInterval(refreshTimer); btnRefresh.disabled=true; const t=()=>{ btnRefresh.innerText=`更新 (${s})`; if(s<=0){ clearInterval(refreshTimer); btnRefresh.disabled=false; btnRefresh.innerText="🔄 更新"; setRefreshLockedUntil(0); } s--; }; t(); refreshTimer=setInterval(t,1000); }
+        function getStrictDateStr(ts) { const d = new Date(ts * 1000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
         function renderCards(data) {
-            currentTrainData = data; 
-            if(data.trains) localStorage.setItem(LS_SKELETON_COUNT, data.trains.length);
-            const elTools = document.getElementById('rowTools');
-            const hasTrains = data.trains && data.trains.length > 0;
-            const originalCount = (data.stats && data.stats.original_count) ? data.stats.original_count : 0;
-            elTools.style.display = (hasTrains || originalCount > 0) ? 'flex' : 'none';
-            const footerHints = document.getElementById('fixedFooterHints');
-            const hintArrival = document.getElementById('hintArrival');
-            const hintDivider = document.getElementById('hintDivider');
+            currentTrainData = data; if(data.trains) localStorage.setItem(LS_SKELETON_COUNT, data.trains.length);
+            const elTools = document.getElementById('rowTools'); const hasTrains = data.trains && data.trains.length > 0; const originalCount = (data.stats && data.stats.original_count) ? data.stats.original_count : 0; elTools.style.display = (hasTrains || originalCount > 0) ? 'flex' : 'none';
+            const footerHints = document.getElementById('fixedFooterHints'); const hintArrival = document.getElementById('hintArrival'); const hintDivider = document.getElementById('hintDivider');
             if(hasTrains) {
                 footerHints.style.display = 'flex';
-                let cardsHtml = '';
-                let anyArriving = false; let has = false;
-                let hasShownNextDayDivider = false; let lastTrainTs = 0; let foundFirstActive = false;
-                const nowSec = Math.floor(Date.now() / 1000);
-                const now = new Date();
-                const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-                const isLateNight = now.getHours() >= 22; 
+                let cardsHtml = ''; let anyArriving = false; let has = false; let hasShownNextDayDivider = false; let lastTrainTs = 0; let foundFirstActive = false; const nowSec = Math.floor(Date.now() / 1000); const now = new Date(); const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; const isLateNight = now.getHours() >= 22; 
                 data.trains.forEach((t) => {
-                    const diffSec = t.sort_key - nowSec;
-                    const diffMin = Math.floor(diffSec / 60);
-                    let isDeparted = diffSec < 0; 
-                    let isArriving = !isDeparted && diffMin <= 10;
-                    if(isArriving) anyArriving = true;
-                    if (!isShowAll && diffMin < -10) return;
-                    const trainDate = getStrictDateStr(t.sort_key);
-                    const isStrictTomorrow = trainDate > todayStr;
-                    if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
-                        if (trainDate !== getStrictDateStr(lastTrainTs)) {
-                            cardsHtml += `<div id="tomorrow-divider" style="text-align:center; padding:20px 0 10px 0; color:#4d7f5e; font-size:0.9rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px; scroll-margin-top: 160px;">⬇ 明日班次 ⬇</div>`;
-                            hasShownNextDayDivider = true;
-                        }
-                    }
-                    lastTrainTs = t.sort_key; has = true;
-                    let activeId = "";
-                    if (!isDeparted && !foundFirstActive) { activeId = 'id="firstActive"'; foundFirstActive = true; }
+                    const diffSec = t.sort_key - nowSec; const diffMin = Math.floor(diffSec / 60); let isDeparted = diffSec < 0; let isArriving = !isDeparted && diffMin <= 10; if(isArriving) anyArriving = true; if (!isShowAll && diffMin < -10) return;
+                    const trainDate = getStrictDateStr(t.sort_key); const isStrictTomorrow = trainDate > todayStr;
+                    if (has && !hasShownNextDayDivider && lastTrainTs > 0) { if (trainDate !== getStrictDateStr(lastTrainTs)) { cardsHtml += `<div id="tomorrow-divider" style="text-align:center; padding:20px 0 10px 0; color:#4d7f5e; font-size:0.9rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px; scroll-margin-top: 160px;">⬇ 明日班次 ⬇</div>`; hasShownNextDayDivider = true; } } lastTrainTs = t.sort_key; has = true;
+                    let activeId = ""; if (!isDeparted && !foundFirstActive) { activeId = 'id="firstActive"'; foundFirstActive = true; }
                     let leftIndicatorHtml = isArriving ? `<div class="left-indicator"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>` : '';
                     let rightBadgesHtml = isDeparted ? `<div class="status-tag departed">已駛離</div>` : (!isStrictTomorrow && !data.delay_failed && t.delay > 0 ? `<div class="status-tag delay">誤點 ${t.delay} 分</div>` : '');
-                    const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                    let cardClass = "card" + (isDeparted ? " departed-card" : "");
-                    const depDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
-                    const arrDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
-                    let subTimeContent = (!isStrictTomorrow && !data.delay_failed && t.delay === 0) ? `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>` : `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`;
-                    let delayColorStyle = (!isStrictTomorrow && !data.delay_failed && t.delay > 0) ? 'style="color:#e6b800"' : '';
-                    cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
-                        <div class="${cardClass}" style="border-left-color:${t.color};">
-                            ${leftIndicatorHtml}
-                            <div class="status-badge-container">${rightBadgesHtml}</div>
-                            <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">${t.type} ${t.no} 次</div>
-                            <div class="main-time">
-                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">${startStation.value} ${depDateLabel}</div><div class="time-part" ${delayColorStyle}>${formatTime(t.act_dep)}</div></div>
-                                <span class="arrow">➔</span>
-                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">${endStation.value} ${arrDateLabel}</div><div class="time-part" ${delayColorStyle}>${formatTime(t.act_arr)}</div></div>
-                            </div>
-                            <div class="sub-time">${subTimeContent}</div>
-                        </div></a>`;
+                    const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`; let cardClass = "card" + (isDeparted ? " departed-card" : ""); const depDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : ""; const arrDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
+                    let subTimeContent = (!isStrictTomorrow && !data.delay_failed && t.delay === 0) ? `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>` : `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`; let delayColorStyle = (!isStrictTomorrow && !data.delay_failed && t.delay > 0) ? 'style="color:#e6b800"' : '';
+                    cardsHtml += `<a href="${url}" target="_blank" ${activeId}><div class="${cardClass}" style="border-left-color:${t.color};">${leftIndicatorHtml}<div class="status-badge-container">${rightBadgesHtml}</div><div class="train-info" style="color:${isDeparted ? '#888' : t.color};">${t.type} ${t.no} 次</div><div class="main-time"><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">${startStation.value} ${depDateLabel}</div><div class="time-part" ${delayColorStyle}>${formatTime(t.act_dep)}</div></div><span class="arrow">➔</span><div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">${endStation.value} ${arrDateLabel}</div><div class="time-part" ${delayColorStyle}>${formatTime(t.act_arr)}</div></div></div><div class="sub-time">${subTimeContent}</div></div></a>`;
                 });
-                if (isLateNight && !isNextDayLoaded) {
-                    cardsHtml += `<div style="padding: 20px 0 40px 0; display: flex; justify-content: center;"><button id="btnLoadNext" onclick="handleLoadNextDay()" style="background: #222; color: #aaa; border: 1px solid #444; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;">⬇ 載入明日班次</button></div>`;
-                }
-                if (anyArriving) { hintArrival.style.display = 'flex'; hintDivider.style.display = 'block'; footerHints.classList.remove('centered'); } 
-                else { hintArrival.style.display = 'none'; hintDivider.style.display = 'none'; footerHints.classList.add('centered'); }
-                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
-                return;
+                if (isLateNight && !isNextDayLoaded) { cardsHtml += `<div style="padding: 20px 0 40px 0; display: flex; justify-content: center;"><button id="btnLoadNext" onclick="handleLoadNextDay()" style="background: #222; color: #aaa; border: 1px solid #444; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;">⬇ 載入明日班次</button></div>`; }
+                if (anyArriving) { hintArrival.style.display = 'flex'; hintDivider.style.display = 'block'; footerHints.classList.remove('centered'); } else { hintArrival.style.display = 'none'; hintDivider.style.display = 'none'; footerHints.classList.add('centered'); }
+                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml; return;
             }
             footerHints.style.display = 'none';
-            if (originalCount > 0) {
-                 const isLateNight = new Date().getHours() >= 22;
-                 let extraBtn = (isLateNight && !isNextDayLoaded) ? `<div style="padding: 20px 0; display: flex; justify-content: center;"><button id="btnLoadNext" onclick="handleLoadNextDay()" style="background: #222; color: #aaa; border: 1px solid #444; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;">⬇ 載入明日班次</button></div>` : "";
-                 list.innerHTML = `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` + extraBtn;
-            } else { list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`; }
+            if (originalCount > 0) { const isLateNight = new Date().getHours() >= 22; let extraBtn = (isLateNight && !isNextDayLoaded) ? `<div style="padding: 20px 0; display: flex; justify-content: center;"><button id="btnLoadNext" onclick="handleLoadNextDay()" style="background: #222; color: #aaa; border: 1px solid #444; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;">⬇ 載入明日班次</button></div>` : ""; list.innerHTML = `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` + extraBtn; } else { list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`; }
         }
-
-        // [PageHow] Carousel Logic
-        let currentHowPage = 0;
-        const totalHowPages = 6;
-        function showHowPage(index) {
-            const wrapper = document.getElementById('howSlider');
-            const dots = document.querySelectorAll('.how-dot');
-            const slides = document.querySelectorAll('.how-slide');
-            
-            if(index < 0) index = 0;
-            if(index >= totalHowPages) index = totalHowPages - 1;
-            currentHowPage = index;
-
-            wrapper.style.transform = `translateX(-${index * 100}%)`;
-            
-            slides.forEach((s, i) => {
-                if(i === index) s.classList.add('active');
-                else s.classList.remove('active');
-            });
-            
-            dots.forEach((d, i) => {
-                if(i === index) d.classList.add('active');
-                else d.classList.remove('active');
-            });
-
-            document.getElementById('btnPrevHow').disabled = (index === 0);
-            const nextBtn = document.getElementById('btnNextHow');
-            if(index === totalHowPages - 1) {
-                nextBtn.innerHTML = "✅";
-                nextBtn.onclick = function() { closeModal(); }; // 完成關閉
-            } else {
-                nextBtn.innerHTML = "❯";
-                nextBtn.onclick = function() { nextHowPage(); };
-            }
-        }
-        function nextHowPage() { showHowPage(currentHowPage + 1); }
-        function prevHowPage() { showHowPage(currentHowPage - 1); }
-
-        // [新增] 當進入 How 頁面時重置
-        const originalGoToPage = goToPage;
-        goToPage = function(id) {
-            originalGoToPage(id);
-            if(id === 'How') {
-                setTimeout(() => showHowPage(0), 50);
-            }
-        }
-
-        // [補回] 遺失的輔助函式 (Log, Modal, Favs)
+        function closeTutorial() { localStorage.setItem(LS_TUTORIAL_SEEN, '1'); document.getElementById('aboutModal').style.display = 'none'; document.body.classList.remove('noscroll'); }
         function logSystem(d){ const time = new Date().toLocaleTimeString('en-GB', {hour12:false}); systemLogs.push(`[${time}] ${d}`); if(systemLogs.length>30)systemLogs.shift(); }
         function recordRequest(){requestHistory.push(Date.now());}
         function openModal(){ document.getElementById('aboutModal').style.display='flex'; document.body.classList.add('noscroll'); history.pushState({modal: true}, '', ''); goToPage('Menu'); }
         function closeModal(){ history.back(); }
-        window.addEventListener('popstate', () => {
-            const modal = document.getElementById('aboutModal');
-            if (modal.style.display === 'flex') { modal.style.display = 'none'; document.body.classList.remove('noscroll'); }
-        });
-
-        const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
-        const MAX_HIST = 3; const MAX_FAV = 6;
-        const btnStar = document.getElementById('btnStar');
-        const quickArea = document.getElementById('quickRouteArea');
-
+        window.addEventListener('popstate', () => { const modal = document.getElementById('aboutModal'); if (modal.style.display === 'flex') { modal.style.display = 'none'; document.body.classList.remove('noscroll'); } });
+        function goToPage(id){
+            document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active')); document.getElementById('page'+id).classList.add('active');
+            if(id==='Report'){ document.getElementById('terminalView').innerText = systemLogs.join("\n"); uploadReport(); }
+            if(id==='How'){ setTimeout(() => showHowPage(0), 50); }
+        }
         function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
         function isFavorite(s, e) { const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]"); return favs.some(f => f.start === s && f.end === e); }
-        function toggleFavorite() {
-            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
-            let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
-            if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav: Removed"); } 
-            else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav: Added"); }
-            localStorage.setItem(LS_FAV, JSON.stringify(favs));
-            updateStarState(); renderQuickRoutes();
-        }
-        function addToHistory() {
-            const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
-            let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
-            hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop();
-            localStorage.setItem(LS_HIST, JSON.stringify(hist));
-            renderQuickRoutes();
-        }
-        function updateStarState() {
-            const cur = getCurrentPair();
-            if (isFavorite(cur.start, cur.end)) { btnStar.innerHTML = '★<br>已收藏'; btnStar.classList.add('fav-active'); } 
-            else { btnStar.innerHTML = '☆ 收藏<br>路線'; btnStar.classList.remove('fav-active'); }
-        }
-        function loadRoute(s, e) {
-            const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
-            if (sR && eR) { setMenu('start', sR, s); setMenu('end', eR, e); markAsChanged(); doSearch(); }
-        }
-        function renderQuickRoutes() {
-            const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-            const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            let html = '';
-            favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
-            hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
-            quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
-            const elRow = document.getElementById('rowQuickRoute');
-            if (favs.length === 0 && hist.length === 0) { elRow.style.display = 'none'; } 
-            else { elRow.style.display = 'flex'; setTimeout(updateScrollHint, 100); }
-        }
-        function updateScrollHint() {
-            const el = document.getElementById('quickRouteArea');
-            const hint = document.getElementById('scrollHint');
-            if (el.scrollWidth > el.clientWidth) {
-                hint.style.opacity = '1';
-                el.onscroll = () => { hint.style.opacity = (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) ? '0' : '1'; };
-            } else { hint.style.opacity = '0'; }
-        }
-
+        function toggleFavorite() { const cur = getCurrentPair(); if (!cur.start || !cur.end) return; let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]"); const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end); if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav: Removed"); } else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav: Added"); } localStorage.setItem(LS_FAV, JSON.stringify(favs)); updateStarState(); renderQuickRoutes(); }
+        function addToHistory() { const cur = getCurrentPair(); if (!cur.start || !cur.end) return; let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]"); hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end)); hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop(); localStorage.setItem(LS_HIST, JSON.stringify(hist)); renderQuickRoutes(); }
+        function updateStarState() { const cur = getCurrentPair(); if (isFavorite(cur.start, cur.end)) { btnStar.innerHTML = '★<br>已收藏'; btnStar.classList.add('fav-active'); } else { btnStar.innerHTML = '☆ 收藏<br>路線'; btnStar.classList.remove('fav-active'); } }
+        function loadRoute(s, e) { const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e]; if (sR && eR) { setMenu('start', sR, s); setMenu('end', eR, e); markAsChanged(); doSearch(); } }
+        function renderQuickRoutes() { const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]"); const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]"); let html = ''; favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; }); hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } }); quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>'; const elRow = document.getElementById('rowQuickRoute'); if (favs.length === 0 && hist.length === 0) { elRow.style.display = 'none'; } else { elRow.style.display = 'flex'; setTimeout(updateScrollHint, 100); } }
+        function updateScrollHint() { const el = document.getElementById('quickRouteArea'); const hint = document.getElementById('scrollHint'); if (el.scrollWidth > el.clientWidth) { hint.style.opacity = '1'; el.onscroll = () => { hint.style.opacity = (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) ? '0' : '1'; }; } else { hint.style.opacity = '0'; } }
+        let currentHowPage = 0; const totalHowPages = 6;
+        function showHowPage(index) { const wrapper = document.getElementById('howSlider'); const dots = document.querySelectorAll('.how-dot'); const slides = document.querySelectorAll('.how-slide'); if(index < 0) index = 0; if(index >= totalHowPages) index = totalHowPages - 1; currentHowPage = index; wrapper.style.transform = `translateX(-${index * 100}%)`; slides.forEach((s, i) => { if(i === index) s.classList.add('active'); else s.classList.remove('active'); }); dots.forEach((d, i) => { if(i === index) d.classList.add('active'); else d.classList.remove('active'); }); document.getElementById('btnPrevHow').disabled = (index === 0); const nextBtn = document.getElementById('btnNextHow'); if(index === totalHowPages - 1) { nextBtn.innerHTML = "✅"; nextBtn.onclick = function() { closeModal(); }; } else { nextBtn.innerHTML = "❯"; nextBtn.onclick = function() { nextHowPage(); }; } }
+        function nextHowPage() { showHowPage(currentHowPage + 1); } function prevHowPage() { showHowPage(currentHowPage - 1); }
         init();
     </script>
 </body>
