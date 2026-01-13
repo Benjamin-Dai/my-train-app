@@ -131,19 +131,6 @@
         .toolbar-btn.refresh { background: #4d7f5e; color: white; border-color: #4d7f5e; font-weight: bold; }
         .toolbar-btn.refresh:disabled { background: #333; color: #888; border-color: #333; cursor: not-allowed; }
 
-        /* Resume Prompt Arrow */
-        .resume-arrow-hint {
-            position: absolute; top: -35px; left: 16%; transform: translateX(-50%);
-            background: #e6b800; color: #000; padding: 4px 8px; border-radius: 4px;
-            font-size: 0.75rem; font-weight: bold; pointer-events: none;
-            animation: bounce-y 1s infinite; display: none; z-index: 200;
-        }
-        .resume-arrow-hint::after {
-            content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
-            border-width: 5px 5px 0; border-style: solid; border-color: #e6b800 transparent transparent transparent;
-        }
-        @keyframes bounce-y { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
-
         /* Row 3: Status */
         .sticky-row-status {
             display: flex; justify-content: space-between; align-items: center;
@@ -154,6 +141,22 @@
         .status-left.alert { color: #ff4d4d; }
         .status-left.warning { color: #e6b800; }
         .status-right { font-size: 0.75rem; color: #666; font-family: monospace; }
+        
+        /* [新增] 狀態列喚醒提示膠囊 */
+        .status-chip {
+            background: #e6b800; color: #000;
+            padding: 2px 8px; border-radius: 12px;
+            font-size: 0.75rem; font-weight: bold;
+            display: inline-flex; align-items: center; gap: 6px;
+            animation: chip-bounce 2s infinite; cursor: pointer;
+        }
+        .status-chip .chip-close {
+            font-size: 1rem; line-height: 1; opacity: 0.6; padding: 0 2px;
+        }
+        @keyframes chip-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-2px); }
+        }
 
         /* Bottom Hints */
         .fixed-footer-hints {
@@ -225,15 +228,22 @@
         .modal-page.active { display: block; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Tutorial Modal Styles */
-        .tutorial-card { background: #2c2c2e; border-radius: 12px; padding: 15px; margin-bottom: 20px; border-left: 5px solid #4d7f5e; position: relative; }
-        .tutorial-card.delay-demo { border-left-color: #DF3F1F; }
-        .t-label { position: absolute; top: -10px; left: 10px; background: #4d7f5e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-        .t-label.delay { background: #DF3F1F; }
-        .t-row { display: flex; justify-content: space-between; align-items: center; }
-        .t-time { font-size: 1.5rem; font-weight: bold; }
-        .t-desc { font-size: 0.8rem; color: #aaa; margin-top: 5px; line-height: 1.4; }
-        .t-highlight { color: #e6b800; font-weight: bold; }
+        /* Tutorial Pointers */
+        .tutorial-container { position: relative; margin-bottom: 25px; }
+        .t-pointer { position: absolute; color: #e6b800; font-weight: bold; font-size: 0.9rem; z-index: 10; display: flex; align-items: center; gap: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .t-pointer.led-hint { left: -10px; top: 40px; transform: translateX(-100%); width: 120px; justify-content: flex-end; text-align: right; }
+        .t-pointer.led-hint::after { content: '➜'; margin-left: 5px; }
+        .t-pointer.delay-hint { top: 45px; right: -5px; transform: translateX(100%); width: 120px; justify-content: flex-start; text-align: left; }
+        .t-pointer.delay-hint::before { content: '👈'; margin-right: 5px; }
+        
+        /* 手機版調整 Tutorial Pointer 位置，避免超出螢幕 */
+        @media (max-width: 380px) {
+            .t-pointer.led-hint { left: 40px; top: -25px; transform: none; width: auto; }
+            .t-pointer.led-hint::after { content: '👇'; margin-left: 5px; transform: rotate(0); }
+            .t-pointer.delay-hint { right: auto; left: 50%; top: -25px; transform: translateX(-50%); width: auto; justify-content: center; }
+            .t-pointer.delay-hint::before { content: ''; margin-right: 0; }
+            .t-pointer.delay-hint::after { content: '👇'; margin-left: 5px; }
+        }
 
         /* God Mode Styles */
         .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
@@ -381,7 +391,6 @@
                 </div>
 
                 <div id="rowTools" class="sticky-row-tools">
-                    <div id="resumeArrow" class="resume-arrow-hint">資料已過期</div>
                     <button id="btnRefresh" class="toolbar-btn refresh" onclick="doRefresh()">🔄 更新</button>
                     <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 已駛離</button>
                     <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 AM/PM</button>
@@ -433,33 +442,40 @@
             <div id="pageTutorial" class="modal-page">
                 <div class="modal-header-row"><div class="modal-title">歡迎使用 TRAIN LIVE 🎉</div></div>
                 <div class="modal-text" style="font-size:0.95rem;">
-                    <div style="text-align:center; margin-bottom:15px; color:#ccc;">我們已經幫您算好時間了！</div>
+                    <div style="text-align:center; margin-bottom:25px; color:#ccc;">我們已經幫您算好時間了！</div>
                     
-                    <div class="tutorial-card">
-                        <div class="t-label">✅ 準點範例</div>
-                        <div class="t-row">
-                            <div class="t-time">10:00</div>
-                            <div style="font-size:1.2rem;">➔</div>
-                            <div class="t-time">10:30</div>
+                    <div class="tutorial-container">
+                        <div class="t-pointer led-hint">👈 亮燈代表<br>10分鐘內 進站</div>
+                        <div class="card" style="border-left-color: #4d7f5e; margin:0; pointer-events:none;">
+                            <div class="left-indicator">
+                                <div class="led-dot top" style="opacity:1; box-shadow:0 0 6px #4d7f5e;"></div>
+                                <div class="led-dot bottom" style="opacity:1; box-shadow:0 0 6px #4d7f5e;"></div>
+                            </div>
+                            <div class="train-info" style="color:#4d7f5e;">自強 123 次</div>
+                            <div class="main-time">
+                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:00</div></div>
+                                <span class="arrow">➔</span>
+                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:10</div></div>
+                            </div>
+                            <div class="sub-time"><span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span></div>
                         </div>
-                        <div class="t-desc">大字就是<strong>「真的」</strong>要搭車的時間。<br><span class="t-highlight">✨ 左邊亮燈：10分鐘內進站</span></div>
                     </div>
 
-                    <div class="tutorial-card delay-demo">
-                        <div class="t-label delay">⚠️ 誤點範例</div>
-                        <div class="t-row">
-                            <div class="t-time" style="color:#e6b800">10:15</div>
-                            <div style="font-size:1.2rem;">➔</div>
-                            <div class="t-time" style="color:#e6b800">10:45</div>
+                    <div class="tutorial-container">
+                        <div class="t-pointer delay-hint">👆 大字是「實際」<br>發車時間 (已加)</div>
+                        <div class="card" style="border-left-color: #DF3F1F; margin:0; pointer-events:none;">
+                            <div class="status-badge-container"><div class="status-tag delay">誤點 15 分</div></div>
+                            <div class="train-info" style="color:#DF3F1F;">自強 456 次</div>
+                            <div class="main-time">
+                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">臺北</div><div class="time-part">10:15</div></div>
+                                <span class="arrow">➔</span>
+                                <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">板橋</div><div class="time-part">10:25</div></div>
+                            </div>
+                            <div class="sub-time">原定 10:00 ➔ 10:10</div>
                         </div>
-                        <div class="t-desc">這是<span class="t-highlight">「加完誤點後」</span>的實際時間。<br>(不用自己算，原定時間在右下角)</div>
                     </div>
 
-                    <div style="text-align:center; font-size:0.9rem; color:#888; margin-top:10px;">
-                        👆 點擊卡片可查看 <strong>即時位置</strong>
-                    </div>
-                    
-                    <button class="menu-btn" style="text-align:center; justify-content:center; margin-top:15px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用 🚀</button>
+                    <button class="menu-btn" style="text-align:center; justify-content:center; margin-top:20px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用 🚀</button>
                 </div>
             </div>
 
@@ -566,7 +582,7 @@
     </div>
 
     <script>
-        // ... (Station Data, Constants 保持) ...
+        // ... (Station Data, Constants) ...
         const STATION_DATA = {
             "基隆市": ["基隆", "三坑", "八堵", "七堵", "百福", "暖暖", "海科館"],
             "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "侯硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
@@ -623,6 +639,7 @@
         let isNextDayLoaded = false;
         let currentTrainData = null;
         let lastUpdateTime = 0; // 用於喚醒檢查
+        let isResumeHintActive = false; // 紀錄是否正在顯示喚醒提示
         
         let serverLoggingEnabled = true;
 
@@ -856,17 +873,23 @@ ${logs}`;
                 const now = Date.now();
                 // 3分鐘 = 180000ms
                 if (lastUpdateTime > 0 && (now - lastUpdateTime > 180000)) {
-                    // 資料過期：展開工具列、顯示箭頭提示
-                    const sticky = document.getElementById('stickyHeader');
-                    const arrow = document.getElementById('resumeArrow');
-                    if (sticky) sticky.classList.add('is-fixed'); // 稍微展開一下讓 header 醒目
-                    if (arrow) {
-                        arrow.style.display = 'block';
-                        setTimeout(() => arrow.style.display = 'none', 8000);
-                    }
+                    showResumeHint();
                 }
             }
         });
+
+        // [新增] 顯示喚醒提示膠囊
+        function showResumeHint() {
+            isResumeHintActive = true;
+            statusMsg.innerHTML = `<div class="status-chip" onclick="doRefresh()"><span class="chip-arrow">⬆</span> 資料可更新 <span class="chip-close" onclick="closeResumeChip(event)">×</span></div>`;
+            statusMsg.className = "status-left"; 
+        }
+
+        function closeResumeChip(e) {
+            if(e) e.stopPropagation();
+            isResumeHintActive = false;
+            statusMsg.innerHTML = "";
+        }
 
         function getSearchCount(){return parseInt(localStorage.getItem(LS_SEARCH_COUNT)||"0");}
         function setSearchCount(v){localStorage.setItem(LS_SEARCH_COUNT,v);}
@@ -1019,6 +1042,12 @@ ${logs}`;
             }
         }
         function markAsChanged() {
+            // [新增] 只要動了選單，立刻隱藏喚醒提示
+            if (isResumeHintActive) {
+                isResumeHintActive = false;
+                statusMsg.innerHTML = "";
+            }
+
             if(!startStation.value||!endStation.value) return;
             localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
             localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
@@ -1109,6 +1138,12 @@ ${logs}`;
         function doRefresh(skip=false) {
             const now = Date.now();
             
+            // [新增] 按下更新時，如果有喚醒提示膠囊，立刻清除
+            if (isResumeHintActive) {
+                isResumeHintActive = false;
+                statusMsg.innerHTML = "";
+            }
+
             if(!skip) {
                 const uL = getUiLockedUntil();
                 if(uL > now) return; 
@@ -1291,11 +1326,13 @@ ${logs}`;
 
                 lastUpdateTime = Date.now(); // 記錄成功更新時間
 
-                // [新增] 檢查並顯示新手導覽
+                // [新增] 檢查並顯示新手導覽 (強制所有用戶看到)
                 if (localStorage.getItem(LS_TUTORIAL_SEEN) !== '1') {
                     setTimeout(() => {
                         document.getElementById('aboutModal').style.display='flex';
                         document.body.classList.add('noscroll');
+                        // 加入 History，讓手機返回鍵生效
+                        history.pushState({modal: true}, '', '');
                         goToPage('Tutorial');
                     }, 500);
                 }
@@ -1510,7 +1547,9 @@ ${logs}`;
         // [新增] 關閉教學並寫入已讀
         function closeTutorial() {
             localStorage.setItem(LS_TUTORIAL_SEEN, '1');
-            history.back(); // 正常關閉 Modal
+            // 強制隱藏 Modal (確保關閉)
+            document.getElementById('aboutModal').style.display = 'none';
+            document.body.classList.remove('noscroll');
         }
 
         // [補回遺失的輔助函式]
