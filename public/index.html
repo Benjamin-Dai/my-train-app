@@ -242,6 +242,8 @@
             position: fixed; top: 0; right: 0; height: 100%; width: 80%; max-width: 320px;
             border-left: 1px solid #333; 
             transform: translateX(100%); /* 預設在右邊外面 */
+            /* 修正動畫衝突： */
+            touch-action: none; /* 讓 JS 接管手勢 */
         }
         .modal-page.sheet-right.active {
             animation: slideInRight 0.3s forwards; /* 使用動畫滑入 */
@@ -276,12 +278,18 @@
         @keyframes fadeInFull { from { opacity: 0; } to { opacity: 1; } }
 
         /* Handle Bar for Bottom Sheet */
-        .sheet-handle { width: 40px; height: 5px; background: #333; border-radius: 5px; margin: 10px auto 15px auto; }
+        .sheet-handle { 
+            width: 40px; height: 5px; background: #333; border-radius: 5px; margin: 10px auto 15px auto; 
+            touch-action: none; /* 讓 JS 接管手勢 */
+        }
         
         /* Modal Content Styles */
         .modal-content-inner { padding: 0 20px 30px 20px; }
 
-        .modal-header-row { display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;}
+        .modal-header-row { 
+            display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;
+            touch-action: none; /* 讓標題列也能拖曳 */
+        }
         .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
         .modal-title { font-size: 1.1rem; font-weight: bold; color: #fff; flex: 1; }
         
