@@ -155,6 +155,8 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.8);
             z-index: 900; cursor: pointer;
             animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            /* iPhone Safe Area */
+            margin-bottom: env(safe-area-inset-bottom);
         }
         .resume-pill:active { transform: translateX(-50%) scale(0.95); opacity: 0.9; }
         .resume-pill .pill-close {
@@ -171,7 +173,7 @@
             align-items: center; justify-content: center; gap: 20px; 
             padding: 10px 15px; font-size: 0.75rem; color: #666; 
             z-index: 200; 
-            padding-bottom: max(10px, env(safe-area-inset-bottom));
+            padding-bottom: max(10px, env(safe-area-inset-bottom)); /* iPhone Safe Area */
             box-shadow: 0 -5px 20px rgba(0,0,0,0.8);
         }
         .fixed-footer-hints.centered { justify-content: center; } 
@@ -219,7 +221,7 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
-        /* --- [Revised] Modal System 2.0 (修正版) --- */
+        /* --- Modal System 2.0 (修正版) --- */
         .modal-overlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0, 0, 0, 0.6); z-index: 999; 
@@ -252,7 +254,7 @@
             position: fixed; bottom: 0; left: 0; width: 100%; height: auto; max-height: 85vh;
             border-radius: 20px 20px 0 0; border-top: 1px solid #333;
             transform: translateY(100%); /* 預設在下面外面 */
-            padding-bottom: env(safe-area-inset-bottom);
+            padding-bottom: env(safe-area-inset-bottom); /* iPhone Safe Area */
             overflow-y: auto;
         }
         .modal-page.sheet-bottom.active {
@@ -263,7 +265,7 @@
         /* 3. Full Screen Overlay (Tutorial) */
         .modal-page.sheet-full {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.92); backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); /* Opacity 0.85 */
             opacity: 0; 
             display: none; /* 預設隱藏 */
             flex-direction: column; justify-content: center; align-items: center;
@@ -317,6 +319,23 @@
         .t-center-text .sub { display: block; font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-top: 2px; }
         .t-arrow-side { font-size: 1.2rem; color: #e6b800; animation: bounce-y 1s infinite; }
         @keyframes bounce-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+        /* Toast Notification */
+        .toast-msg {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9); color: #fff; padding: 12px 20px;
+            border-radius: 12px; font-size: 0.95rem; text-align: center;
+            z-index: 2000; pointer-events: none;
+            opacity: 0; transition: opacity 0.3s;
+            border: 1px solid #444; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+        .toast-msg.show { opacity: 1; }
+
+        /* Login Shake Animation */
+        @keyframes shake {
+            0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); }
+        }
+        .shake-anim { animation: shake 0.3s ease-in-out; border-color: #ff4d4d !important; }
 
         /* God Mode Styles */
         .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
@@ -387,9 +406,11 @@
     </div>
 
     <div id="resumePill" class="resume-pill" onclick="doRefresh()">
-        <span>🔄 資料可更新</span>
+        <span>🔄 可更新</span>
         <span class="pill-close" onclick="closeResumePill(event)">×</span>
     </div>
+    
+    <div id="toastMsg" class="toast-msg"></div>
 
     <div id="fixedFooterHints" class="fixed-footer-hints">
         <div id="hintArrival" class="hint-group">
@@ -490,11 +511,9 @@
             </div>
             <div style="padding: 10px;">
                 <button class="menu-btn anim-gold-pulse" onclick="goToPage('Why')">設計理念</button>
-                <button class="menu-btn" onclick="goToPage('How')">操作說明</button>
-                <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
+                <button class="menu-btn" onclick="goToPage('Tutorial', true)">📖 使用說明</button> <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
                 <button class="menu-btn" onclick="goToPage('Author')">關於作者</button>
                 <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
-                <button class="menu-btn" onclick="goToPage('Tutorial')" style="margin-top:20px; border-color:#4d7f5e; color:#4d7f5e;">重看新手教學</button>
             </div>
         </div>
 
@@ -506,26 +525,11 @@
             </div>
         </div>
 
-        <div id="pageHow" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
-            <div class="sheet-handle" onclick="closeModal()"></div>
-            <div class="modal-content-inner">
-                <div class="modal-header-row"><div class="modal-title">操作說明</div><button class="back-btn" onclick="closeModal()">×</button></div>
-                <div class="modal-text">
-                    <strong>操作邏輯：</strong><br><br>
-                    1. <strong>上方搜尋列：</strong>輸入站名快速切換。<br>
-                    2. <strong>常用路線 (橫條)：</strong>點擊快速載入收藏或歷史路線。<br>
-                    3. <strong>自動更新：</strong>系統每 15 秒會自動檢查「是否駛離」，不消耗流量。<br><br>
-                    <strong>重試機制：</strong><br>
-                    錯誤或系統忙碌都會自動重試，請耐心等候。
-                </div>
-            </div>
-        </div>
-
         <div id="pageTutorial" class="modal-page sheet-full" onclick="event.stopPropagation()">
             <div class="tutorial-container">
                 <div style="text-align:center; margin-bottom:15px; color:#fff; font-weight:bold; font-size:1.1rem;">TRAIN LIVE 介面說明</div>
                 
-                <div class="card" style="border-left-color: #DF3F1F; margin:0; pointer-events:none;">
+                <div class="card" style="border-left-color: #DF3F1F; margin:0; cursor: pointer;" onclick="showFakeCardToast(event)">
                     <div class="left-indicator">
                         <div class="led-dot top"></div>
                         <div class="led-dot bottom"></div>
@@ -538,6 +542,7 @@
                         <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">教學終點</div><div class="time-part" style="color:#e6b800">10:25</div></div>
                     </div>
                     <div class="sub-time">原定 10:00 ➔ 10:10</div>
+                    <div class="t-corner-glow"></div>
                 </div>
 
                 <div class="static-hint-bar">
@@ -548,15 +553,16 @@
                         </div>
                         <div class="hint-text-col">
                             <span>10分鐘內</span>
-                            <span>進站閃爍</span>
+                            <span>發車閃爍</span>
                         </div>
                     </div>
                     <div class="hint-divider"></div>
                     <div class="hint-group">
                         <span style="font-size:1.2rem">👆</span>
-                        <div class="hint-text-col">
-                            <span>點擊卡片</span>
-                            <span class="sub">看完整停靠</span>
+                        <div class="hint-text-col" style="align-items: center;">
+                            <span style="font-size: 0.9rem;">點擊卡片</span>
+                            <span class="sub">看即時位置</span>
+                            <span class="sub">& 完整停靠站</span>
                         </div>
                     </div>
                 </div>
@@ -570,7 +576,7 @@
                     <div class="t-arrow-side">⬆</div>
                 </div>
 
-                <label class="tutorial-checkbox">
+                <label class="tutorial-checkbox" id="tutCheckboxContainer">
                     <input type="checkbox" id="tutNoShow" />
                     不再顯示教學
                 </label>
@@ -721,9 +727,8 @@
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
         
-        // [新增] 新版導覽已讀 Key
-        const LS_TUTORIAL_SEEN="tl_intro_seen_v2";
-        // [新增] 骨架屏數量 Key
+        // [新增] 強制更新 Key 到 v3，確保所有用戶看得到新教學
+        const LS_TUTORIAL_SEEN="tl_intro_seen_v3";
         const LS_SKELETON_COUNT="tl_skeleton_count";
 
         const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
@@ -753,7 +758,7 @@
         let lastUpdateTime = 0; 
         let isResumeHintActive = false;
         
-        // [新增] 自動喚醒計時器
+        // 自動喚醒計時器
         let autoResumeTimer = null; 
         
         let serverLoggingEnabled = true;
@@ -784,7 +789,7 @@
                 deferredPrompt.userChoice.then((c) => { if(c.outcome==='accepted') btnInstall.style.display='none'; deferredPrompt=null; });
             } else {
                 document.getElementById('aboutModal').style.display = 'flex';
-                document.getElementById('pageIOS').classList.add('active'); // Direct show for logic flow
+                document.getElementById('aboutModal').classList.add('active'); // Direct show logic
                 goToPage('IOS');
             }
         }
@@ -814,16 +819,45 @@
                 goToPage('Login');
             }
         }
-        function doLogin() {
+        
+        // [修改] 登入邏輯：失敗時震動，不跳頁
+        async function doLogin() {
             const u = document.getElementById('loginUser').value;
             const p = document.getElementById('loginPass').value;
             if (!u || !p) return;
-            adminAuth = { u, p };
-            document.getElementById('loginUser').value = "";
-            document.getElementById('loginPass').value = "";
-            goToPage('Dev');
-            fetchSessionList();
-            fetchConfig(); 
+            
+            // 嘗試測試 Auth (雖然前端沒法真驗證，但模擬一下請求或假設成功)
+            // 這裡為了 UX，我們先假設需要送出請求驗證
+            // 如果輸入錯誤，加入震動動畫
+            
+            try {
+                // 模擬驗證 API (實際上這裡會打 API)
+                // 這裡保留您原本邏輯，但在這裡存入 adminAuth
+                adminAuth = { u, p };
+                
+                // 嘗試獲取一次 Config 作為驗證
+                const res = await fetch(`/api/index?debug=godmode&action=get_config&u=${u}&p=${p}`);
+                const json = await res.json();
+                
+                if (json.error) {
+                    throw new Error("Login Failed");
+                }
+
+                // 成功
+                document.getElementById('loginUser').value = "";
+                document.getElementById('loginPass').value = "";
+                goToPage('Dev');
+                fetchSessionList();
+                fetchConfig(); 
+
+            } catch (e) {
+                // 失敗動畫
+                const inputs = [document.getElementById('loginUser'), document.getElementById('loginPass')];
+                inputs.forEach(el => {
+                    el.classList.add('shake-anim');
+                    setTimeout(() => el.classList.remove('shake-anim'), 300);
+                });
+            }
         }
         
         function switchDevTab(tab) {
@@ -1657,7 +1691,25 @@ ${logs}`;
             if (noShow) {
                 localStorage.setItem(LS_TUTORIAL_SEEN, '1');
             }
-            closeModal();
+            
+            // 優化關閉順序
+            document.getElementById('pageTutorial').classList.remove('active');
+            setTimeout(() => {
+                closeModal(); // 用 History back 關閉 Overlay
+                // 這裡不需手動移除 noscroll，因為 popstate 監聽器會處理
+            }, 300);
+        }
+
+        function showFakeCardToast(e) {
+            e.stopPropagation();
+            showToast("💡 請點擊首頁的「真實卡片」查看詳情");
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toastMsg');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
         }
 
         function logSystem(d){
@@ -1684,6 +1736,10 @@ ${logs}`;
             const modal = document.getElementById('aboutModal');
             if (modal.style.display === 'flex') {
                 modal.classList.remove('active');
+                
+                // Close active pages inside
+                document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
+
                 setTimeout(() => {
                     modal.style.display = 'none';
                     document.body.classList.remove('noscroll');
@@ -1691,14 +1747,41 @@ ${logs}`;
             }
         });
 
-        function goToPage(id){
+        function goToPage(id, isManual=false){
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
+            
+            if (id === 'Tutorial') {
+                const cb = document.getElementById('tutCheckboxContainer');
+                if(isManual) cb.style.display = 'none';
+                else cb.style.display = 'flex';
+            }
+
             if(id==='Report'){
                 document.getElementById('terminalView').innerText = systemLogs.join("\n");
                 uploadReport(); 
             }
         }
+
+        // Swipe Gestures
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.querySelectorAll('.modal-page.sheet-right').forEach(el => {
+            el.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+            el.addEventListener('touchend', e => {
+                const endX = e.changedTouches[0].screenX;
+                if (endX - touchStartX > 80) closeModal(); // Right Swipe
+            }, {passive: true});
+        });
+
+        document.querySelectorAll('.modal-page.sheet-bottom').forEach(el => {
+            el.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; }, {passive: true});
+            el.addEventListener('touchend', e => {
+                const endY = e.changedTouches[0].screenY;
+                if (endY - touchStartY > 80) closeModal(); // Down Swipe
+            }, {passive: true});
+        });
 
         const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
         const MAX_HIST = 3; const MAX_FAV = 6;
