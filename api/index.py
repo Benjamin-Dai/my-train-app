@@ -169,7 +169,7 @@ class handler(BaseHTTPRequestHandler):
             if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
             elif "區間" in raw_type: display_type, type_color = "區間車", "#0076B2"
             elif "普悠瑪" in raw_type: display_type, type_color = "普悠瑪", "#9C1637"
-            elif "3000" in raw_type: display_type, type_color = "自強3000", "#85a38f"
+            elif "3000" in raw_type: display_type, type_color = "自強3000", "#ffffff"
             elif "自強" in raw_type: display_type, type_color = "自強號", "#DF3F1F"
             elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
             elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
