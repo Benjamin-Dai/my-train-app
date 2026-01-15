@@ -155,7 +155,6 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.8);
             z-index: 900; cursor: pointer;
             animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-            /* iPhone Safe Area */
             margin-bottom: env(safe-area-inset-bottom);
         }
         .resume-pill:active { transform: translateX(-50%) scale(0.95); opacity: 0.9; }
@@ -233,7 +232,7 @@
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
         
         /* 預設所有頁面隱藏 (關鍵修正) */
-        .modal-page { display: none; background: #1c1c1e; width: 100%; }
+        .modal-page { display: none; background: #1c1c1e; width: 100%; will-change: transform; }
         
         /* 只有加了 active 才會顯示 */
         .modal-page.active { display: block; }
@@ -826,13 +825,8 @@
             const p = document.getElementById('loginPass').value;
             if (!u || !p) return;
             
-            // 嘗試測試 Auth (雖然前端沒法真驗證，但模擬一下請求或假設成功)
-            // 這裡為了 UX，我們先假設需要送出請求驗證
-            // 如果輸入錯誤，加入震動動畫
-            
             try {
                 // 模擬驗證 API (實際上這裡會打 API)
-                // 這裡保留您原本邏輯，但在這裡存入 adminAuth
                 adminAuth = { u, p };
                 
                 // 嘗試獲取一次 Config 作為驗證
@@ -1729,6 +1723,11 @@ ${logs}`;
         }
         
         function closeModal(){
+            // Clear manual transforms first
+            document.querySelectorAll('.modal-page').forEach(el => {
+                el.style.transform = '';
+                el.style.transition = '';
+            });
             history.back();
         }
 
@@ -1763,24 +1762,98 @@ ${logs}`;
             }
         }
 
-        // Swipe Gestures
-        let touchStartX = 0;
-        let touchStartY = 0;
+        // [Advanced] 1:1 Interactive Swipe Gestures
+        let dragModal = null;
+        let dragStartY = 0;
+        let dragStartX = 0;
+        let isDragging = false;
 
-        document.querySelectorAll('.modal-page.sheet-right').forEach(el => {
-            el.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-            el.addEventListener('touchend', e => {
-                const endX = e.changedTouches[0].screenX;
-                if (endX - touchStartX > 80) closeModal(); // Right Swipe
-            }, {passive: true});
-        });
+        // Helper to find parent modal
+        function getParentModal(el) {
+            return el.closest('.modal-page');
+        }
 
-        document.querySelectorAll('.modal-page.sheet-bottom').forEach(el => {
-            el.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; }, {passive: true});
-            el.addEventListener('touchend', e => {
-                const endY = e.changedTouches[0].screenY;
-                if (endY - touchStartY > 80) closeModal(); // Down Swipe
-            }, {passive: true});
+        document.addEventListener('touchstart', (e) => {
+            const modal = getParentModal(e.target);
+            if (!modal) return;
+
+            // Logic for Bottom Sheet
+            if (modal.classList.contains('sheet-bottom')) {
+                // Allow drag if touching handle OR (touching content AND at top)
+                const isHandle = e.target.closest('.sheet-handle') || e.target.closest('.modal-header-row');
+                // Note: overflow-y is on modal-page itself
+                const isAtTop = modal.scrollTop <= 0; 
+
+                if (isHandle || isAtTop) {
+                    dragModal = modal;
+                    dragStartY = e.touches[0].clientY;
+                    isDragging = true;
+                    // Disable transition for instant 1:1 follow
+                    dragModal.style.transition = 'none';
+                }
+            }
+
+            // Logic for Right Sheet
+            if (modal.classList.contains('sheet-right')) {
+                dragModal = modal;
+                dragStartX = e.touches[0].clientX;
+                isDragging = true;
+                dragModal.style.transition = 'none';
+            }
+        }, {passive: false});
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging || !dragModal) return;
+
+            if (dragModal.classList.contains('sheet-bottom')) {
+                const currentY = e.touches[0].clientY;
+                const deltaY = currentY - dragStartY;
+
+                if (deltaY > 0) { // Only allow dragging down
+                    // Prevent background scroll only if we are actually dragging the window
+                    if (e.cancelable) e.preventDefault(); 
+                    dragModal.style.transform = `translateY(${deltaY}px)`;
+                }
+            }
+
+            if (dragModal.classList.contains('sheet-right')) {
+                const currentX = e.touches[0].clientX;
+                const deltaX = currentX - dragStartX;
+
+                if (deltaX > 0) { // Only allow dragging right
+                    if (e.cancelable) e.preventDefault();
+                    dragModal.style.transform = `translateX(${deltaX}px)`;
+                }
+            }
+        }, {passive: false});
+
+        document.addEventListener('touchend', (e) => {
+            if (!isDragging || !dragModal) return;
+
+            // Restore animation for snap back or close
+            dragModal.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+
+            let shouldClose = false;
+
+            if (dragModal.classList.contains('sheet-bottom')) {
+                const deltaY = e.changedTouches[0].clientY - dragStartY;
+                if (deltaY > 100) shouldClose = true; // Threshold 100px
+            }
+
+            if (dragModal.classList.contains('sheet-right')) {
+                const deltaX = e.changedTouches[0].clientX - dragStartX;
+                if (deltaX > 100) shouldClose = true;
+            }
+
+            if (shouldClose) {
+                closeModal();
+            } else {
+                // Snap back
+                dragModal.style.transform = ''; 
+            }
+
+            isDragging = false;
+            dragModal = null;
         });
 
         const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
