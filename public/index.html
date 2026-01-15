@@ -219,46 +219,60 @@
         .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
         .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
 
-        /* --- [Revised] Modal System 2.0 --- */
+        /* --- [Revised] Modal System 2.0 (修正版) --- */
         .modal-overlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0, 0, 0, 0.6); z-index: 999; 
             display: none; /* Flex when active */
             align-items: flex-end; /* Default bottom align for sheets */
             justify-content: center;
-            opacity: 0; transition: opacity 0.3s; pointer-events: none; /* pass clicks when hidden */
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
         
-        /* Common for all pages inside modal */
-        .modal-page { display: none; background: #1c1c1e; width: 100%; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        /* 預設所有頁面隱藏 (關鍵修正) */
+        .modal-page { display: none; background: #1c1c1e; width: 100%; }
+        
+        /* 只有加了 active 才會顯示 */
         .modal-page.active { display: block; }
         
         /* 1. Right Drawer (Menu) */
         .modal-page.sheet-right {
             position: fixed; top: 0; right: 0; height: 100%; width: 80%; max-width: 320px;
-            border-left: 1px solid #333; transform: translateX(100%);
-            display: block; /* Always block, just translated */
+            border-left: 1px solid #333; 
+            transform: translateX(100%); /* 預設在右邊外面 */
         }
-        .modal-overlay.active .modal-page.sheet-right { transform: translateX(0); }
+        .modal-page.sheet-right.active {
+            animation: slideInRight 0.3s forwards; /* 使用動畫滑入 */
+        }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
         /* 2. Bottom Sheet (Dev, etc) */
         .modal-page.sheet-bottom {
             position: fixed; bottom: 0; left: 0; width: 100%; height: auto; max-height: 85vh;
             border-radius: 20px 20px 0 0; border-top: 1px solid #333;
-            transform: translateY(100%); display: block; overflow-y: auto;
+            transform: translateY(100%); /* 預設在下面外面 */
             padding-bottom: env(safe-area-inset-bottom);
+            overflow-y: auto;
         }
-        .modal-overlay.active .modal-page.sheet-bottom { transform: translateY(0); }
+        .modal-page.sheet-bottom.active {
+            animation: slideInUp 0.3s forwards; /* 使用動畫滑上來 */
+        }
+        @keyframes slideInUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
         /* 3. Full Screen Overlay (Tutorial) */
         .modal-page.sheet-full {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.92); backdrop-filter: blur(5px);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            opacity: 0; transition: opacity 0.3s;
+            opacity: 0; 
+            display: none; /* 預設隱藏 */
+            flex-direction: column; justify-content: center; align-items: center;
         }
-        .modal-overlay.active .modal-page.sheet-full { opacity: 1; }
+        .modal-page.sheet-full.active {
+            display: flex; /* 全螢幕時需要 flex 置中 */
+            animation: fadeInFull 0.3s forwards;
+        }
+        @keyframes fadeInFull { from { opacity: 0; } to { opacity: 1; } }
 
         /* Handle Bar for Bottom Sheet */
         .sheet-handle { width: 40px; height: 5px; background: #333; border-radius: 5px; margin: 10px auto 15px auto; }
