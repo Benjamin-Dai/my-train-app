@@ -1127,6 +1127,17 @@ ${logs}`;
             
             renderQuickRoutes();
             updateStarState();
+
+            // [New] Show tutorial on load
+            if (localStorage.getItem(LS_TUTORIAL_SEEN) !== '1') {
+                setTimeout(() => {
+                    document.getElementById('aboutModal').style.display='flex';
+                    document.body.classList.add('noscroll');
+                    setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
+                    history.pushState({modal: true}, '', '');
+                    goToPage('Tutorial'); // Triggers countdown
+                }, 800);
+            }
         }
         function checkLocksOnLoad() {
             const now=Date.now();
@@ -1449,17 +1460,6 @@ ${logs}`;
                 autoResumeTimer = setTimeout(() => {
                      showResumeHint();
                 }, 180000); // 3分鐘
-
-                // 導覽邏輯
-                if (localStorage.getItem(LS_TUTORIAL_SEEN) !== '1') {
-                    setTimeout(() => {
-                        document.getElementById('aboutModal').style.display='flex';
-                        document.body.classList.add('noscroll');
-                        setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
-                        history.pushState({modal: true}, '', '');
-                        goToPage('Tutorial'); // Implicitly triggers countdown
-                    }, 500);
-                }
 
             } catch(err) {
                 console.error(err); logSystem("API Error: " + err.message);
