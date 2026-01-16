@@ -258,7 +258,7 @@
         /* 3. Full Screen Overlay (Tutorial) */
         .modal-page.sheet-full {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.01); backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
             opacity: 0; transition: opacity 0.3s;
             display: none;
             flex-direction: column; justify-content: center; align-items: center;
@@ -289,7 +289,9 @@
 
         .menu-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; }
         .menu-btn:active { background: #3a3a3c; }
+        .menu-btn:disabled { background: #444 !important; color: #888 !important; border-color: #444 !important; cursor: not-allowed; opacity: 0.7; }
         .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
+        .menu-btn:disabled::after { content: ''; }
         .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
         
         /* Tutorial Specifics */
@@ -569,7 +571,7 @@
                     <input type="checkbox" id="tutNoShow" />
                     不再顯示教學
                 </label>
-                <button class="menu-btn btn-start" style="text-align:center; justify-content:center; margin-top:10px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用</button>
+                <button id="btnStartTutorial" class="menu-btn btn-start" style="text-align:center; justify-content:center; margin-top:10px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用</button>
             </div>
         </div>
 
@@ -749,6 +751,7 @@
         
         // 自動喚醒計時器
         let autoResumeTimer = null; 
+        let tutorialTimer = null; // New timer for tutorial button
         
         let serverLoggingEnabled = true;
 
@@ -1454,7 +1457,7 @@ ${logs}`;
                         document.body.classList.add('noscroll');
                         setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
                         history.pushState({modal: true}, '', '');
-                        goToPage('Tutorial');
+                        goToPage('Tutorial'); // Implicitly triggers countdown
                     }, 500);
                 }
 
@@ -1676,6 +1679,8 @@ ${logs}`;
                 localStorage.setItem(LS_TUTORIAL_SEEN, '1');
             }
             
+            if(tutorialTimer) clearInterval(tutorialTimer); // Clear any running timer
+
             // 優化關閉順序
             document.getElementById('pageTutorial').classList.remove('active');
             setTimeout(() => {
@@ -1718,6 +1723,7 @@ ${logs}`;
                 el.style.transform = '';
                 el.style.transition = '';
             });
+            if(tutorialTimer) clearInterval(tutorialTimer);
             history.back();
         }
 
@@ -1728,6 +1734,8 @@ ${logs}`;
                 
                 // Close active pages inside
                 document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
+
+                if(tutorialTimer) clearInterval(tutorialTimer);
 
                 setTimeout(() => {
                     modal.style.display = 'none';
@@ -1741,9 +1749,29 @@ ${logs}`;
             document.getElementById('page'+id).classList.add('active');
             
             if (id === 'Tutorial') {
+                const btn = document.getElementById('btnStartTutorial');
                 const cb = document.getElementById('tutCheckboxContainer');
-                if(isManual) cb.style.display = 'none';
-                else cb.style.display = 'flex';
+                if (tutorialTimer) clearInterval(tutorialTimer); // Reset
+
+                if(isManual) {
+                    cb.style.display = 'none';
+                    btn.disabled = false;
+                    btn.innerText = "開始使用";
+                } else {
+                    cb.style.display = 'flex';
+                    btn.disabled = true;
+                    let c = 5;
+                    btn.innerText = `開始使用 (${c})`;
+                    tutorialTimer = setInterval(() => {
+                        c--;
+                        if(c > 0) btn.innerText = `開始使用 (${c})`;
+                        else {
+                            clearInterval(tutorialTimer);
+                            btn.disabled = false;
+                            btn.innerText = "開始使用";
+                        }
+                    }, 1000);
+                }
             }
 
             if(id==='Report'){
