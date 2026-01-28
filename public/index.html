@@ -706,9 +706,9 @@
             "臺南市": ["後壁", "新營", "柳營", "林鳳營", "隆田", "拔林", "善化", "南科", "新市", "永康", "大橋", "臺南", "保安", "仁德", "中洲", "長榮大學", "沙崙"],
             "高雄市": ["大湖", "路竹", "岡山", "橋頭", "楠梓", "新左營", "左營", "內惟", "美術館", "鼓山", "三塊厝", "高雄", "民族", "科工館", "正義", "鳳山", "後庄", "九曲堂"],
             "屏東縣": ["六塊厝", "屏東", "歸來", "麟洛", "西勢", "竹田", "潮州", "崁頂", "南州", "鎮安", "林邊", "佳冬", "東海", "枋寮", "加祿", "內獅", "枋山"],
-            "宜蘭縣": ["漢本", "武塔", "南澳", "東澳", "永樂", "蘇澳", "蘇澳新", "冬山", "羅東", "中里", "二結", "宜蘭", "四城", "礁溪", "頂埔", "頭城", "外澳", "龜山", "大溪", "大里", "石城"],
+            "臺東縣": ["池上", "海端", "關山", "瑞和", "瑞源", "鹿野", "山里", "臺東", "康樂", "知本", "太麻里", "金崙", "瀧溪", "大武"],
             "花蓮縣": ["和平", "和仁", "崇德", "新城", "景美", "北埔", "花蓮", "吉安", "志學", "平和", "壽豐", "豐田", "林榮新光", "南平", "鳳林", "萬榮", "光復", "大富", "富源", "瑞穗", "三民", "玉里", "東里", "東竹", "富里"],
-            "臺東縣": ["池上", "海端", "關山", "瑞和", "瑞源", "鹿野", "山里", "臺東", "康樂", "知本", "太麻里", "金崙", "瀧溪", "大武"]
+            "宜蘭縣": ["漢本", "武塔", "南澳", "東澳", "永樂", "蘇澳", "蘇澳新", "冬山", "羅東", "中里", "二結", "宜蘭", "四城", "礁溪", "頂埔", "頭城", "外澳", "龜山", "大溪", "大里", "石城"]
         };
 
         const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
@@ -775,13 +775,22 @@
 
         function handleInstall() {
             if (isInApp) { document.getElementById('inAppOverlay').style.display = 'flex'; return; }
-            if (isIos) { document.getElementById('aboutModal').style.display = 'flex'; goToPage('IOS'); return; }
+            if (isIos) { 
+                document.getElementById('aboutModal').style.display='flex';
+                document.body.classList.add('noscroll');
+                setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
+                history.pushState({modal: true}, '', '');
+                goToPage('IOS'); 
+                return; 
+            }
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((c) => { if(c.outcome==='accepted') btnInstall.style.display='none'; deferredPrompt=null; });
             } else {
-                document.getElementById('aboutModal').style.display = 'flex';
-                document.getElementById('aboutModal').classList.add('active'); // Direct show logic
+                document.getElementById('aboutModal').style.display='flex';
+                document.body.classList.add('noscroll');
+                setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
+                history.pushState({modal: true}, '', '');
                 goToPage('IOS');
             }
         }
@@ -1801,6 +1810,14 @@ ${logs}`;
                 const isHandle = e.target.closest('.sheet-handle') || e.target.closest('.modal-header-row');
                 // Note: overflow-y is on modal-page itself
                 const isAtTop = modal.scrollTop <= 0; 
+                
+                // [New] Prevent drag if touching inner scrollable area
+                const isInnerScroll = e.target.closest('.terminal-box') || 
+                                      e.target.closest('.gm-list') || 
+                                      e.target.closest('.dev-terminal') || 
+                                      e.target.tagName === 'TEXTAREA';
+
+                if (isInnerScroll) return; 
 
                 if (isHandle || isAtTop) {
                     dragModal = modal;
