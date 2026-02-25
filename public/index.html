@@ -994,18 +994,47 @@ ${logs}`;
             });
         }
         
+        // --- 智慧休眠系統 (Smart Sleep System) ---
+        let blinkInterval = null;
+        let dataInterval = null;
+
         function startTicker() {
-            setInterval(() => {
+            // 啟動前先確保舊的已清除，避免重複
+            stopTicker();
+
+            // 1. LED 閃爍計時器 (0.5s)
+            blinkInterval = setInterval(() => {
                 if (document.body.classList.contains('tick-a')) {
                     document.body.classList.remove('tick-a'); document.body.classList.add('tick-b');
                 } else {
                     document.body.classList.remove('tick-b'); document.body.classList.add('tick-a');
                 }
             }, 500);
-            setInterval(() => {
-                if (currentTrainData && !document.hidden) renderCards(currentTrainData);
+
+            // 2. 資料倒數計時器 (15s)
+            dataInterval = setInterval(() => {
+                if (currentTrainData) renderCards(currentTrainData);
             }, 15000);
+            
+            console.log("App Woke Up: Timers Started");
         }
+
+        function stopTicker() {
+            if (blinkInterval) { clearInterval(blinkInterval); blinkInterval = null; }
+            if (dataInterval) { clearInterval(dataInterval); dataInterval = null; }
+            console.log("App Sleeping: Timers Stopped");
+        }
+
+        // 監聽頁面可見度變化 (關鍵！)
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                stopTicker(); // 頁面隱藏/螢幕關閉 -> 停止運作
+            } else {
+                startTicker(); // 頁面開啟 -> 恢復運作
+                // 回來時順便立刻更新一次畫面，修正時間差
+                if(currentTrainData) renderCards(currentTrainData); 
+            }
+        });
 
         // 斷線偵測
         window.addEventListener('offline', () => { statusMsg.innerText = "⚠️ 網路已中斷"; statusMsg.className = "status-left alert"; });
