@@ -46,6 +46,8 @@ REPORT_TTL = 604800             # 回報保留 7 天
 REPORT_ID_RE = re.compile(r"^report:\d{8}_\d{6}_\d{4}$")
 
 ROUTE_CACHE_TTL = 7200          # 時刻表快取 2 小時（TDX 時刻表約 4 小時更新一次；即時停駛靠營運通阻公告）
+QUERY_RATE_MAX = 40            # 同一個 IP 每分鐘最多查詢幾次（正常使用遠低於這個數字）
+QUERY_RATE_WINDOW = 60
 RATE_LIMIT_WAIT = 0.8           # TDX 回 429（太頻繁）時，等這麼久再重試一次
 
 ALERT_KEY = "tra_alert_v1"
@@ -146,6 +148,22 @@ def redis_mget(keys):
     except Exception as e:
         print(f"Redis MGET Error: {e}")
         return {}
+
+
+def redis_mget_and_count(keys, counter_key, window):
+    """讀快取的同時把查詢次數 +1，一次 Redis 往返完成。回傳 ({key: bytes}, 次數)。"""
+    if not redis_client or not keys:
+        return {}, 0
+    try:
+        pipe = redis_client.pipeline(transaction=False)
+        pipe.mget(keys)
+        pipe.incr(counter_key)
+        pipe.expire(counter_key, window)
+        values, count, _ = pipe.execute()
+        return {k: v for k, v in zip(keys, values) if v is not None}, int(count)
+    except Exception as e:
+        print(f"Redis pipeline Error: {e}")
+        return {}, 0
 
 
 def redis_set(key, value, ex):
@@ -314,9 +332,13 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(obj, ensure_ascii=False).encode())
 
     def client_ip(self):
+        # Vercel 會自己設定 x-real-ip / x-forwarded-for（使用者送來的會被覆蓋）
+        real = (self.headers.get('x-real-ip') or '').strip()
+        if real:
+            return real
         xff = self.headers.get('x-forwarded-for', '')
         ip = xff.split(',')[0].strip() if xff else ''
-        return ip or self.headers.get('x-real-ip') or self.client_address[0]
+        return ip or self.client_address[0]
 
     def read_body(self):
         try:
@@ -567,7 +589,16 @@ class handler(BaseHTTPRequestHandler):
         self.suspended_count = 0
         if want_next_day: keys.append(route_key(start_id, end_id, tomorrow_str))
         if need_yesterday: keys.append(route_key(start_id, end_id, yesterday_str))
-        cached = redis_mget(keys)
+        cached, query_count = redis_mget_and_count(keys, f"rl:query:{self.client_ip()}", QUERY_RATE_WINDOW)
+        if query_count > QUERY_RATE_MAX:
+            self.send_response(429)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('Retry-After', str(QUERY_RATE_WINDOW))
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Too Many Requests"}).encode())
+            return
 
         # token 只有在真的要打 TDX 時才拿；全部命中快取就完全不用
         token_box = {"token": cached[TOKEN_KEY].decode('utf-8') if TOKEN_KEY in cached else None}
