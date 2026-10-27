@@ -108,17 +108,21 @@
         .listhead .toggle:active { opacity: .6; }
 
         /* ===== 班次列表 ===== */
-        .row { position: relative; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 2px; padding: 16px 0; border-bottom: 1px solid var(--line); }
-        .row:active { background: #0b0b0c; }
+        /* 版本 A：每班一塊深色底 */
+        .row { position: relative; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; padding: 18px 16px 18px 20px; margin-bottom: 10px; background: #111113; border-radius: var(--radius); }
+        .row:active { background: #18181b; }
+        .row .led { left: 7px; }
+        .day-divider { border-bottom: 0; padding-bottom: 10px; }
         .r-time { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .r-dep { font-size: 30px; font-weight: 600; letter-spacing: -.01em; line-height: 1.1; display: flex; align-items: baseline; }
         .r-arr { font-size: 17px; color: var(--sub); font-weight: 500; display: flex; align-items: baseline; }
         .r-arr::before { content: "→"; margin-right: 6px; }
         .ampm { font-size: .55em; margin-right: 3px; font-weight: 500; opacity: .75; }
-        .r-meta { grid-column: 1; font-size: 13px; color: var(--sub); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-        .r-type { font-weight: 700; }
-        .r-orig { color: var(--dim); }
+        .r-meta { grid-column: 1; grid-row: 1; font-size: 13px; color: var(--sub); display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+        .r-time { grid-column: 1; grid-row: 2; }
+        .r-type { font-weight: 700; font-size: 15px; }
         .r-side { grid-row: 1 / 3; grid-column: 2; align-self: center; text-align: right; font-size: 13px; color: var(--sub); white-space: nowrap; }
+        .r-side .o { display: block; margin-top: 4px; font-size: 12px; color: #6a6a6e; }
         .row.late .r-dep, .row.late .r-arr, .row.late .r-side { color: var(--late); }
         .row.departed { opacity: .35; }
         .row.departed .r-type { color: inherit !important; }
@@ -250,7 +254,7 @@
         .picker-empty { padding: 24px 18px; color: var(--dim); font-size: 14px; }
 
         /* 使用說明 */
-        .help-sample { margin: 4px 0 18px; border-top: 1px solid var(--line); padding-left: 16px; }
+        .help-sample { margin: 4px 0 18px; }
         .help-list { list-style: none; padding: 0; margin: 0; font-size: 14px; color: #ccc; line-height: 1.7; }
         .help-list li { padding: 10px 0; border-bottom: 1px solid var(--line); }
         .help-list b { color: #fff; }
@@ -371,16 +375,16 @@
             <div class="modal-content-inner">
                 <div class="modal-header-row"><div class="modal-title">使用說明</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
                 <div class="help-sample">
-                    <div class="row late" style="border-bottom:0">
+                    <div class="row late" style="--tc:#DF3F1F">
                         <div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
                         <div class="r-time"><span class="r-dep">10:15</span><span class="r-arr">11:05</span></div>
-                        <div class="r-meta"><span class="r-type" style="color:#DF3F1F">自強號</span><span>456</span><span class="r-orig">原定 10:00 → 10:50</span></div>
-                        <div class="r-side">晚 15 分</div>
+                        <div class="r-meta"><span class="r-type" style="color:#DF3F1F">自強號</span><span>456</span></div>
+                        <div class="r-side">晚 15 分<span class="o">原定 10:00</span></div>
                     </div>
                 </div>
                 <ul class="help-list">
                     <li><b>大字是實際出發時間</b>，已經加上誤點，列表也照實際發車順序排。</li>
-                    <li><b>黃字</b>代表誤點，後面的灰字是原本的時刻。</li>
+                    <li><b>黃字</b>代表誤點，右邊的灰字是原本的出發時間。</li>
                     <li><span class="led inline"><span class="led-dot top"></span><span class="led-dot bottom"></span></span><b>綠燈閃爍</b>代表 10 分鐘內發車。</li>
                     <li><b>點班次</b>可以看列車即時位置和完整停靠站。</li>
                     <li>按鈕在換站後是「查詢」，查過後變成「更新」；冷卻中會變灰並倒數。</li>
@@ -1367,14 +1371,13 @@ ${logs}`;
 
                 const led = isArriving ? '<div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>' : '';
                 const typeColor = t.color && t.color.toLowerCase() !== '#ffffff' ? t.color : '#ddd';
-                const orig = isLate ? `<span class="r-orig">原定 ${formatTime(t.sch_dep)} → ${formatTime(t.sch_arr)}</span>` : '';
-                const side = isDeparted ? '已發車' : (isLate ? `晚 ${t.delay} 分` : '');
+                const side = isDeparted ? '已發車' : (isLate ? `晚 ${t.delay} 分<span class="o">原定 ${formatTime(t.sch_dep)}</span>` : '');
                 const url = `https://railway.chienwen.net/taiwan/train/TRA-${encodeURIComponent(t.no)}/live`;
 
-                html += `<a class="${cls.join(' ')}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="markRowTapped()">
+                html += `<a class="${cls.join(' ')}" style="--tc:${typeColor}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="markRowTapped()">
                     ${led}
                     <div class="r-time"><span class="r-dep">${formatTime(t.act_dep)}</span><span class="r-arr">${formatTime(t.act_arr)}</span></div>
-                    <div class="r-meta"><span class="r-type" style="color:${typeColor}">${t.type}</span><span>${t.no}</span>${orig}</div>
+                    <div class="r-meta"><span class="r-type" style="color:${typeColor}">${t.type}</span><span>${t.no}</span></div>
                     <div class="r-side">${side}</div>
                 </a>`;
                 shown++;
