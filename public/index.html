@@ -489,6 +489,7 @@
                 <div class="modal-header-row"><div class="modal-title">使用者回報</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
                 <div class="dev-actions">
                     <button onclick="runTdxCheck()">檢查 TDX</button>
+                    <button onclick="runStationCheck()">檢查站碼</button>
                     <button onclick="fetchReportList()">重新整理</button>
                     <button class="btn-danger" onclick="clearReports()">清空全部</button>
                 </div>
@@ -519,9 +520,9 @@
         // ... (Station Data, Constants) ...
         const STATION_DATA = {
             "基隆市": ["基隆", "三坑", "八堵", "七堵", "百福", "暖暖", "海科館"],
-            "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "侯硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
+            "新北市": ["五堵", "汐止", "汐科", "板橋", "浮洲", "樹林", "南樹林", "山佳", "鶯歌", "鳳鳴", "四腳亭", "瑞芳", "猴硐", "三貂嶺", "牡丹", "雙溪", "貢寮", "福隆", "八斗子", "大華", "十分", "望古", "嶺腳", "平溪", "菁桐"],
             "臺北市": ["南港", "松山", "臺北", "萬華"],
-            "桃園市": ["桃園", "內壢", "中壢", "埔心", "楊梅", "富岡", "新富"],
+            "桃園市": ["桃園", "內壢", "中壢", "平鎮", "埔心", "楊梅", "富岡", "新富"],
             "新竹縣市": ["北湖", "湖口", "新豐", "竹北", "北新竹", "新竹", "三姓橋", "香山", "千甲", "新莊", "六家", "竹中", "上員", "榮華", "竹東", "橫山", "九讚頭", "合興", "富貴", "內灣"],
             "苗栗縣": ["崎頂", "竹南", "造橋", "豐富", "苗栗", "南勢", "銅鑼", "三義", "談文", "大山", "後龍", "龍港", "白沙屯", "新埔", "通霄", "苑裡"],
             "臺中市": ["泰安", "后里", "豐原", "栗林", "潭子", "頭家厝", "松竹", "太原", "精武", "臺中", "五權", "大慶", "烏日", "新烏日", "成功", "日南", "大甲", "臺中港", "清水", "沙鹿", "龍井", "大肚", "追分"],
@@ -534,7 +535,7 @@
             "屏東縣": ["六塊厝", "屏東", "歸來", "麟洛", "西勢", "竹田", "潮州", "崁頂", "南州", "鎮安", "林邊", "佳冬", "東海", "枋寮", "加祿", "內獅", "枋山"],
             "臺東縣": ["池上", "海端", "關山", "瑞和", "瑞源", "鹿野", "山里", "臺東", "康樂", "知本", "太麻里", "金崙", "瀧溪", "大武"],
             "花蓮縣": ["和平", "和仁", "崇德", "新城", "景美", "北埔", "花蓮", "吉安", "志學", "平和", "壽豐", "豐田", "林榮新光", "南平", "鳳林", "萬榮", "光復", "大富", "富源", "瑞穗", "三民", "玉里", "東里", "東竹", "富里"],
-            "宜蘭縣": ["漢本", "武塔", "南澳", "東澳", "永樂", "蘇澳", "蘇澳新", "冬山", "羅東", "中里", "二結", "宜蘭", "四城", "礁溪", "頂埔", "頭城", "外澳", "龜山", "大溪", "大里", "石城"]
+            "宜蘭縣": ["漢本", "武塔", "南澳", "東澳", "永樂", "蘇澳", "蘇澳新", "新馬", "冬山", "羅東", "中里", "二結", "宜蘭", "四城", "礁溪", "頂埔", "頭城", "外澳", "龜山", "大溪", "大里", "石城"]
         };
 
         const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].forEach(s=>{STATION_INDEX[s]=r;});});
@@ -580,6 +581,11 @@
         
 
         try { localStorage.removeItem('tl_session_v2'); } catch(e) {}
+        // 站名更正：侯硐 → 猴硐（舊的偏好設定和常用路線一起改）
+        try {
+            ['pref_start_station','pref_end_station'].forEach(k => { if (localStorage.getItem(k) === '侯硐') localStorage.setItem(k, '猴硐'); });
+            ['tl_favorites','tl_history'].forEach(k => { const v = localStorage.getItem(k); if (v && v.includes('侯硐')) localStorage.setItem(k, v.split('侯硐').join('猴硐')); });
+        } catch(e) {}
 
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -746,6 +752,13 @@ ${logs}`;
                 const json = await adminApi('tdx_check', { start: startStation.value || '臺北', end: endStation.value || '高雄' });
                 box.innerText = JSON.stringify(json, null, 2);
             } catch (e) { box.innerText = "檢查失敗：" + e.message; }
+        }
+
+        async function runStationCheck() {
+            const box = document.getElementById('reportDetailContainer');
+            box.innerText = "檢查中…";
+            try { box.innerText = JSON.stringify(await adminApi('station_check'), null, 2); }
+            catch (e) { box.innerText = "檢查失敗：" + e.message; }
         }
 
         function copyDevContent() {
