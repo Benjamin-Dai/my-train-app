@@ -121,6 +121,20 @@
         .star-btn { width: 36px; height: 36px; display: grid; place-items: center; color: var(--sub); margin-right: -8px; flex-shrink: 0; }
         .star-btn.fav-active { color: var(--late); }
 
+        /* 營運異常公告 */
+        .alert-bar { margin: 12px 0 0; border: 1px solid rgba(230,184,0,.35); background: rgba(230,184,0,.08); border-radius: var(--radius); }
+        .alert-bar[hidden] { display: none; }
+        .alert-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; text-align: left; color: var(--late); font-size: 14px; font-weight: 600; }
+        .alert-head span { flex: 1; min-width: 0; }
+        .alert-head svg { flex-shrink: 0; transition: transform .2s; }
+        .alert-bar.open .alert-head svg { transform: rotate(180deg); }
+        .alert-body { display: none; padding: 0 12px 12px; font-size: 13px; line-height: 1.7; color: #d8d2b8; }
+        .alert-bar.open .alert-body { display: block; }
+        .alert-item + .alert-item { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(230,184,0,.2); }
+        .alert-item b { color: var(--late); display: block; }
+        .alert-item a { display: inline; color: var(--late); text-decoration: underline; }
+        body.fresh #alertBar { display: none !important; }
+
         .listhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--dim); min-height: 37px; }
         .status-left { color: var(--sub); }
         .status-left:empty { display: none; }
@@ -386,9 +400,16 @@
                     <button id="btnStar" class="star-btn" onclick="toggleFavorite()" aria-label="收藏路線"></button>
                 </div>
 
+                <div id="alertBar" class="alert-bar" hidden>
+                    <button class="alert-head" onclick="this.parentElement.classList.toggle('open')"><span id="alertTitle"></span>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5l3 3 3-3"/></svg>
+                    </button>
+                    <div id="alertBody" class="alert-body"></div>
+                </div>
+
                 <div id="rowTools" class="listhead">
                     <div>
-                        <span id="statusMsg" class="status-left"></span><span id="updateTime" class="status-right"></span>
+                        <span id="statusMsg" class="status-left"></span><span id="updateTime" class="status-right"></span><span id="suspNote" class="status-right"></span>
                     </div>
                     <button id="btnShowAll" class="toggle" onclick="toggleShowAll()"></button>
                 </div>
@@ -467,6 +488,7 @@
             <div class="modal-content-inner">
                 <div class="modal-header-row"><div class="modal-title">使用者回報</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
                 <div class="dev-actions">
+                    <button onclick="runTdxCheck()">檢查 TDX</button>
                     <button onclick="fetchReportList()">重新整理</button>
                     <button class="btn-danger" onclick="clearReports()">清空全部</button>
                 </div>
@@ -715,6 +737,15 @@ ${logs}`;
                 const json = await adminApi('get_report', { id: reportId });
                 detailBox.innerText = json.report_content ? formatReport(json.report_content) : "Error: Not Found";
             } catch (e) { detailBox.innerText = "讀取失敗：" + e.message; }
+        }
+
+        async function runTdxCheck() {
+            const box = document.getElementById('reportDetailContainer');
+            box.innerText = "檢查中…";
+            try {
+                const json = await adminApi('tdx_check', { start: startStation.value || '臺北', end: endStation.value || '高雄' });
+                box.innerText = JSON.stringify(json, null, 2);
+            } catch (e) { box.innerText = "檢查失敗：" + e.message; }
         }
 
         function copyDevContent() {
@@ -1365,6 +1396,9 @@ ${logs}`;
             const originalCount = (data.stats && data.stats.original_count) ? data.stats.original_count : 0;
             elTools.style.display = (trains.length > 0 || originalCount > 0) ? 'flex' : 'none';
             list.style.opacity = "1";
+            renderAlerts(data.alerts || []);
+            const susp = (data.stats && data.stats.suspended) || 0;
+            document.getElementById('suspNote').innerText = susp > 0 ? `　·　${susp} 班停駛未顯示` : '';
 
             const nowSec = Math.floor(Date.now() / 1000);
             const now = new Date();
@@ -1440,6 +1474,25 @@ ${logs}`;
 
             list.innerHTML = html + loadNextBtn;
             maybeStartListCoach();
+        }
+
+        function renderAlerts(alerts) {
+            const bar = document.getElementById('alertBar');
+            if (!alerts.length) { bar.hidden = true; return; }
+            const title = alerts[0].title + (alerts.length > 1 ? `（還有 ${alerts.length - 1} 則）` : '');
+            document.getElementById('alertTitle').textContent = title;
+            const body = document.getElementById('alertBody');
+            body.innerHTML = '';
+            alerts.forEach(a => {
+                const item = document.createElement('div'); item.className = 'alert-item';
+                if (alerts.length > 1) { const b = document.createElement('b'); b.textContent = a.title; item.appendChild(b); }
+                const p = document.createElement('div'); p.textContent = a.desc || a.title; item.appendChild(p);
+                if (a.url) { const l = document.createElement('a'); l.href = a.url; l.target = '_blank'; l.rel = 'noopener'; l.textContent = '台鐵公告'; item.appendChild(l); }
+                body.appendChild(item);
+            });
+            const key = alerts.map(a => a.title).join('|');
+            if (bar.dataset.key !== key) { bar.classList.remove('open'); bar.dataset.key = key; }
+            bar.hidden = false;
         }
 
         function markRowTapped() {
