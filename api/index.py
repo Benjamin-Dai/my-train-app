@@ -446,8 +446,14 @@ class handler(BaseHTTPRequestHandler):
         out = {"time": now_aware.strftime("%Y-%m-%d %H:%M:%S"),
                "server_region": os.environ.get('VERCEL_REGION', '（未知）')}
         try:
+            # 第一次 ping 可能包含建立連線（TLS 握手），第二次才是單純一次指令的來回時間
             t0 = time.perf_counter(); redis_client.ping()
-            out["redis_ms"] = round((time.perf_counter() - t0) * 1000)
+            out["redis_first_ms"] = round((time.perf_counter() - t0) * 1000)
+            samples = []
+            for _ in range(3):
+                t0 = time.perf_counter(); redis_client.ping()
+                samples.append(round((time.perf_counter() - t0) * 1000))
+            out["redis_ms"] = min(samples)
         except Exception as e:
             out["redis_error"] = str(e)
         try:
