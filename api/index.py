@@ -3,6 +3,10 @@ import json
 import requests
 import os
 import random
+import re
+import hmac
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
 import redis
@@ -27,6 +31,19 @@ TW_TZ = timezone(timedelta(hours=8))
 HTTP = requests.Session()
 # (連線逾時, 讀取逾時) 秒：TDX 卡住時不要一直等
 TDX_TIMEOUT = (3.05, 8)
+
+# 開發者後台（只用來看使用者回報）
+ADMIN_USER = os.environ.get('ADMIN_USER')
+ADMIN_PASS = os.environ.get('ADMIN_PASS')
+ADMIN_TOKEN_TTL = 1800          # 登入後 30 分鐘內有效（每次使用會延長）
+LOGIN_MAX_FAILS = 5             # 同一個 IP 最多錯 5 次
+LOGIN_LOCK_SECONDS = 900        # 錯太多次鎖 15 分鐘
+LOGIN_GLOBAL_MAX_FAILS = 30     # 所有 IP 合計，防止換 IP 硬猜
+MAX_BODY_BYTES = 32 * 1024      # 回報內容上限 32KB
+REPORT_RATE_MAX = 20            # 同一個 IP 10 分鐘內最多 20 筆回報
+REPORT_RATE_WINDOW = 600
+REPORT_TTL = 604800             # 回報保留 7 天
+REPORT_ID_RE = re.compile(r"^report:\d{8}_\d{6}_\d{4}$")
 
 TOKEN_KEY = "tdx_token"
 DELAY_KEY = "v3_tra_delay_data"
@@ -178,26 +195,148 @@ class handler(BaseHTTPRequestHandler):
             })
         return processed
 
-    def do_POST(self):
+    # ================= POST：使用者回報 / 開發者後台 =================
+
+    def send_json(self, code, obj, admin=False):
+        self.send_response(code)
+        self.send_header('Content-type', 'application/json')
+        if admin:
+            # 後台 API：不允許跨網域、不快取
+            self.send_header('Cache-Control', 'no-store')
+        else:
+            self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps(obj, ensure_ascii=False).encode())
+
+    def client_ip(self):
+        xff = self.headers.get('x-forwarded-for', '')
+        ip = xff.split(',')[0].strip() if xff else ''
+        return ip or self.headers.get('x-real-ip') or self.client_address[0]
+
+    def read_body(self):
         try:
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode('utf-8'))
-            
-            now_str = datetime.now(timezone(timedelta(hours=8))).strftime("%Y%m%d_%H%M%S")
-            rand_id = random.randint(1000, 9999)
-            report_id = f"report:{now_str}_{rand_id}"
-            
-            if redis_client:
-                redis_client.set(report_id, json.dumps(data), ex=604800)
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "ok", "id": report_id}).encode())
-            else:
-                self.send_error_response("No Redis")
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length > MAX_BODY_BYTES:
+            return None
+        return self.rfile.read(length) if length > 0 else b''
+
+    def do_POST(self):
+        params = parse_qs(urlparse(self.path).query)
+        admin_action = params.get('admin', [None])[0]
+
+        body = self.read_body()
+        if body is None:
+            return self.send_json(413, {"error": "Payload Too Large"}, admin=bool(admin_action))
+
+        if admin_action:
+            try:
+                return self.handle_admin(admin_action, body)
+            except Exception as e:
+                print(f"Admin Error: {e}")
+                return self.send_json(500, {"error": "Server Error"}, admin=True)
+
+        # ---- 使用者回報 ----
+        if not redis_client:
+            return self.send_json(500, {"error": "No Redis"})
+        try:
+            data = json.loads(body.decode('utf-8') or '{}')
+            if not isinstance(data, dict):
+                return self.send_json(400, {"error": "Bad Request"})
+
+            rl_key = f"rl:report:{self.client_ip()}"
+            count = redis_client.incr(rl_key)
+            if count == 1:
+                redis_client.expire(rl_key, REPORT_RATE_WINDOW)
+            if count > REPORT_RATE_MAX:
+                return self.send_json(429, {"error": "Too Many Reports"})
+
+            now_str = datetime.now(TW_TZ).strftime("%Y%m%d_%H%M%S")
+            report_id = f"report:{now_str}_{random.randint(1000, 9999)}"
+            redis_client.set(report_id, json.dumps(data, ensure_ascii=False), ex=REPORT_TTL)
+            return self.send_json(200, {"status": "ok", "id": report_id})
         except Exception as e:
-            self.send_error_response(f"Upload Failed: {str(e)}")
+            print(f"Report Error: {e}")
+            return self.send_json(500, {"error": "Upload Failed"})
+
+    def handle_admin(self, action, body):
+        if not redis_client:
+            return self.send_json(503, {"error": "No Redis"}, admin=True)
+        if not ADMIN_USER or not ADMIN_PASS:
+            # 沒設定帳密就整個關閉，避免空帳密被當成正確
+            return self.send_json(503, {"error": "Admin Disabled"}, admin=True)
+
+        try:
+            data = json.loads(body.decode('utf-8') or '{}')
+            if not isinstance(data, dict): data = {}
+        except Exception:
+            data = {}
+
+        if action == 'login':
+            ip = self.client_ip()
+            fail_key = f"admin:fail:{ip}"
+            global_key = "admin:fail:_all"
+            fails, global_fails = redis_client.mget([fail_key, global_key])
+            if int(fails or 0) >= LOGIN_MAX_FAILS or int(global_fails or 0) >= LOGIN_GLOBAL_MAX_FAILS:
+                return self.send_json(429, {"error": "Too Many Attempts"}, admin=True)
+
+            u = str(data.get('u', '')).encode('utf-8')
+            p = str(data.get('p', '')).encode('utf-8')
+            # compare_digest：比對時間固定，不會因為「前幾個字對了」而比較慢
+            ok_u = hmac.compare_digest(u, ADMIN_USER.encode('utf-8'))
+            ok_p = hmac.compare_digest(p, ADMIN_PASS.encode('utf-8'))
+            if not (ok_u and ok_p):
+                pipe = redis_client.pipeline()
+                pipe.incr(fail_key); pipe.expire(fail_key, LOGIN_LOCK_SECONDS)
+                pipe.incr(global_key)
+                if pipe.execute()[2] == 1:
+                    redis_client.expire(global_key, LOGIN_LOCK_SECONDS)
+                return self.send_json(401, {"error": "Auth Failed"}, admin=True)
+
+            redis_client.delete(fail_key)
+            token = secrets.token_urlsafe(32)
+            redis_client.set(self.token_key(token), "1", ex=ADMIN_TOKEN_TTL)
+            return self.send_json(200, {"token": token, "expires_in": ADMIN_TOKEN_TTL}, admin=True)
+
+        # ---- 以下都需要有效 token ----
+        auth = self.headers.get('Authorization', '')
+        token = auth[7:].strip() if auth.startswith('Bearer ') else ''
+        tkey = self.token_key(token) if token else None
+        if not tkey or not redis_client.exists(tkey):
+            return self.send_json(401, {"error": "Unauthorized"}, admin=True)
+
+        if action == 'logout':
+            redis_client.delete(tkey)
+            return self.send_json(200, {"status": "ok"}, admin=True)
+
+        redis_client.expire(tkey, ADMIN_TOKEN_TTL)
+
+        if action == 'list_reports':
+            keys = [k.decode('utf-8') for k in redis_client.scan_iter(match="report:*", count=200)]
+            keys = sorted([k for k in keys if REPORT_ID_RE.match(k)], reverse=True)
+            return self.send_json(200, {"reports": keys}, admin=True)
+
+        if action == 'get_report':
+            report_id = str(data.get('id', ''))
+            if not REPORT_ID_RE.match(report_id):
+                return self.send_json(400, {"error": "Bad Report ID"}, admin=True)
+            content = redis_client.get(report_id)
+            if not content:
+                return self.send_json(404, {"error": "Not Found"}, admin=True)
+            return self.send_json(200, {"report_content": json.loads(content)}, admin=True)
+
+        if action == 'clear_reports':
+            keys = list(redis_client.scan_iter(match="report:*", count=200))
+            if keys: redis_client.delete(*keys)
+            return self.send_json(200, {"status": "ok", "deleted": len(keys)}, admin=True)
+
+        return self.send_json(400, {"error": "Unknown Action"}, admin=True)
+
+    @staticmethod
+    def token_key(token):
+        # Redis 只存 token 的雜湊值，就算資料庫內容外洩也拿不到可用的 token
+        return "admin:token:" + hashlib.sha256(token.encode('utf-8')).hexdigest()
 
     def do_GET(self):
         parsed_path = urlparse(self.path)

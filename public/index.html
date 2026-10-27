@@ -324,7 +324,19 @@
         }
         .toast-msg.show { opacity: 1; }
 
-        .terminal-box { flex: 1; background: #000; border: 1px solid #333; border-radius: 8px; color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px; overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000; }
+        @keyframes shake {
+            0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); }
+        }
+        .shake-anim { animation: shake 0.3s ease-in-out; border-color: #ff4d4d !important; }
+
+        /* God Mode (回報檢視) */
+        .report-list-item { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; color: #ccc; font-size: 0.8rem; }
+        .report-list-item:hover { background: #333; }
+        .report-list-item.active { background: #1a3320; }
+        .report-timestamp { color: #4d7f5e; font-family: monospace; }
+        .login-msg { min-height: 1.2em; color: #ff4d4d; font-size: 0.8rem; margin: -10px 0 10px 0; }
+
+        .terminal-box, .dev-terminal { flex: 1; background: #000; border: 1px solid #333; border-radius: 8px; color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px; overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000; }
 
         .back-to-top {
             position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
@@ -399,7 +411,7 @@
         <div class="header">
             <div class="header-static-part">
                 <div class="header-top">
-                    <div class="app-title">TRAIN LIVE</div>
+                    <div class="app-title" onclick="handleLogoClick()">TRAIN LIVE</div>
 
                     <div class="top-actions">
                         <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
@@ -578,6 +590,46 @@
             </div>
         </div>
 
+        <div id="pageLogin" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
+            <div class="sheet-handle" onclick="closeModal()"></div>
+            <div class="modal-content-inner">
+                <div class="modal-header-row">
+                    <div class="modal-title">🔐 身分驗證</div>
+                    <button class="back-btn" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-text">
+                    <div style="margin-bottom:15px; color:#aaa; font-size:0.85rem;">請輸入開發者帳號密碼</div>
+                    <input type="text" id="loginUser" class="search-box" placeholder="User" style="width:100%; margin-bottom:10px;" autocomplete="off">
+                    <input type="password" id="loginPass" class="search-box" placeholder="Password" style="width:100%; margin-bottom:20px;" autocomplete="off" onkeydown="if(event.key==='Enter') doLogin()">
+                    <div id="loginMsg" class="login-msg"></div>
+                    <button id="btnLogin" class="menu-btn" style="text-align:center; justify-content:center;" onclick="doLogin()">登入</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="pageDev" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
+            <div class="sheet-handle" onclick="closeModal()"></div>
+            <div class="modal-content-inner">
+                <div class="modal-header-row">
+                    <div class="modal-title" style="color:#334439;">使用者回報</div>
+                    <button class="back-btn" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-text">
+                    <div style="margin-bottom:10px; display:flex; gap:10px;">
+                        <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchReportList()">🔄 刷新列表</button>
+                        <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空報告</button>
+                    </div>
+                    <div id="reportListContainer" class="terminal-box" style="height:120px; margin-bottom:10px; white-space:normal;"></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0 5px 0;">
+                        <div class="info-label">報告內容：</div>
+                        <button class="btn-fav-compact" style="width:auto; padding:2px 8px;" onclick="copyDevContent()">📋 複製內容</button>
+                    </div>
+                    <div id="reportDetailContainer" class="dev-terminal" style="height:200px;">點擊上方列表查看...</div>
+                    <button class="menu-btn" style="width:100%; text-align:center; justify-content:center; margin-top:15px;" onclick="adminLogout()">🚪 登出</button>
+                </div>
+            </div>
+        </div>
+
         <div id="pageIOS" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
@@ -690,6 +742,143 @@
         async function shareApp() {
             const data = { title: 'TRAIN LIVE', text: '誤點自動計算！', url: window.location.href };
             if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
+        }
+
+        // --- God Mode：開發者查看使用者回報 ---
+        // 登入成功後伺服器發一組 30 分鐘有效的 token，只存在記憶體；密碼不會留在前端或網址
+        let adminToken = null;
+        let logoClickCount = 0; let logoClickTimer = null;
+        function handleLogoClick() {
+            logoClickCount++;
+            if (logoClickCount === 1) { logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 1000); }
+            if (logoClickCount >= 5) { clearTimeout(logoClickTimer); logoClickCount = 0; activateGodMode(); }
+        }
+        function activateGodMode() {
+            document.getElementById('aboutModal').style.display = 'flex';
+            document.body.classList.add('noscroll');
+            setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
+            history.pushState({modal: true}, '', '');
+            if (adminToken) { goToPage('Dev'); fetchReportList(); }
+            else { document.getElementById('loginMsg').innerText = ""; goToPage('Login'); }
+        }
+
+        async function adminApi(action, body) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (adminToken) headers['Authorization'] = `Bearer ${adminToken}`;
+            const res = await fetch(`/api/index?admin=${encodeURIComponent(action)}`, {
+                method: 'POST', headers, body: JSON.stringify(body || {}), cache: 'no-store'
+            });
+            let json = {};
+            try { json = await res.json(); } catch (e) {}
+            if (res.status === 401 && action !== 'login') {
+                // token 過期或無效：回到登入頁
+                adminToken = null;
+                document.getElementById('loginMsg').innerText = "登入已過期，請重新登入";
+                goToPage('Login');
+            }
+            if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`);
+            return json;
+        }
+
+        async function doLogin() {
+            const uEl = document.getElementById('loginUser');
+            const pEl = document.getElementById('loginPass');
+            const msg = document.getElementById('loginMsg');
+            const btn = document.getElementById('btnLogin');
+            const u = uEl.value; const p = pEl.value;
+            if (!u || !p) return;
+            btn.disabled = true; msg.innerText = "";
+            adminToken = null; // 驗證成功前一律視為未登入
+            try {
+                const json = await adminApi('login', { u, p });
+                if (!json.token) throw new Error("Login Failed");
+                adminToken = json.token;
+                uEl.value = "";
+                goToPage('Dev');
+                fetchReportList();
+            } catch (e) {
+                adminToken = null;
+                msg.innerText = e.message === 'Too Many Attempts' ? "嘗試次數過多，請 15 分鐘後再試"
+                              : e.message === 'Auth Failed' ? "帳號或密碼錯誤" : "登入失敗：" + e.message;
+                [uEl, pEl].forEach(el => {
+                    el.classList.add('shake-anim');
+                    setTimeout(() => el.classList.remove('shake-anim'), 300);
+                });
+            } finally {
+                pEl.value = "";
+                btn.disabled = false;
+            }
+        }
+
+        function adminLogout() {
+            if (adminToken) adminApi('logout').catch(() => {});
+            adminToken = null;
+            document.getElementById('reportListContainer').innerText = "";
+            document.getElementById('reportDetailContainer').innerText = "點擊上方列表查看...";
+            closeModal();
+        }
+
+        async function clearReports() {
+            if (!confirm("確定清空所有報告？")) return;
+            try { await adminApi('clear_reports'); } catch (e) { alert("清空失敗：" + e.message); }
+            fetchReportList();
+        }
+
+        async function fetchReportList() {
+            const container = document.getElementById('reportListContainer');
+            container.innerText = "Loading...";
+            try {
+                const json = await adminApi('list_reports');
+                container.innerHTML = "";
+                if (!json.reports || json.reports.length === 0) { container.innerText = "沒有歸檔報告"; return; }
+                json.reports.forEach(key => {
+                    // key 格式：report:YYYYMMDD_HHMMSS_xxxx
+                    const parts = key.replace('report:', '').split('_');
+                    const item = document.createElement('div');
+                    item.className = 'report-list-item';
+                    const ts = document.createElement('span');
+                    ts.className = 'report-timestamp';
+                    ts.innerText = `${parts[0] || ''} ${parts[1] || ''}`;
+                    const icon = document.createElement('span');
+                    icon.innerText = '📄';
+                    item.append(ts, icon);
+                    item.onclick = () => {
+                        container.querySelectorAll('.report-list-item').forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+                        loadReportDetail(key);
+                    };
+                    container.appendChild(item);
+                });
+            } catch (e) { container.innerText = "Error: " + e.message; }
+        }
+
+        function formatReport(data) {
+            const logs = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs";
+            const d = data.diagnostics || {};
+            return `📅 時間: ${data.timestamp || '--'}
+💬 使用者描述: ${data.user_desc || '(無)'}
+📱 裝置: ${data.user_agent || 'Unknown'}
+📏 畫面: ${data.screen || '--'}
+📶 一分鐘請求數: ${data.rpm ?? '--'} / 總請求數: ${data.total_requests ?? '--'}
+🔎 時刻表來源: ${d.route_source || '--'} (剩 ${d.route_quota || '--'}) / 誤點來源: ${d.delay_source || '--'} (剩 ${d.delay_quota || '--'})
+--------------------------------
+[系統紀錄]
+${logs}`;
+        }
+
+        async function loadReportDetail(reportId) {
+            const detailBox = document.getElementById('reportDetailContainer');
+            detailBox.innerText = "Loading content...";
+            try {
+                const json = await adminApi('get_report', { id: reportId });
+                detailBox.innerText = json.report_content ? formatReport(json.report_content) : "Error: Not Found";
+            } catch (e) { detailBox.innerText = "Error: " + e.message; }
+        }
+
+        function copyDevContent() {
+            const text = document.getElementById('reportDetailContainer').innerText || "";
+            if (!text || text.includes("Loading") || text.includes("點擊上方列表")) { alert("沒有內容可複製"); return; }
+            navigator.clipboard.writeText(text).then(() => alert("已複製到剪貼簿 ✅")).catch(err => alert("複製失敗: " + err));
         }
 
         // --- 智慧休眠系統 (Smart Sleep System) ---
@@ -1533,6 +1722,7 @@
                 
                 // [New] Prevent drag if touching inner scrollable area
                 const isInnerScroll = e.target.closest('.terminal-box') || 
+                                      e.target.closest('.dev-terminal') || 
                                       e.target.tagName === 'TEXTAREA';
 
                 if (isInnerScroll) return; 
