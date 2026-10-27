@@ -324,36 +324,7 @@
         }
         .toast-msg.show { opacity: 1; }
 
-        @keyframes shake {
-            0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); }
-        }
-        .shake-anim { animation: shake 0.3s ease-in-out; border-color: #ff4d4d !important; }
-
-        /* God Mode Styles */
-        .dev-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; }
-        .dev-tab { flex: 1; padding: 10px; text-align: center; background: #1a1a1c; color: #666; cursor: pointer; border-top-left-radius: 8px; border-top-right-radius: 8px; }
-        .dev-tab.active { background: #222; color: #fff; font-weight: bold; border-bottom: 2px solid #4d7f5e; }
-        .dev-panel { display: none; }
-        .dev-panel.active { display: block; }
-        
-        .gm-container { display: flex; flex-direction: column; height: 350px; gap: 10px; }
-        .gm-list { height: 120px; background: #0d0d0d; border: 1px solid #333; border-radius: 8px; overflow-y: auto; padding: 5px; }
-        .gm-list-item { padding: 8px; border-bottom: 1px solid #222; font-size: 0.8rem; color: #888; cursor: pointer; display: flex; justify-content: space-between; }
-        .gm-list-item:hover { background: #222; color: #fff; }
-        .gm-list-item.active { background: #1a3320; color: #4d7f5e; border-left: 3px solid #4d7f5e; }
-        .gm-terminal, .terminal-box, .dev-terminal { flex: 1; background: #000; border: 1px solid #333; border-radius: 8px; color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px; overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000; }
-        
-        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; background: #1a1a1c; padding: 10px; border-radius: 8px; border: 1px solid #333; }
-        .toggle-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #4d7f5e; }
-        input:checked + .slider:before { transform: translateX(20px); }
-        input:disabled + .slider { background-color: #444; cursor: not-allowed; opacity: 0.5; }
-        .report-list-item { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; color: #ccc; font-size: 0.8rem; }
-        .report-list-item:hover { background: #333; }
-        .report-timestamp { color: #4d7f5e; font-family: monospace; }
+        .terminal-box { flex: 1; background: #000; border: 1px solid #333; border-radius: 8px; color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px; overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000; }
 
         .back-to-top {
             position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
@@ -428,7 +399,7 @@
         <div class="header">
             <div class="header-static-part">
                 <div class="header-top">
-                    <div class="app-title" onclick="handleLogoClick()">TRAIN LIVE</div>
+                    <div class="app-title">TRAIN LIVE</div>
 
                     <div class="top-actions">
                         <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
@@ -607,75 +578,6 @@
             </div>
         </div>
 
-        <div id="pageLogin" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
-            <div class="sheet-handle" onclick="closeModal()"></div>
-            <div class="modal-content-inner">
-                <div class="modal-header-row">
-                    <div class="modal-title">🔐 身分驗證</div>
-                    <button class="back-btn" onclick="closeModal()">×</button>
-                </div>
-                <div class="modal-text">
-                    <div style="margin-bottom:15px; color:#aaa; font-size:0.85rem;">請輸入開發者帳號密碼</div>
-                    <input type="text" id="loginUser" class="search-box" placeholder="User" style="width:100%; margin-bottom:10px;" autocomplete="off">
-                    <input type="password" id="loginPass" class="search-box" placeholder="Password" style="width:100%; margin-bottom:20px;" autocomplete="off">
-                    <button class="menu-btn" style="text-align:center; justify-content:center;" onclick="doLogin()">登入</button>
-                </div>
-            </div>
-        </div>
-        
-        <div id="pageDev" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
-            <div class="sheet-handle" onclick="closeModal()"></div>
-            <div class="modal-content-inner">
-                <div class="modal-header-row">
-                    <div class="modal-title" style="color:#334439;">開發者頁面</div>
-                    <button class="back-btn" onclick="closeModal()">×</button>
-                </div>
-                
-                <div class="modal-text">
-                    <div class="toggle-row">
-                        <span>資料收集開關</span>
-                        <div style="display:flex; align-items:center; gap:5px;">
-                            <span id="toggleStatusLabel" style="font-size:0.8rem; color:#666;">(Loading)</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="loggingToggle" disabled onchange="toggleLogging()">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="dev-tabs">
-                        <div class="dev-tab active" onclick="switchDevTab('sessions')">即時 Sessions</div>
-                        <div class="dev-tab" onclick="switchDevTab('reports')">歸檔報告</div>
-                    </div>
-
-                    <div id="panelSessions" class="dev-panel active">
-                        <div class="gm-container">
-                            <div id="gmSessionList" class="gm-list">Loading...</div>
-                            <div id="gmLogView" class="gm-terminal">Select a user...</div>
-                        </div>
-                        <div style="margin-top:10px; display:flex; gap:10px;">
-                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchSessionList()">🔄 刷新</button>
-                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="copyDevContent('session')">📋 複製 Log</button>
-                            <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearSessions()">🗑️ 清空</button>
-                        </div>
-                    </div>
-
-                    <div id="panelReports" class="dev-panel">
-                        <div style="margin-bottom:10px; display:flex; gap:10px;">
-                            <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchReportList()">🔄 刷新列表</button>
-                            <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空報告</button>
-                        </div>
-                        <div id="reportListContainer" class="terminal-box" style="height:120px; margin-bottom:10px;"></div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0 5px 0;">
-                            <div class="info-label">報告內容：</div>
-                            <button class="btn-fav-compact" style="width:auto; padding:2px 8px;" onclick="copyDevContent('report')">📋 複製內容</button>
-                        </div>
-                        <div id="reportDetailContainer" class="dev-terminal" style="height:150px;">點擊上方列表查看...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div id="pageIOS" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
@@ -753,17 +655,8 @@
         let autoResumeTimer = null; 
         let tutorialTimer = null; // New timer for tutorial button
         
-        let serverLoggingEnabled = true;
 
-        // Session ID
-        let SESSION_ID = localStorage.getItem('tl_session_v2'); 
-        if (!SESSION_ID) {
-            const now = new Date();
-            const timeStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
-            SESSION_ID = `u_${timeStr}`;
-            localStorage.setItem('tl_session_v2', SESSION_ID); 
-        }
-        let adminAuth = { u: "", p: "" }; 
+        try { localStorage.removeItem('tl_session_v2'); } catch(e) {}
 
         let deferredPrompt;
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -799,201 +692,6 @@
             if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
         }
 
-        // --- God Mode Logic ---
-        let logoClickCount = 0; let logoClickTimer = null;
-        function handleLogoClick() {
-            logoClickCount++;
-            if (logoClickCount === 1) { logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 1000); }
-            if (logoClickCount >= 5) { clearTimeout(logoClickTimer); logoClickCount = 0; activateGodMode(); }
-        }
-        function activateGodMode() {
-            document.getElementById('aboutModal').style.display = 'flex';
-            document.body.classList.add('noscroll');
-            setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
-            history.pushState({modal: true}, '', '');
-
-            if (adminAuth.u && adminAuth.p) {
-                goToPage('Dev');
-                fetchSessionList();
-                fetchConfig(); 
-            } else {
-                goToPage('Login');
-            }
-        }
-        
-        // [修改] 登入邏輯：失敗時震動，不跳頁
-        async function doLogin() {
-            const u = document.getElementById('loginUser').value;
-            const p = document.getElementById('loginPass').value;
-            if (!u || !p) return;
-            
-            try {
-                // 模擬驗證 API (實際上這裡會打 API)
-                adminAuth = { u, p };
-                
-                // 嘗試獲取一次 Config 作為驗證
-                const res = await fetch(`/api/index?debug=godmode&action=get_config&u=${u}&p=${p}`);
-                const json = await res.json();
-                
-                if (json.error) {
-                    throw new Error("Login Failed");
-                }
-
-                // 成功
-                document.getElementById('loginUser').value = "";
-                document.getElementById('loginPass').value = "";
-                goToPage('Dev');
-                fetchSessionList();
-                fetchConfig(); 
-
-            } catch (e) {
-                // 失敗動畫
-                const inputs = [document.getElementById('loginUser'), document.getElementById('loginPass')];
-                inputs.forEach(el => {
-                    el.classList.add('shake-anim');
-                    setTimeout(() => el.classList.remove('shake-anim'), 300);
-                });
-            }
-        }
-        
-        function switchDevTab(tab) {
-            document.querySelectorAll('.dev-tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            document.querySelectorAll('.dev-panel').forEach(p => p.classList.remove('active'));
-            if (tab === 'sessions') {
-                document.getElementById('panelSessions').classList.add('active');
-                fetchSessionList();
-            } else {
-                document.getElementById('panelReports').classList.add('active');
-                fetchReportList();
-            }
-        }
-
-        async function fetchConfig() {
-            const toggle = document.getElementById('loggingToggle');
-            const label = document.getElementById('toggleStatusLabel');
-            try {
-                toggle.disabled = true; label.innerText = "(Loading)";
-                const res = await fetch(`/api/index?debug=godmode&action=get_config&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                toggle.checked = (json.logging_enabled === "1");
-                toggle.disabled = false; label.innerText = "";
-            } catch(e) {
-                label.innerText = "(Err)";
-            }
-        }
-        async function toggleLogging() {
-            const val = document.getElementById('loggingToggle').checked ? "1" : "0";
-            await fetch(`/api/index?debug=godmode&action=set_config&key=logging_enabled&val=${val}&u=${adminAuth.u}&p=${adminAuth.p}`);
-        }
-
-        async function fetchSessionList() {
-            const listEl = document.getElementById('gmSessionList');
-            listEl.innerHTML = "Loading...";
-            try {
-                const res = await fetch(`/api/index?debug=godmode&action=list_sessions&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                if (json.sessions && json.sessions.length > 0) {
-                    let html = '';
-                    json.sessions.forEach(s => {
-                        const isMe = s.id === SESSION_ID ? " (Me)" : "";
-                        const status = s.ttl > 86000 ? "🟢" : "⚪"; 
-                        html += `<div class="gm-list-item" onclick="loadSessionLogs('${s.id}', this)">
-                                    <span>[${s.last_active_str}] ${status} ${s.id}${isMe}</span>
-                                 </div>`;
-                    });
-                    listEl.innerHTML = html;
-                } else { listEl.innerHTML = "No active sessions."; }
-            } catch (e) { listEl.innerHTML = "Error: " + e.message; }
-        }
-
-        async function clearSessions() {
-            if(!confirm("確定清空所有 Session 紀錄？")) return;
-            await fetch(`/api/index?debug=godmode&action=clear_sessions&u=${adminAuth.u}&p=${adminAuth.p}`);
-            fetchSessionList();
-        }
-        async function clearReports() {
-            if(!confirm("確定清空所有報告？")) return;
-            await fetch(`/api/index?debug=godmode&action=clear_reports&u=${adminAuth.u}&p=${adminAuth.p}`);
-            fetchReportList();
-        }
-
-        async function loadSessionLogs(sid, el) {
-            document.querySelectorAll('.gm-list-item').forEach(i => i.classList.remove('active'));
-            if(el) el.classList.add('active');
-            const logView = document.getElementById('gmLogView');
-            logView.innerHTML = `Loading logs for ${sid}...`;
-            try {
-                const res = await fetch(`/api/index?debug=godmode&action=get_session_logs&sid=${sid}&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                if (json.logs && json.logs.length > 0) { logView.innerHTML = json.logs.join('\n'); } 
-                else { logView.innerHTML = "No logs found."; }
-            } catch (e) { logView.innerHTML = "Error: " + e.message; }
-        }
-
-        async function fetchReportList() {
-            const container = document.getElementById('reportListContainer');
-            container.innerHTML = "Loading...";
-            try {
-                const res = await fetch(`/api/index?debug=godmode&action=list_reports&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                if (json.reports && json.reports.length > 0) {
-                    let html = '';
-                    json.reports.forEach(key => {
-                        const displayTime = key.replace('report:', '').split('_')[0] + ' ' + key.split('_')[1];
-                        html += `<div class="report-list-item" onclick="loadReportDetail('${key}')">
-                                    <span class="report-timestamp">${displayTime}</span>
-                                    <span>📄</span>
-                                 </div>`;
-                    });
-                    container.innerHTML = html;
-                } else { container.innerHTML = "沒有歸檔報告"; }
-            } catch (e) { container.innerHTML = "Error: " + e.message; }
-        }
-
-        function formatReport(data) {
-            const logs = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs";
-            
-            return `📅 時間: ${data.timestamp || '--'}
-📱 裝置: ${data.user_agent || 'Unknown'}
-📏 畫面: ${data.screen || '--'}
---------------------------------
-[系統紀錄]
-${logs}`;
-        }
-
-        async function loadReportDetail(reportId) {
-            const detailBox = document.getElementById('reportDetailContainer');
-            detailBox.innerHTML = "Loading content...";
-            try {
-                const res = await fetch(`/api/index?debug=godmode&action=get_report&id=${reportId}&u=${adminAuth.u}&p=${adminAuth.p}`);
-                const json = await res.json();
-                if (json.report_content) { 
-                    detailBox.innerText = formatReport(json.report_content); 
-                } 
-                else { detailBox.innerHTML = "Error: Not Found"; }
-            } catch (e) { detailBox.innerHTML = "Fetch Error: " + e.message; }
-        }
-        
-        function copyDevContent(type) {
-            let text = "";
-            if(type === 'session') {
-                const el = document.getElementById('gmLogView');
-                text = el ? el.innerText : "";
-            } else {
-                const el = document.getElementById('reportDetailContainer');
-                text = el ? el.innerText : "";
-            }
-            if(!text || text.includes("Loading") || text.includes("Select a user")) {
-                alert("沒有內容可複製"); return;
-            }
-            navigator.clipboard.writeText(text).then(() => {
-                alert("已複製到剪貼簿 ✅");
-            }).catch(err => {
-                alert("複製失敗: " + err);
-            });
-        }
-        
         // --- 智慧休眠系統 (Smart Sleep System) ---
         let blinkInterval = null;
         let dataInterval = null;
@@ -1434,20 +1132,13 @@ ${logs}`;
 
             recordRequest();
             try {
-                let url = `/api/index?start=${s}&end=${e}&next_day=${needNextDay}&mode=${mode}`;
-                if(serverLoggingEnabled) {
-                    url += `&sid=${SESSION_ID}`;
-                }
+                const url = `/api/index?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}&next_day=${needNextDay}&mode=${mode}`;
 
                 const res=await fetch(url);
                 const age = res.headers.get('Age');
                 const isVercelCache = age && parseInt(age) > 0;
                 const json=await res.json();
                 if(json.error) throw new Error(json.error);
-
-                if(json.logging_enabled !== undefined) {
-                    serverLoggingEnabled = json.logging_enabled;
-                }
 
                 lastFetchedPair={start:s,end:e};
                 
@@ -1842,8 +1533,6 @@ ${logs}`;
                 
                 // [New] Prevent drag if touching inner scrollable area
                 const isInnerScroll = e.target.closest('.terminal-box') || 
-                                      e.target.closest('.gm-list') || 
-                                      e.target.closest('.dev-terminal') || 
                                       e.target.tagName === 'TEXTAREA';
 
                 if (isInnerScroll) return; 
