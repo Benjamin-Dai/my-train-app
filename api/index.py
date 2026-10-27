@@ -44,6 +44,8 @@ REPORT_RATE_WINDOW = 600
 REPORT_TTL = 604800             # 回報保留 7 天
 REPORT_ID_RE = re.compile(r"^report:\d{8}_\d{6}_\d{4}$")
 
+ROUTE_CACHE_TTL = 1800          # 時刻表快取 30 分鐘（原本 12 小時，臨時停駛會來不及反映）
+
 TOKEN_KEY = "tdx_token"
 DELAY_KEY = "v3_tra_delay_data"
 
@@ -57,6 +59,24 @@ if KV_URL:
         redis_client = None
 else:
     print("Warning: No Redis URL found.")
+
+
+def _flag(v):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return 0
+
+
+def is_suspended(info, dep_stop, arr_stop):
+    """TDX 的停駛旗標：0 正常、1 停駛、2 部分停駛。
+    整班停駛 → 不顯示；部分停駛時，只要出發站或抵達站那一段停駛也不顯示。"""
+    flag = _flag(info.get('SuspendedFlag'))
+    if flag == 1:
+        return True
+    if flag == 2:
+        return _flag(dep_stop.get('SuspendedFlag')) == 1 or _flag(arr_stop.get('SuspendedFlag')) == 1
+    return False
 
 
 def route_key(start_id, end_id, date_str):
@@ -139,7 +159,7 @@ class handler(BaseHTTPRequestHandler):
         if res.status_code == 200:
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
-            redis_set(route_key(start_id, end_id, date_str), json.dumps(raw_list), 43200)
+            redis_set(route_key(start_id, end_id, date_str), json.dumps(raw_list), ROUTE_CACHE_TTL)
             return (raw_list, status_str)
         else:
             raise Exception(f"Timetable Error: {res.status_code}")
@@ -152,11 +172,13 @@ class handler(BaseHTTPRequestHandler):
             raw_type = info.get('TrainTypeName', {}).get('Zh_tw', '')
             stop_times = item.get('StopTimes', [])
             dep_time, arr_time = None, None
+            dep_stop, arr_stop = {}, {}
             for stop in stop_times:
                 s_id = stop.get('StationID')
-                if s_id == start_id: dep_time = stop.get('DepartureTime')
-                elif s_id == end_id: arr_time = stop.get('ArrivalTime')
+                if s_id == start_id: dep_time = stop.get('DepartureTime'); dep_stop = stop
+                elif s_id == end_id: arr_time = stop.get('ArrivalTime'); arr_stop = stop
             if not dep_time or not arr_time: continue 
+            if is_suspended(info, dep_stop, arr_stop): continue
 
             display_type = raw_type
             type_color = "#ffffff"
