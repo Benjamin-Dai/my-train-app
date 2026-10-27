@@ -68,14 +68,21 @@
         .stn b { font-size: 28px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
         .stn span { font-size: 12px; color: var(--sub); white-space: nowrap; }
         /* 還沒選站：只留一條空白的底線，不寫字 */
-        .stn.empty b { display: inline-block; width: 4.2em; height: 1.2em; border-bottom: 2px solid var(--line-strong); }
+        .stn.empty b { display: inline-block; width: 4.2em; height: 1.2em; border-bottom: 2px solid var(--line-strong); position: relative; }
+        .stn.empty b::before { content: attr(data-ph); position: absolute; left: 0; bottom: 6px; font-size: 15px; font-weight: 500; color: var(--dim); letter-spacing: .1em; }
         .stn.empty:active b { border-bottom-color: var(--accent); opacity: 1; }
 
         /* 第一次打開（還沒有班次）：起訖站放在畫面中間，其他都先藏起來 */
         body.fresh .container { padding-bottom: 0; }
         body.fresh .header { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
         body.fresh .header-static-part { flex: 1; display: flex; flex-direction: column; }
-        body.fresh .route { margin-top: auto; }
+        body.fresh .route { margin-top: auto; width: fit-content; margin-left: auto; margin-right: auto; }
+        .fresh-intro { display: none; }
+        body.fresh .fresh-intro { display: block; text-align: center; margin: auto 0 36px; }
+        body.fresh .fresh-intro + .route { margin-top: 0; }
+        .fresh-intro b { display: block; font-size: 20px; font-weight: 700; letter-spacing: .04em; margin-bottom: 8px; }
+        .fresh-intro span { font-size: 14px; color: var(--sub); }
+        body.fresh #btnAction { max-width: 280px; margin: 0 auto; }
         body.fresh #stickyHeader { flex: 1; }
         body.fresh .stn b { font-size: 32px; }
         body.fresh .stn.empty b { font-size: 32px; }
@@ -284,19 +291,17 @@
         .dev-actions button { font-size: 13px; color: var(--sub); padding: 6px 0; }
 
         /* ===== 第一次使用的教學提示 ===== */
-        .coach { position: fixed; inset: 0; z-index: 3000; display: none; }
-        .coach.on { display: block; }
-        .coach-hole {
-            position: fixed; border-radius: var(--radius); pointer-events: none;
-            box-shadow: 0 0 0 9999px rgba(0,0,0,.74); outline: 1px solid rgba(255,255,255,.35); outline-offset: 0;
-            transition: top .25s, left .25s, width .25s, height .25s;
-        }
-        .coach-tip {
-            position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
-            max-width: 420px; margin: 0 auto; background: #1c1c1e; border: 1px solid var(--line-strong); border-radius: var(--radius);
-            padding: 16px 18px 12px; box-shadow: 0 12px 32px rgba(0,0,0,.6);
-        }
-        .coach-tip p { margin: 0 0 14px; font-size: 15px; line-height: 1.7; color: #e6e6e8; }
+        .coach { position: fixed; inset: 0; z-index: 3000; display: none; background: rgba(0,0,0,.78);
+                 align-items: flex-end; justify-content: center; padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+        .coach.on { display: flex; }
+        .coach-tip { width: 100%; max-width: 440px; background: #1c1c1e; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 6px 18px 12px; box-shadow: 0 12px 32px rgba(0,0,0,.6); }
+        .coach-demo { padding: 0 0 2px 16px; }
+        .coach-demo .row { cursor: default; }
+        .coach-demo .row:last-child { border-bottom: 0; }
+        .coach-demo .row.tap::after { content: ""; position: absolute; right: 22%; top: 52%; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; opacity: .8; animation: tap 1.4s ease-out infinite; }
+        @keyframes tap { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.4); opacity: 0; } }
+        @media (prefers-reduced-motion: reduce) { .coach-demo .row.tap::after { animation: none; } }
+        .coach-tip p { margin: 12px 0 14px; font-size: 15px; line-height: 1.7; color: #e6e6e8; }
         .coach-tip p b { color: #fff; }
         .coach-tip .late { color: var(--late); font-weight: 700; }
         .coach-foot { display: flex; align-items: center; justify-content: space-between; }
@@ -328,8 +333,8 @@
     <div id="toastMsg" class="toast-msg"></div>
 
     <div id="coach" class="coach" role="dialog" aria-modal="true" aria-label="使用教學">
-        <div id="coachHole" class="coach-hole"></div>
         <div id="coachTip" class="coach-tip">
+            <div id="coachDemo" class="coach-demo"></div>
             <p id="coachText"></p>
             <div class="coach-foot">
                 <span id="coachStep" class="coach-step"></span>
@@ -354,10 +359,11 @@
                     </div>
                 </div>
 
+                <div class="fresh-intro"><b>台鐵時刻表</b><span>誤點後的實際時間，直接幫你算好</span></div>
                 <div class="route">
                     <div class="route-stops">
-                        <button id="startPick" class="stn from empty" onclick="openStationPicker('start')" aria-label="起站"><b></b><span></span></button>
-                        <button id="endPick" class="stn to empty" onclick="openStationPicker('end')" aria-label="迄站"><b></b><span></span></button>
+                        <button id="startPick" class="stn from empty" onclick="openStationPicker('start')" aria-label="出發站"><b data-ph="出發"></b><span></span></button>
+                        <button id="endPick" class="stn to empty" onclick="openStationPicker('end')" aria-label="抵達站"><b data-ph="抵達"></b><span></span></button>
                     </div>
                     <button class="swap" onclick="swapStations()" aria-label="交換起訖站">
                         <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2v12M2 5l3-3 3 3M11 14V2M8 11l3 3 3-3"/></svg>
@@ -1659,81 +1665,65 @@ ${logs}`;
 
         // ---------- 第一次使用的教學提示 ----------
         const LS_COACH_LIST = "tl_coach_list_v1";
-        let coachSteps = [], coachIdx = 0, coachKey = null, coachTarget = null;
+        let coachSteps = [], coachIdx = 0, coachKey = null;
 
         function coachSeen(key) { try { return localStorage.getItem(key) === '1'; } catch (e) { return true; } }
         function coachMark(key) { try { localStorage.setItem(key, '1'); } catch (e) {} }
         function modalOpen() { return document.getElementById('aboutModal').style.display === 'flex'; }
 
-        function startCoach(key, steps) {
-            steps = steps.filter(st => document.querySelector(st.target));
-            if (!steps.length) return;
-            coachKey = key; coachSteps = steps; coachIdx = 0;
+        // 教學用的示範班次（不依賴真實資料，每一步都看得到）
+        function demoRow({ type, color, no, dep, arr, late, orig, led, tap }) {
+            return `<div class="row${late ? ' late' : ''}${tap ? ' tap' : ''}" style="--tc:${color}">
+                ${led ? '<div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>' : ''}
+                <div class="r-meta"><span class="r-type" style="color:${color}">${type}</span><span>${no}</span></div>
+                <div class="r-time"><span class="r-dep">${dep}</span><span class="r-arr">${arr}</span></div>
+                <div class="r-side">${late ? `晚 ${late} 分<span class="o">原定 ${orig}</span>` : ''}</div>
+            </div>`;
+        }
+        const COACH_STEPS = [
+            { demo: [{ type: '自強號', color: '#DF3F1F', no: '117', dep: '16:01', arr: '16:51' }],
+              text: '<b>大字是發車時間</b>，箭頭後面是抵達時間。' },
+            { demo: [{ type: '自強號', color: '#DF3F1F', no: '117', dep: '16:01', arr: '16:51' },
+                     { type: '區間車', color: '#0076B2', no: '3175', dep: '16:08', arr: '16:58', late: 5, orig: '16:03' }],
+              text: '<span class="late">黃色</span>是誤點的車，顯示的時間<b>已經加上誤點</b>。' },
+            { demo: [{ type: '區間快', color: '#0076B2', no: '3179', dep: '16:12', arr: '17:02', led: true, tap: true }],
+              text: '<b>綠燈閃爍</b>代表 10 分鐘內發車。<b>點班次</b>可以看列車現在在哪。' }
+        ];
+
+        function startCoach(key) {
+            coachKey = key; coachSteps = COACH_STEPS; coachIdx = 0;
             document.getElementById('coach').classList.add('on');
             document.body.classList.add('noscroll');
             showCoachStep();
         }
         function showCoachStep() {
             const st = coachSteps[coachIdx];
-            coachTarget = document.querySelector(st.target);
-            if (!coachTarget) { nextCoach(); return; }
+            document.getElementById('coachDemo').innerHTML = st.demo.map(demoRow).join('');
             document.getElementById('coachText').innerHTML = st.text;
             document.getElementById('coachStep').innerText = `${coachIdx + 1} / ${coachSteps.length}`;
-            document.getElementById('coachNext').innerText = coachIdx === coachSteps.length - 1 ? '知道了' : '下一步';
-            // 先把目標捲進畫面中間，再定位亮框和說明框
-            const r0 = coachTarget.getBoundingClientRect();
-            if (r0.top < 80 || r0.bottom > window.innerHeight - 220) {
-                document.body.classList.remove('noscroll');
-                window.scrollTo({ top: window.scrollY + r0.top - window.innerHeight * 0.3, behavior: 'instant' });
-                document.body.classList.add('noscroll');
-            }
-            requestAnimationFrame(placeCoach);
-        }
-        function placeCoach() {
-            if (!coachTarget) return;
-            const pad = 8, r = coachTarget.getBoundingClientRect();
-            const extraL = coachSteps[coachIdx].extraLeft || 0;
-            const hole = document.getElementById('coachHole'), tip = document.getElementById('coachTip');
-            hole.style.top = (r.top - pad) + 'px'; hole.style.left = (r.left - pad - extraL) + 'px';
-            hole.style.width = (r.width + pad * 2 + extraL) + 'px'; hole.style.height = (r.height + pad * 2) + 'px';
-            const tipH = tip.offsetHeight, below = r.bottom + pad + 12;
-            if (below + tipH < window.innerHeight - 12) { tip.style.top = below + 'px'; }
-            else { tip.style.top = Math.max(12, r.top - pad - 12 - tipH) + 'px'; }
+            document.getElementById('coachNext').innerText = coachIdx === coachSteps.length - 1 ? '開始使用' : '下一步';
         }
         function nextCoach() {
             if (coachIdx < coachSteps.length - 1) { coachIdx++; showCoachStep(); }
             else endCoach(false);
         }
-        function endCoach(skipAll) {
+        function endCoach() {
             if (coachKey) coachMark(coachKey);
-            if (skipAll) coachMark(LS_COACH_LIST);
-            coachKey = null; coachTarget = null;
+            coachKey = null;
             document.getElementById('coach').classList.remove('on');
             document.body.classList.remove('noscroll');
         }
-        window.addEventListener('resize', () => { if (coachTarget) placeCoach(); });
 
-        function maybeStartListCoach(force) {
-            if ((!force && coachSeen(LS_COACH_LIST)) || coachKey || modalOpen()) return false;
-            if (!document.querySelector('#cardList .row:not(.departed)')) return false;
-            setTimeout(() => {
-                if (coachKey || modalOpen() || (!force && coachSeen(LS_COACH_LIST))) return;
-                const row = '#cardList .row:not(.departed)';
-                const steps = [{ target: row, text: '大字是實際發車時間，<span class="late">黃色</span>代表誤點' }];
-                if (document.querySelector('#cardList .row.arriving')) steps.push({ target: '#cardList .row.arriving', extraLeft: 14, text: '綠燈閃爍：10 分鐘內發車' });
-                steps.push({ target: row, text: '點班次看列車位置' });
-                startCoach(LS_COACH_LIST, steps);
-            }, force ? 50 : 700);
-            return true;
+        // 第一次查到班次後出現一次
+        function maybeStartListCoach() {
+            if (coachSeen(LS_COACH_LIST) || coachKey || modalOpen()) return;
+            if (!document.querySelector('#cardList .row')) return;
+            setTimeout(() => { if (!coachKey && !modalOpen() && !coachSeen(LS_COACH_LIST)) startCoach(LS_COACH_LIST); }, 700);
         }
         function replayCoach() {
             const wasOpen = modalOpen();
             if (wasOpen) closeModal();
-            // 等選單關閉的動畫（0.3 秒）結束後再開始
-            setTimeout(() => {
-                if (!document.querySelector('#cardList .row:not(.departed)')) { showToast('查詢班次後就能看教學'); return; }
-                maybeStartListCoach(true);
-            }, wasOpen ? 380 : 0);
+            setTimeout(() => startCoach(LS_COACH_LIST), wasOpen ? 380 : 0);
         }
 
         init();
