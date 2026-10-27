@@ -810,8 +810,21 @@ ${logs}`;
         });
 
         // 斷線偵測
-        window.addEventListener('offline', () => { statusMsg.innerText = "網路已中斷"; statusMsg.className = "status-left alert"; });
-        window.addEventListener('online', () => { statusMsg.innerText = "網路已恢復"; setTimeout(() => statusMsg.innerText="", 2000); });
+        window.addEventListener('offline', () => {
+            statusMsg.innerText = currentTrainData ? "離線中，顯示的是最後一次的資料" : "網路已中斷";
+            statusMsg.className = "status-left warning";
+        });
+        window.addEventListener('online', () => {
+            statusMsg.innerText = "網路已恢復"; statusMsg.className = "status-left";
+            // 剛才是顯示舊資料的話，自動更新一次
+            if (showingSaved && startStation.value && endStation.value) setTimeout(() => doRefresh(true), 800);
+            else setTimeout(() => { if (statusMsg.innerText === "網路已恢復") statusMsg.innerText = ""; }, 2000);
+        });
+
+        // 讓沒有網路時也能打開網頁
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+        }
 
         // [修改] 喚醒提示邏輯 (改為 setTimeout 觸發)
         function showResumeHint() {
@@ -1113,6 +1126,7 @@ ${logs}`;
             } else {
                 if(isInit || !currentTrainData) {
                     if (!currentTrainData) list.innerHTML='';
+                    if (isInit && navigator.onLine === false) showSavedRoute('離線中');
                 } else {
                     list.style.opacity="0.4"; statusMsg.innerText="已換站，按查詢看新的班次"; statusMsg.className="status-left warning";
                     document.getElementById('rowTools').style.display = 'flex';
@@ -1121,6 +1135,36 @@ ${logs}`;
             updateActionButton();
         }
         function loadDataOrFetch(){attemptLoadCache(true);}
+
+        // 沒網路或連不上時，拿這條路線最後一次存下來的結果（不管多舊）
+        function getSavedRoute() {
+            const base = getCacheKey();
+            let best = null;
+            [base + "_full", base].forEach(k => {
+                try {
+                    const d = JSON.parse(localStorage.getItem(k) || 'null');
+                    if (d && d.payload && (!best || d.timestamp > best.timestamp)) best = d;
+                } catch (e) {}
+            });
+            return best;
+        }
+        function savedTimeLabel(d) {
+            const t = new Date(d.timestamp);
+            const sameDay = t.toDateString() === new Date().toDateString();
+            const hm = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+            return sameDay ? hm : `${t.getMonth()+1}/${t.getDate()} ${hm}`;
+        }
+        let showingSaved = false;
+        function showSavedRoute(reason) {
+            const d = getSavedRoute();
+            if (!d) return false;
+            renderCards(d.payload);
+            showingSaved = true;
+            lastFetchedPair = { start: startStation.value, end: endStation.value };
+            statusMsg.innerText = `${reason}，顯示 ${savedTimeLabel(d)} 的資料`;
+            statusMsg.className = "status-left warning";
+            return true;
+        }
         // ---------- 查詢／更新共用的按鈕 ----------
         function routeIsCurrent() {
             return !!startStation.value && startStation.value === lastFetchedPair.start && endStation.value === lastFetchedPair.end;
@@ -1315,6 +1359,7 @@ ${logs}`;
                 if(json.error) throw new Error(json.error);
 
                 lastFetchedPair={start:s,end:e};
+                showingSaved = false;
                 
                 if (needNextDay) isNextDayLoaded = true;
 
@@ -1364,8 +1409,19 @@ ${logs}`;
 
             } catch(err) {
                 console.error(err); logSystem("API Error: " + err.message);
-                scheduleRetry("連線錯誤", "status-left alert");
-                list.innerHTML=`<div class="message">連線失敗<small>30 秒後會自動重試</small></div>`;
+                const offline = navigator.onLine === false || err instanceof TypeError;
+                if (err.message === 'Too Many Requests') {
+                    // 後端次數限制：不自動重試，等使用者自己再按
+                    statusMsg.innerText = "查詢太頻繁，請稍等一分鐘"; statusMsg.className = "status-left alert";
+                    if (!showSavedRoute('查詢太頻繁')) list.innerHTML = `<div class="message">查詢太頻繁<small>請稍等一分鐘再試</small></div>`;
+                } else if (offline) {
+                    // 沒有網路：顯示上次的結果，網路恢復時自動更新一次
+                    if (!showSavedRoute('離線中')) list.innerHTML = `<div class="message">目前沒有網路<small>網路恢復後會自動更新</small></div>`;
+                } else {
+                    const hadSaved = showSavedRoute('連線失敗');
+                    scheduleRetry(hadSaved ? statusMsg.innerText : "連線錯誤", hadSaved ? "status-left warning" : "status-left alert");
+                    if (!hadSaved) list.innerHTML=`<div class="message">連線失敗<small>30 秒後會自動重試</small></div>`;
+                }
             } finally {
                 isFetching = false;
                 updateActionButton();
