@@ -29,6 +29,21 @@
             --alert: #ff4d4d;
             --radius: 3px;
         }
+        /* ===== 字體測試（只在測試分支） ===== */
+        @font-face { font-family: 'Barlow SC'; src: url(/fonts/barlow-sc-500.woff) format('woff'); font-weight: 100 500; font-display: swap; }
+        @font-face { font-family: 'Barlow SC'; src: url(/fonts/barlow-sc-600.woff) format('woff'); font-weight: 600 900; font-display: swap; }
+        @font-face { font-family: 'Inter Var'; src: url(/fonts/inter-var.woff2) format('woff2'); font-weight: 100 900; font-display: swap; }
+        @font-face { font-family: 'JB Mono'; src: url(/fonts/jetbrains-mono-400.woff2) format('woff2'); font-weight: 100 500; font-display: swap; }
+        @font-face { font-family: 'JB Mono'; src: url(/fonts/jetbrains-mono-600.woff2) format('woff2'); font-weight: 600 900; font-display: swap; }
+        @font-face { font-family: 'Huninn'; src: url(/fonts/huninn-subset.woff) format('woff'); font-weight: 100 900; font-display: swap; }
+        :root { --sys-font: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+        html[data-font="barlow"] body, html[data-font="barlow"] button, html[data-font="barlow"] input, html[data-font="barlow"] textarea { font-family: 'Barlow SC', var(--sys-font); }
+        html[data-font="barlow"] .r-dep { font-size: 33px; }
+        html[data-font="inter"] body, html[data-font="inter"] button, html[data-font="inter"] input, html[data-font="inter"] textarea { font-family: 'Inter Var', var(--sys-font); }
+        html[data-font="mono"] body, html[data-font="mono"] button, html[data-font="mono"] input, html[data-font="mono"] textarea { font-family: 'JB Mono', var(--sys-font); }
+        html[data-font="mono"] .r-dep { font-size: 28px; }
+        html[data-font="huninn"] body, html[data-font="huninn"] button, html[data-font="huninn"] input, html[data-font="huninn"] textarea { font-family: 'Huninn', var(--sys-font); }
+
         *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         html { scroll-behavior: smooth; }
         body {
@@ -352,6 +367,7 @@
             <div class="menu-close"><button class="back-btn" onclick="closeModal()">關閉</button></div>
             <div class="menu-list">
                 <button class="menu-item" onclick="goToPage('Help')">使用說明</button>
+                <button class="menu-item" onclick="cycleFont()">字體（測試）<span id="fontLabel" class="val"></span></button>
                 <button class="menu-item" onclick="toggleTimeFormat()">時間格式<span id="btnTimeFormat" class="val"></span></button>
                 <button class="menu-item" onclick="goToPage('Report')">回報問題</button>
                 <button class="menu-item" onclick="goToPage('Author')">關於</button>
@@ -1629,6 +1645,27 @@ ${logs}`;
                 hint.style.opacity = '0';
             }
         }
+
+        // ---------- 字體測試（只在測試分支） ----------
+        const FONTS = [['system','系統內建'],['barlow','Barlow'],['inter','Inter'],['mono','JetBrains Mono'],['huninn','粉圓']];
+        function applyFont(key) {
+            if (!FONTS.some(f => f[0] === key)) key = 'system';
+            if (key === 'system') document.documentElement.removeAttribute('data-font');
+            else document.documentElement.setAttribute('data-font', key);
+            const label = document.getElementById('fontLabel');
+            if (label) label.innerText = FONTS.find(f => f[0] === key)[1];
+            try { localStorage.setItem('tl_font_test', key); } catch (e) {}
+        }
+        function cycleFont() {
+            const cur = document.documentElement.getAttribute('data-font') || 'system';
+            const i = FONTS.findIndex(f => f[0] === cur);
+            applyFont(FONTS[(i + 1) % FONTS.length][0]);
+        }
+        (function () {
+            const q = new URLSearchParams(location.search).get('font');
+            let saved = null; try { saved = localStorage.getItem('tl_font_test'); } catch (e) {}
+            applyFont(q || saved || 'system');
+        })();
 
         init();
     </script>
