@@ -14,457 +14,322 @@
     <link rel="icon" type="image/png" href="/icon.png">
 
     <style>
-        /* --- 基礎設定 --- */
-        *, *::before, *::after { 
-            box-sizing: border-box; 
-            -webkit-tap-highlight-color: transparent;
-            outline: none; 
+        /* ===== 色彩與基本設定 ===== */
+        :root {
+            --bg: #000;
+            --panel: #111113;
+            --raised: #2c2c2e;
+            --line: #26262a;
+            --line-strong: #3a3a3e;
+            --text: #fff;
+            --sub: #8a8a8e;
+            --dim: #55555a;
+            --accent: #4d7f5e;
+            --late: #e6b800;
+            --alert: #ff4d4d;
+            --radius: 3px;
         }
+        *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         html { scroll-behavior: smooth; }
-        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; padding: 10px; margin: 0; }
-        
-        /* 鎖定背景捲動 */
+        body {
+            background: var(--bg); color: var(--text); margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
         body.noscroll { overflow: hidden; }
+        button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+        a { display: block; text-decoration: none; color: inherit; }
+        .hidden-state { display: none; }
 
-        .container { max-width: 500px; margin: 0 auto; padding-bottom: 100px; }
+        .container { max-width: 500px; margin: 0 auto; padding: 0 24px 100px; }
 
-        /* --- Header --- */
-        .header { margin-bottom: 15px; background: #151517; border-radius: 12px; border: 1px solid #333; overflow: hidden; position: relative;}
-        .header-static-part { padding: 15px 15px 15px 15px; background: #151517; position: relative; z-index: 10; }
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 36px; }
-        
-        .app-title { 
-            font-size: 1rem; color: #888; letter-spacing: 1px; font-weight: 800; margin: 0; flex: 1; 
-            cursor: default; user-select: none; -webkit-user-select: none; 
-        }
+        /* ===== 頂部 ===== */
+        .header-static-part { padding-top: 18px; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; height: 32px; margin-bottom: 22px; }
+        .app-title { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--sub); user-select: none; -webkit-user-select: none; }
+        .top-actions { display: flex; align-items: center; gap: 6px; }
+        .text-btn { font-size: 13px; color: var(--sub); padding: 6px 8px; display: none; }
+        .icon-btn { width: 32px; height: 32px; display: grid; place-items: center; color: var(--sub); }
 
-        .top-actions { display: flex; align-items: center; gap: 8px; }
-        .install-btn-top {
-            background: #4d7f5e; color: #fff; border: none; padding: 0 12px; height: 36px; border-radius: 8px; 
-            font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none;
-            align-items: center; gap: 4px; animation: fadeIn 0.5s; white-space: nowrap;
-        }
-        .install-btn-top:active { transform: scale(0.95); background: #3d664b; }
-        .menu-btn-trigger { background: #2c2c2e; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .menu-btn-trigger:active { transform: scale(0.95); background: #3a3a3c; }
-        @keyframes pulse-white-gold { 0%, 100% { color: #fff; border-color: #444; } 50% { color: hsl(40, 100%, 50%); border-color: hsl(40, 100%, 50%); } }
-        .anim-gold-pulse { animation: pulse-white-gold 3s infinite ease-in-out !important; border-width: 1px; border-style: solid; }
+        /* ===== 起訖站 ===== */
+        .route { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; padding-left: 22px; }
+        .route-stops { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        /* 路線線條：從起站圓心畫到迄站圓心（兩列等高，所以長度 = 一列高度 + 間距） */
+        .stn.from::after { content: ""; position: absolute; left: -18px; top: 50%; width: 2px; height: calc(100% + 4px); background: var(--accent); z-index: 0; }
+        .stn { position: relative; display: flex; align-items: baseline; gap: 10px; padding: 4px 0; text-align: left; min-width: 0; }
+        .stn::before { content: ""; position: absolute; left: -22px; top: 50%; margin-top: -5px; width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; z-index: 1; }
+        .stn.from::before { background: var(--accent); }
+        .stn.to::before { border: 2px solid var(--accent); background: var(--bg); }
+        .stn b { font-size: 28px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+        .stn span { font-size: 12px; color: var(--sub); white-space: nowrap; }
+        .stn.empty b { color: var(--dim); font-weight: 600; }
+        .stn:active b { opacity: .6; }
+        .swap { width: 40px; height: 40px; display: grid; place-items: center; color: var(--sub); }
+        .swap:active { color: var(--text); }
 
-        /* --- Search & Selectors --- */
-        .search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; }
-        .search-target { flex: 1; min-width: 0; background: #222; border: 1px solid #444; color: #ccc; border-radius: 8px; font-size: 0.85rem; padding-left: 5px; }
-        .search-box { flex: 2.5; min-width: 0; background: #222; border: 1px solid #444; color: #fff; padding: 8px 10px; border-radius: 8px; font-size: 16px; }
-        .search-box:focus { border-color: #4d7f5e; outline: none; background: #000; }
-        
-        .selector-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .selector-label { width: 35px; font-size: 0.8rem; color: #888; font-weight: bold; text-align: center;}
-        .select-group { flex: 1; display: flex; gap: 5px; }
-        .region-select { flex: 2; background: #2c2c2e; color: #eee; border: 1px solid #444; padding: 8px 4px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; text-align: center; }
-        .station-select { flex: 3; background: #3a3a3c; color: #fff; border: 1px solid #555; padding: 8px 4px; border-radius: 8px; font-size: 1rem; font-weight: bold; text-align: center; }
-        .swap-container { display: flex; justify-content: center; margin: -4px 0 4px 0; }
-        .swap-btn { font-size: 1.2rem; color: #666; background: none; border: none; padding: 0 10px; cursor: pointer; transform: rotate(90deg); }
-        .btn-static-search {
-            width: 100%; background: #eee; color: #000; border: none; 
-            padding: 10px; border-radius: 10px; font-size: 1rem; font-weight: bold; 
-            cursor: pointer; margin-top: 5px; display: flex; justify-content: center; align-items: center;
-        }
-        .btn-static-search:active { transform: scale(0.98); background: #ddd; }
-        .btn-static-search:disabled { background: #333; color: #888; cursor: not-allowed; }
-
-        /* --- Sticky Header --- */
-        .header-sticky-part {
-            background: #151517; 
-            border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
-            width: 100%; z-index: 100; will-change: transform;
-            display: flex; flex-direction: column; border-top: 1px solid #222;
-        }
+        /* ===== 黏在上方的操作區 ===== */
+        .header-sticky-part { background: var(--bg); width: 100%; z-index: 100; will-change: transform; padding-top: 16px; }
         .header-sticky-part.is-fixed {
-            position: fixed; top: 0; width: calc(100% - 20px); max-width: 500px; left: 50%;
-            border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            position: fixed; top: 0; left: 50%; max-width: 500px; padding: 10px 24px 0;
+            border-bottom: 1px solid var(--line);
         }
         #stickyPlaceholder { display: none; }
 
-        /* Row 1: Quick Route */
-        .sticky-row-top { 
-            display: flex; align-items: center; border-bottom: 1px solid #222; min-height: 50px; 
-            position: relative; 
+        .action-btn {
+            width: 100%; height: 48px; border-radius: var(--radius);
+            background: #eee; color: #000; font-size: 16px; font-weight: 700; letter-spacing: .08em;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: background .15s, color .15s;
         }
-        .quick-route-scroll-container {
-            flex: 1; overflow-x: auto; white-space: nowrap; padding: 5px 10px; height: 100%; display: flex; align-items: center;
-            -ms-overflow-style: none; scrollbar-width: none; 
-        }
-        .quick-route-scroll-container::-webkit-scrollbar { display: none; }
-        .scroll-hint-overlay {
-            position: absolute; right: 85px; top: 0; bottom: 0; width: 40px;
-            background: linear-gradient(to right, transparent, #151517);
-            pointer-events: none; 
-            display: flex; align-items: center; justify-content: flex-end;
-            padding-right: 5px; opacity: 0; transition: opacity 0.3s;
-        }
-        .scroll-hint-arrow { color: #4d7f5e; font-weight: bold; font-size: 1.2rem; animation: bounce-x 1s infinite; }
-        @keyframes bounce-x { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
-        .route-chip { 
-            display: inline-flex; align-items: center; background: #222; border: 1px solid #444; color: #bbb; 
-            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; margin-right: 6px; 
-            user-select: none; flex-shrink: 0;
-        }
-        .route-chip:active { transform: scale(0.95); background: #333; }
-        .route-chip .chip-arrow { margin: 0 5px; color: #666; font-size: 0.7rem; }
-        .route-chip.fav { border-color: #4d7f5e; color: #4d7f5e; background: rgba(77, 127, 94, 0.1); font-weight: bold; }
-        .route-chip.hist { border-style: dashed; }
-        .btn-side-container { padding: 5px 10px; border-left: 1px solid #222; height: 100%; display: flex; align-items: center; min-width: 85px; justify-content: center; z-index: 5;}
-        .btn-fav-compact {
-            background: #222; color: #ccc; border: 1px solid #444; padding: 4px 8px; border-radius: 8px; 
-            font-size: 0.75rem; cursor: pointer; white-space: pre-wrap; line-height: 1.2; text-align: center;
-            transition: all 0.1s; width: 100%;
-        }
-        .btn-fav-compact:active { transform: scale(0.95); background: #333; }
-        .btn-fav-compact.fav-active { color: #e6b800; border-color: #e6b800; background: rgba(230,184,0,0.1); font-weight: bold; }
+        .action-btn:active { background: #d6d6d6; }
+        .action-btn:disabled { background: var(--raised); color: var(--sub); cursor: default; }
+        .action-btn .cd { font-weight: 500; color: var(--dim); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+        .action-btn svg { flex-shrink: 0; }
 
-        /* Row 2: Tools */
-        .sticky-row-tools { display: flex; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #222; position: relative; }
-        .toolbar-btn {
-            flex: 1; background: #222; border: 1px solid #444; color: #ccc; 
-            padding: 8px 0; border-radius: 8px; font-size: 0.85rem; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.1s; position: relative;
-        }
-        .toolbar-btn:active { transform: scale(0.96); background: #333; }
-        .toolbar-btn.active { color: #4d7f5e; border-color: #4d7f5e; background: rgba(77,127,94,0.1); }
-        .toolbar-btn.refresh { background: #4d7f5e; color: white; border-color: #4d7f5e; font-weight: bold; }
-        .toolbar-btn.refresh:disabled { background: #333; color: #888; border-color: #333; cursor: not-allowed; }
+        .chips-row { position: relative; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+        .chips { flex: 1; display: flex; gap: 18px; overflow-x: auto; white-space: nowrap; padding: 15px 0 14px; scrollbar-width: none; }
+        .chips::-webkit-scrollbar { display: none; }
+        .chip { font-size: 14px; color: var(--sub); flex-shrink: 0; }
+        .chip.fav { color: var(--accent); }
+        .chip:active { opacity: .6; }
+        .scroll-hint-overlay { position: absolute; right: 36px; top: 0; bottom: 0; width: 32px; background: linear-gradient(to right, transparent, var(--bg)); pointer-events: none; opacity: 0; transition: opacity .3s; }
+        .star-btn { width: 36px; height: 36px; display: grid; place-items: center; color: var(--sub); margin-right: -8px; flex-shrink: 0; }
+        .star-btn.fav-active { color: var(--late); }
 
-        /* Row 3: Status */
-        .sticky-row-status {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 6px 15px 8px 15px; background: #111; 
-            border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
-        }
-        .status-left { font-size: 0.8rem; color: #aaa; font-weight: bold; display: flex; align-items: center; gap: 5px; min-height: 1.2em;}
-        .status-left.alert { color: #ff4d4d; }
-        .status-left.warning { color: #e6b800; }
-        .status-right { font-size: 0.75rem; color: #666; font-family: monospace; }
-        
-        /* Resume Pill */
+        .listhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--dim); min-height: 37px; }
+        .status-left { color: var(--sub); }
+        .status-left:empty { display: none; }
+        .status-left:not(:empty) + .status-right { display: none; }
+        .status-left.alert { color: var(--alert); }
+        .status-left.warning { color: var(--late); }
+        .listhead .toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #b0b0b4; padding: 4px 0 4px 10px; margin: -4px 0; }
+        .listhead .toggle svg { transition: transform .2s; }
+        .listhead .toggle.active svg { transform: rotate(180deg); }
+        .listhead .toggle:active { opacity: .6; }
+
+        /* ===== 班次列表 ===== */
+        .row { position: relative; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 2px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+        .row:active { background: #0b0b0c; }
+        .r-time { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .r-dep { font-size: 30px; font-weight: 600; letter-spacing: -.01em; line-height: 1.1; display: flex; align-items: baseline; }
+        .r-arr { font-size: 17px; color: var(--sub); font-weight: 500; display: flex; align-items: baseline; }
+        .r-arr::before { content: "→"; margin-right: 6px; }
+        .ampm { font-size: .55em; margin-right: 3px; font-weight: 500; opacity: .75; }
+        .r-meta { grid-column: 1; font-size: 13px; color: var(--sub); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+        .r-type { font-weight: 700; }
+        .r-orig { color: var(--dim); }
+        .r-side { grid-row: 1 / 3; grid-column: 2; align-self: center; text-align: right; font-size: 13px; color: var(--sub); white-space: nowrap; }
+        .row.late .r-dep, .row.late .r-arr, .row.late .r-side { color: var(--late); }
+        .row.departed { opacity: .35; }
+        .row.departed .r-type { color: inherit !important; }
+
+        /* 10 分鐘內發車：兩顆交替閃爍的燈 */
+        .led { position: absolute; left: -16px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; }
+        .led-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: .2; transition: opacity .1s; }
+        body.tick-a .led-dot.top { opacity: 1; box-shadow: 0 0 6px var(--accent); }
+        body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px var(--accent); }
+        .led.inline { position: static; transform: none; display: inline-flex; vertical-align: middle; margin-right: 8px; gap: 3px; }
+        .led.inline .led-dot { width: 5px; height: 5px; }
+
+        .day-divider { padding: 22px 0 8px; font-size: 12px; color: var(--sub); letter-spacing: .1em; border-bottom: 1px solid var(--line); scroll-margin-top: 170px; }
+        .list-foot { padding: 18px 0; text-align: center; font-size: 12px; color: var(--dim); line-height: 1.8; }
+        .load-next { display: block; margin: 18px auto 0; padding: 10px 18px; font-size: 13px; color: var(--sub); border: 1px solid var(--line-strong); border-radius: var(--radius); }
+        .load-next:disabled { color: var(--dim); }
+        .message { text-align: center; padding: 56px 0; color: var(--sub); font-size: 14px; line-height: 1.8; }
+        .message small { display: block; color: var(--dim); font-size: 12px; }
+
+        .skeleton-row { padding: 18px 0; border-bottom: 1px solid var(--line); animation: pulse-loading 1.5s infinite ease-in-out; }
+        @keyframes pulse-loading { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+        .sk-line { background: #1c1c1e; border-radius: 2px; }
+        .sk-main { height: 26px; width: 55%; margin-bottom: 10px; }
+        .sk-sub { height: 12px; width: 30%; }
+
+        /* ===== 浮動元件 ===== */
         .resume-pill {
-            position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
-            background: #e6b800; color: #000;
-            padding: 10px 20px; border-radius: 50px;
-            font-size: 0.95rem; font-weight: bold;
-            display: none; align-items: center; gap: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.8);
-            z-index: 900; cursor: pointer;
-            animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-            margin-bottom: env(safe-area-inset-bottom);
+            position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+            background: #eee; color: #000; border-radius: var(--radius); padding: 11px 16px; font-size: 14px; font-weight: 600;
+            display: none; align-items: center; gap: 14px; z-index: 900; cursor: pointer; white-space: nowrap;
+            box-shadow: 0 6px 24px rgba(0,0,0,.8);
         }
-        .resume-pill:active { transform: translateX(-50%) scale(0.95); opacity: 0.9; }
-        .resume-pill .pill-close {
-            font-size: 1.2rem; line-height: 1; opacity: 0.5; padding: 0 5px;
-            border-left: 1px solid rgba(0,0,0,0.2); margin-left: 5px;
+        .resume-pill .pill-close { color: #777; font-size: 18px; line-height: 1; padding-left: 12px; border-left: 1px solid #ccc; }
+        .back-to-top {
+            position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 20px; width: 40px; height: 40px;
+            background: var(--panel); color: var(--sub); border: 1px solid var(--line-strong); border-radius: var(--radius);
+            display: grid; place-items: center; z-index: 100; opacity: 0; transform: translateY(10px); transition: all .25s; pointer-events: none;
         }
-        @keyframes slideUp { from { transform: translate(-50%, 100%); opacity:0; } to { transform: translate(-50%, 0); opacity:1; } }
-
-        /* Footer Hints */
-        .fixed-footer-hints {
-            position: fixed; bottom: 0; left: 0; width: 100%;
-            background: #1a1a1c; border-top: 1px solid #333;
-            display: none; /* JS Controlled */
-            align-items: center; justify-content: center; gap: 20px; 
-            padding: 10px 15px; font-size: 0.75rem; color: #666; 
-            z-index: 200; 
-            padding-bottom: max(10px, env(safe-area-inset-bottom)); /* iPhone Safe Area */
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.8);
-        }
-        .fixed-footer-hints.centered { justify-content: center; } 
-        .hint-group { display: flex; align-items: center; gap: 8px; }
-        .hint-text-col { display: flex; flex-direction: column; line-height: 1.2; }
-        .hint-text-col span { font-weight: bold; color: #ccc; }
-        .hint-text-col span.sub { font-weight: normal; color: #666; font-size: 0.7rem; }
-        .hint-divider { width: 1px; height: 20px; background: #333; margin: 0 5px; }
-
-        /* LED */
-        .led-dot { width: 8px; height: 8px; background-color: #4d7f5e; border-radius: 50%; opacity: 0.2; transition: opacity 0.1s; }
-        body.tick-a .led-dot.top { opacity: 1; box-shadow: 0 0 6px #4d7f5e; }
-        body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px #4d7f5e; }
-        .led-pair-mini { display: flex; flex-direction: column; gap: 3px; }
-
-        /* Card */
-        .card { background: #151517; border-radius: 12px; padding: 12px 16px 12px 30px; margin-bottom: 10px; border-left: 5px solid #333; position: relative; transition: transform 0.1s; overflow: hidden; }
-        a { display: block; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
-        .card:active { transform: scale(0.98); background-color: #222; }
-        .train-info { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
-        .main-time { display: flex; align-items: center; justify-content: center; padding: 6px 0; gap: 6px; flex-wrap: nowrap; }
-        .time-group { display: flex; flex-direction: column; align-items: center; }
-        .time-date-label { font-size: 0.65rem; color: #888; margin-bottom: 2px; font-family: monospace; letter-spacing: 0.5px;}
-        .time-part { font-size: 1.8rem; font-weight: 700; line-height: 1; white-space: nowrap; display: flex; align-items: baseline; }
-        .ampm { font-size: 1rem; margin-right: 3px; color: #aaa; font-weight: normal; }
-        .arrow { font-size: 0.8rem; color: #666; margin-top: 10px; flex-shrink: 0;} 
-        @media (max-width: 360px) { .time-part { font-size: 1.5rem; } .ampm { font-size: 0.85rem; } }
-        .sub-time { text-align: center; color: #888; font-size: 0.75rem; }
-        .card.past { opacity: 0.5; filter: grayscale(0.8); }
-        .card.past::after { content: '已駛離'; position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
-        .message { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; }
-        .left-indicator { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
-        .status-badge-container { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-        .status-tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; white-space: nowrap; }
-        .status-tag.departed { color: #888; border: 1px solid #555; background: #222; }
-        .status-tag.delay { color: hsl(40, 100%, 50%); border: 1px solid hsl(40, 100%, 50%); }
-        .card.departed-card { opacity: 0.5; filter: grayscale(1); border-left-color: #555 !important; }
-        .card.departed-card:active { transform: none; background-color: #151517; }
-
-        /* Skeleton */
-        .skeleton-card { background: #1c1c1e; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #333; animation: pulse-loading 1.5s infinite ease-in-out; min-height: 110px; }
-        @keyframes pulse-loading { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-        .sk-line { background: #333; border-radius: 4px; }
-        .sk-title { height: 14px; width: 60%; margin-bottom: 12px; }
-        .sk-main { height: 24px; width: 80%; margin: 0 auto 12px auto; }
-        .sk-sub { height: 12px; width: 50%; margin: 0 auto; }
-
-        /* --- Modal System: Transition Based (Physics) --- */
-        .modal-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0, 0, 0, 0.6); z-index: 999; 
-            display: none; /* Flex when active */
-            align-items: flex-end; 
-            justify-content: center;
-            opacity: 0; transition: opacity 0.3s; pointer-events: none;
-        }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        
-        .modal-page { display: none; background: #1c1c1e; width: 100%; will-change: transform; }
-        .modal-page.active { display: block; }
-        
-        /* 1. Right Drawer (Menu) */
-        .modal-page.sheet-right {
-            position: fixed; top: 0; right: 0; height: 100%; width: 80%; max-width: 320px;
-            border-left: 1px solid #333; 
-            transform: translateX(100%); 
-            transition: transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1); /* Physics Spring */
-            touch-action: none; /* JS Gestures */
-        }
-        .modal-overlay.active .modal-page.sheet-right.active { transform: translateX(0); }
-
-        /* 2. Bottom Sheet (Dev, etc) */
-        .modal-page.sheet-bottom {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: auto; max-height: 85vh;
-            border-radius: 20px 20px 0 0; border-top: 1px solid #333;
-            transform: translateY(100%); 
-            padding-bottom: env(safe-area-inset-bottom);
-            overflow-y: auto;
-            transition: transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
-        }
-        .modal-overlay.active .modal-page.sheet-bottom.active { transform: translateY(0); }
-
-        /* 3. Full Screen Overlay (Tutorial) */
-        .modal-page.sheet-full {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
-            opacity: 0; transition: opacity 0.3s;
-            display: none;
-            flex-direction: column; justify-content: center; align-items: center;
-        }
-        .modal-page.sheet-full.active { display: flex; opacity: 1; }
-
-        /* Handle Bar */
-        .sheet-handle { 
-            width: 40px; height: 5px; background: #333; border-radius: 5px; margin: 10px auto 15px auto; 
-            touch-action: none;
-        }
-        
-        .modal-content-inner { padding: 0 20px 30px 20px; }
-
-        .modal-header-row { 
-            display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;
-            touch-action: none; 
-        }
-        .back-btn { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; line-height: 1; }
-        .modal-title { font-size: 1.1rem; font-weight: bold; color: #fff; flex: 1; }
-        
-        .menu-back-row { 
-            padding: 20px; border-bottom: 1px solid #333; margin-bottom: 10px; 
-            cursor: pointer; display: flex; align-items: center; gap: 10px; 
-            font-size: 1.1rem; color: #4d7f5e; font-weight: bold; 
-        }
-        .menu-back-row:active { background: #222; }
-
-        .menu-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px; margin-bottom: 10px; background: #2c2c2e; border: 1px solid #444; color: #fff; border-radius: 12px; font-size: 1rem; cursor: pointer; }
-        .menu-btn:active { background: #3a3a3c; }
-        .menu-btn:disabled { background: #444 !important; color: #888 !important; border-color: #444 !important; cursor: not-allowed; opacity: 0.7; }
-        .menu-btn::after { content: '›'; color: #666; font-size: 1.2rem; }
-        .menu-btn:disabled::after { content: ''; }
-        .modal-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; margin-bottom: 20px; }
-        
-        /* Tutorial Specifics */
-        .tutorial-container { width: 100%; max-width: 500px; padding: 10px; position: relative; }
-        .t-corner-glow {
-            position: absolute; bottom: 0; right: 0; width: 60px; height: 60px;
-            background: radial-gradient(circle at 100% 100%, rgba(0,122,255,0.6) 0%, rgba(0,122,255,0) 70%);
-            border-bottom-right-radius: 12px; pointer-events: none; animation: pulse-blue-corner 2s infinite;
-        }
-        @keyframes pulse-blue-corner { 0% {opacity: 0.4;} 50% {opacity: 1;} 100% {opacity: 0.4;} }
-        
-        .tutorial-checkbox {
-            display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; margin-bottom: 10px; color: #888; font-size: 0.9rem; cursor: pointer;
-        }
-        .tutorial-checkbox input { width: 18px; height: 18px; accent-color: #4d7f5e; cursor: pointer; }
-
-        .t-center-group { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 15px; margin-bottom: 20px; text-align: center; }
-        .t-center-text { color: #e6b800; font-weight: bold; font-size: 0.9rem; line-height: 1.4; }
-        .t-center-text .sub { display: block; font-size: 0.75rem; font-weight: normal; opacity: 0.8; margin-top: 2px; }
-        .t-arrow-side { font-size: 1.2rem; color: #e6b800; animation: bounce-y 1s infinite; }
-        @keyframes bounce-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-
+        .back-to-top.visible { opacity: 1; transform: none; pointer-events: auto; }
         .toast-msg {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.9); color: #fff; padding: 12px 20px;
-            border-radius: 12px; font-size: 0.95rem; text-align: center;
-            z-index: 2000; pointer-events: none;
-            opacity: 0; transition: opacity 0.3s;
-            border: 1px solid #444; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1c1c1e; color: #fff;
+            padding: 12px 18px; border: 1px solid var(--line-strong); border-radius: var(--radius); font-size: 14px;
+            z-index: 2000; pointer-events: none; opacity: 0; transition: opacity .3s;
         }
         .toast-msg.show { opacity: 1; }
 
-        @keyframes shake {
-            0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); }
+        #inAppOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.94); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 32px; }
+        #inAppOverlay .big { font-size: 18px; font-weight: 700; margin-bottom: 18px; }
+        #inAppOverlay ol { text-align: left; color: #ccc; font-size: 15px; line-height: 2; padding-left: 20px; margin: 0 0 28px; }
+        #inAppOverlay small { color: var(--dim); }
+
+        /* ===== 彈出視窗 ===== */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 999; display: none;
+            align-items: flex-end; justify-content: center; opacity: 0; transition: opacity .3s; pointer-events: none;
         }
-        .shake-anim { animation: shake 0.3s ease-in-out; border-color: #ff4d4d !important; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-page { display: none; background: var(--panel); width: 100%; will-change: transform; }
+        .modal-page.active { display: block; }
 
-        /* God Mode (回報檢視) */
-        .report-list-item { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; color: #ccc; font-size: 0.8rem; }
-        .report-list-item:hover { background: #333; }
-        .report-list-item.active { background: #1a3320; }
-        .report-timestamp { color: #4d7f5e; font-family: monospace; }
-        .login-msg { min-height: 1.2em; color: #ff4d4d; font-size: 0.8rem; margin: -10px 0 10px 0; }
-
-        .terminal-box, .dev-terminal { flex: 1; background: #000; border: 1px solid #333; border-radius: 8px; color: #00ff00; font-family: monospace; font-size: 0.75rem; padding: 10px; overflow-x: auto; white-space: pre; box-shadow: inset 0 0 10px #000; }
-
-        .back-to-top {
-            position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
-            background: #4d7f5e; color: #fff; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 100;
-            opacity: 0; transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; 
+        .modal-page.sheet-right {
+            position: fixed; top: 0; right: 0; height: 100%; width: 80%; max-width: 320px; border-left: 1px solid var(--line);
+            transform: translateX(100%); transition: transform .3s cubic-bezier(.1,.9,.2,1); touch-action: none;
+            padding-top: env(safe-area-inset-top);
         }
-        .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .back-to-top:active { transform: scale(0.9); background: #3d664b; }
-
-        .diag-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
-        .diag-section:last-child { border-bottom: none; }
-        .diag-title { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .ios-instruction { text-align: center; margin-top: 10px; }
-        .ios-step { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; color: #ccc; font-size: 0.95rem; }
-        .ios-icon { font-size: 1.4rem; color: #4d7f5e; }
-
-        #inAppOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.92); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
-        .guide-icon { font-size: 3rem; color: #4d7f5e; margin-bottom: 20px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
-        .guide-highlight { color: #e6b800; font-weight: bold; font-size: 1.3rem; margin: 20px 0; border: 2px dashed #444; padding: 15px; border-radius: 12px; background: #222; }
-
-        .btn-start:active { transform: scale(0.95); opacity: 0.9; }
-
-        /* Tutorial Static Hint Bar (for Context) */
-        .static-hint-bar {
-            background: #1a1a1c; border: 1px solid #333; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            gap: 15px; padding: 12px 10px; margin-top: 8px; margin-bottom: 25px;
-            font-size: 0.75rem; color: #666;
+        .modal-overlay.active .modal-page.sheet-right.active { transform: translateX(0); }
+        .modal-page.sheet-bottom {
+            position: fixed; bottom: 0; left: 0; width: 100%; max-height: 85vh; border-top: 1px solid var(--line-strong);
+            transform: translateY(100%); padding-bottom: env(safe-area-inset-bottom); overflow-y: auto;
+            transition: transform .3s cubic-bezier(.1,.9,.2,1);
         }
+        .modal-overlay.active .modal-page.sheet-bottom.active { transform: translateY(0); }
+
+        .sheet-handle { width: 36px; height: 4px; background: var(--line-strong); border-radius: 2px; margin: 10px auto 6px; touch-action: none; }
+        .modal-content-inner { padding: 0 24px 30px; max-width: 560px; margin: 0 auto; }
+        .modal-header-row { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 0 14px; touch-action: none; }
+        .modal-title { font-size: 17px; font-weight: 700; }
+        .back-btn { font-size: 14px; color: var(--sub); padding: 4px 0 4px 12px; }
+        .modal-text { font-size: 14px; line-height: 1.8; color: #ccc; }
+        .modal-text p { margin: 0 0 14px; }
+        .modal-text strong { color: #fff; }
+
+        /* 側邊選單 */
+        .menu-list { padding: 8px 0; }
+        .menu-item { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 17px 24px; font-size: 16px; border-bottom: 1px solid var(--line); text-align: left; }
+        .menu-item:active { background: #18181b; }
+        .menu-item .val { color: var(--sub); font-size: 14px; }
+        .menu-close { display: flex; justify-content: flex-end; padding: 14px 16px 6px; }
+
+        /* 表單 */
+        .field { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--line-strong); color: #fff; font-size: 16px; padding: 10px 0; border-radius: 0; }
+        .field:focus { border-bottom-color: var(--accent); }
+        .field::placeholder { color: var(--dim); }
+        .field::-webkit-search-cancel-button { -webkit-appearance: none; }
+        textarea.field { resize: none; border: 1px solid var(--line-strong); padding: 10px; border-radius: var(--radius); line-height: 1.6; }
+        .btn { display: block; width: 100%; height: 46px; border-radius: var(--radius); background: #eee; color: #000; font-weight: 700; font-size: 15px; text-align: center; }
+        .btn:active { background: #d6d6d6; }
+        .btn:disabled { background: var(--raised); color: var(--sub); }
+        .btn-quiet { display: block; width: 100%; padding: 12px 0; font-size: 14px; color: var(--sub); text-align: center; }
+        .btn-danger { color: var(--alert); }
+        .form-gap { height: 14px; }
+        .hint-ok { color: var(--accent); font-size: 12px; text-align: center; margin-top: 8px; opacity: 0; transition: opacity 1s; }
+        .section-label { font-size: 12px; color: var(--sub); letter-spacing: .1em; margin: 22px 0 8px; }
+
+        .terminal-box, .dev-terminal {
+            background: #0a0a0b; border: 1px solid var(--line); border-radius: var(--radius); color: #9a9a9e;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6;
+            padding: 10px; overflow: auto; white-space: pre; max-height: 220px;
+        }
+
+        /* 選站 */
+        #pageStation { height: 82vh; max-height: 82vh; overflow: hidden; display: none; flex-direction: column; }
+        #pageStation.active { display: flex; }
+        .picker-head { padding: 0 24px; }
+        .picker-cols { flex: 1; min-height: 0; display: flex; margin-top: 10px; border-top: 1px solid var(--line); }
+        .picker-col { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+        .picker-regions { width: 100px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 4px 0 30px; }
+        .picker-regions button { display: block; width: 100%; text-align: left; padding: 12px 0 12px 22px; font-size: 14px; color: var(--sub); }
+        .picker-regions button.on { color: #fff; font-weight: 700; box-shadow: inset 3px 0 0 var(--accent); }
+        .picker-stations { flex: 1; padding-bottom: 30px; }
+        .picker-stations button {
+            display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left;
+            padding: 14px 24px 14px 18px; border-bottom: 1px solid #1c1c1f; font-size: 16px; color: #7a7a7e;
+        }
+        .picker-stations button.major { color: #f2f2f2; }
+        .picker-stations button.on { background: rgba(77,127,94,.22); box-shadow: inset 3px 0 0 var(--accent); color: #fff; font-weight: 700; }
+        .picker-stations button small { font-size: 12px; color: var(--dim); font-weight: 400; }
+        .picker-stations button:active { background: #18181b; }
+        .picker-empty { padding: 24px 18px; color: var(--dim); font-size: 14px; }
+
+        /* 使用說明 */
+        .help-sample { margin: 4px 0 18px; border-top: 1px solid var(--line); padding-left: 16px; }
+        .help-list { list-style: none; padding: 0; margin: 0; font-size: 14px; color: #ccc; line-height: 1.7; }
+        .help-list li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+        .help-list b { color: #fff; }
+
+        /* 開發者 */
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25%,75% { transform: translateX(-5px); } 50% { transform: translateX(5px); } }
+        .shake-anim { animation: shake .3s ease-in-out; border-bottom-color: var(--alert) !important; }
+        .login-msg { min-height: 1.4em; color: var(--alert); font-size: 13px; margin: 10px 0; }
+        .report-list { border-top: 1px solid var(--line); max-height: 180px; overflow-y: auto; }
+        .report-list-item { display: flex; justify-content: space-between; width: 100%; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: #ccc; font-variant-numeric: tabular-nums; }
+        .report-list-item.active { color: var(--accent); }
+        .report-list-empty { padding: 14px 0; color: var(--dim); font-size: 13px; }
+        .dev-actions { display: flex; justify-content: space-between; margin: 6px 0 10px; }
+        .dev-actions button { font-size: 13px; color: var(--sub); padding: 6px 0; }
+
+        .ios-steps { margin: 0; padding-left: 20px; font-size: 15px; line-height: 2.2; color: #ccc; }
     </style>
 </head>
 <body class="tick-a">
     <div id="inAppOverlay" onclick="this.style.display='none'">
-        <div class="guide-icon">🌏</div>
-        <div style="color:#fff; font-size:1.1rem; line-height:1.6;">請切換至瀏覽器開啟</div>
-        <div class="guide-highlight">1. 點擊選單 (⋮)<br><br>2. 選擇「在瀏覽器開啟」</div>
-        <div style="font-size:0.8rem; color:#aaa; margin-top:20px;">(點擊任意處關閉)</div>
+        <div class="big">請改用瀏覽器開啟</div>
+        <ol>
+            <li>點右上角的選單（⋮ 或 …）</li>
+            <li>選「在瀏覽器開啟」</li>
+        </ol>
+        <small>點任意處關閉</small>
     </div>
 
     <div id="resumePill" class="resume-pill" onclick="doRefresh()">
-        <span>🔄 可更新</span>
+        <span>資料已過 3 分鐘，點此更新</span>
         <span class="pill-close" onclick="closeResumePill(event)">×</span>
     </div>
-    
-    <div id="toastMsg" class="toast-msg"></div>
 
-    <div id="fixedFooterHints" class="fixed-footer-hints">
-        <div id="hintArrival" class="hint-group">
-            <div class="led-pair-mini">
-                <div class="led-dot top"></div>
-                <div class="led-dot bottom"></div>
-            </div>
-            <div class="hint-text-col">
-                <span>10分鐘內</span>
-                <span>發車</span>
-            </div>
-        </div>
-        <div id="hintDivider" class="hint-divider"></div>
-        <div class="hint-group">
-            <span style="font-size:1.2rem">👆</span>
-            <div class="hint-text-col">
-                <span>點擊車次卡片查看</span>
-                <span class="sub">即時位置 & 完整停靠站</span>
-            </div>
-        </div>
-    </div>
+    <div id="toastMsg" class="toast-msg"></div>
 
     <div class="container">
         <div class="header">
             <div class="header-static-part">
-                <div class="header-top">
+                <div class="topbar">
                     <div class="app-title" onclick="handleLogoClick()">TRAIN LIVE</div>
-
                     <div class="top-actions">
-                        <button id="btnInstall" class="install-btn-top" onclick="handleInstall()">
-                            📲 加到桌面
+                        <button id="btnInstall" class="text-btn" onclick="handleInstall()">安裝</button>
+                        <button class="icon-btn" onclick="openMenu()" aria-label="選單">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg>
                         </button>
-                        <button class="menu-btn-trigger anim-gold-pulse" onclick="openMenu()">☰</button>
                     </div>
                 </div>
 
-                <div class="search-row">
-                    <select id="searchTarget" class="search-target" onchange="handleSearch()"><option value="start">設為起點</option><option value="end">設為終點</option></select>
-                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋車站 (可打字輸入...)" oninput="handleSearch()">
+                <div class="route">
+                    <div class="route-stops">
+                        <button id="startPick" class="stn from" onclick="openStationPicker('start')"><b>選擇起站</b><span></span></button>
+                        <button id="endPick" class="stn to" onclick="openStationPicker('end')"><b>選擇迄站</b><span></span></button>
+                    </div>
+                    <button class="swap" onclick="swapStations()" aria-label="交換起訖站">
+                        <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2v12M2 5l3-3 3 3M11 14V2M8 11l3 3 3-3"/></svg>
+                    </button>
                 </div>
 
-                <div class="selector-row">
-                    <div class="selector-label">起點</div>
-                    <div class="select-group">
-                        <select id="startRegion" class="region-select" onchange="updateStationList('start')"></select>
-                        <select id="startStation" class="station-select" onchange="markAsChanged()"></select>
-                    </div>
+                <!-- 實際的站點狀態（程式內部使用，不顯示） -->
+                <div class="hidden-state" aria-hidden="true">
+                    <select id="startRegion"></select><select id="startStation"></select>
+                    <select id="endRegion"></select><select id="endStation"></select>
                 </div>
-                <div class="swap-container"><button class="swap-btn" onclick="swapStations()">⇄</button></div>
-                <div class="selector-row">
-                    <div class="selector-label">終點</div>
-                    <div class="select-group">
-                        <select id="endRegion" class="region-select" onchange="updateStationList('end')"></select>
-                        <select id="endStation" class="station-select" onchange="markAsChanged()"></select>
-                    </div>
-                </div>
-
-                <button id="btnSearch" class="btn-static-search" onclick="doSearch()">🔍 查詢路線</button>
             </div>
 
             <div id="stickyHeader" class="header-sticky-part">
-                <div id="rowQuickRoute" class="sticky-row-top">
-                    <div id="quickRouteArea" class="quick-route-scroll-container"></div>
-                    <div id="scrollHint" class="scroll-hint-overlay">
-                        <span class="scroll-hint-arrow">›</span>
-                    </div>
-                    <div class="btn-side-container">
-                         <button id="btnStar" class="btn-fav-compact" onclick="toggleFavorite()">★<br>已收藏</button>
-                    </div>
+                <button id="btnAction" class="action-btn" onclick="handleAction()">查詢</button>
+
+                <div id="rowQuickRoute" class="chips-row">
+                    <div id="quickRouteArea" class="chips"></div>
+                    <div id="scrollHint" class="scroll-hint-overlay"></div>
+                    <button id="btnStar" class="star-btn" onclick="toggleFavorite()" aria-label="收藏路線"></button>
                 </div>
 
-                <div id="rowTools" class="sticky-row-tools">
-                    <button id="btnRefresh" class="toolbar-btn refresh" onclick="doRefresh()">🔄 更新</button>
-                    <button id="btnShowAll" class="toolbar-btn" onclick="toggleShowAll()">👁️ 已駛離</button>
-                    <button id="btnTimeFormat" class="toolbar-btn" onclick="toggleTimeFormat()">🕒 AM/PM</button>
-                </div>
-
-                <div class="sticky-row-status">
-                    <div id="statusMsg" class="status-left"></div>
-                    <div id="updateTime" class="status-right"></div>
+                <div id="rowTools" class="listhead">
+                    <div>
+                        <span id="statusMsg" class="status-left"></span><span id="updateTime" class="status-right"></span>
+                    </div>
+                    <button id="btnShowAll" class="toggle" onclick="toggleShowAll()"></button>
                 </div>
             </div>
             <div id="stickyPlaceholder"></div>
@@ -473,119 +338,79 @@
         <div id="cardList"></div>
     </div>
 
-    <button id="btnBackToTop" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-        ↑
+    <button id="btnBackToTop" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" aria-label="回到頂部">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>
     </button>
 
     <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
-        
+
         <div id="pageMenu" class="modal-page sheet-right" onclick="event.stopPropagation()">
-            <div class="menu-back-row" onclick="closeModal()">
-                <span>‹ 返回</span>
-            </div>
-            <div style="padding: 10px;">
-                <button class="menu-btn anim-gold-pulse" onclick="goToPage('Why')">設計理念</button>
-                <button class="menu-btn" onclick="goToPage('Tutorial', true)">📖 使用說明</button> <button class="menu-btn" onclick="goToPage('Report')">系統診斷 / 問題回報</button>
-                <button class="menu-btn" onclick="goToPage('Author')">關於作者</button>
-                <button class="menu-btn" onclick="shareApp()">📤 分享給朋友</button>
+            <div class="menu-close"><button class="back-btn" onclick="closeModal()">關閉</button></div>
+            <div class="menu-list">
+                <button class="menu-item" onclick="goToPage('Help')">使用說明</button>
+                <button class="menu-item" onclick="toggleTimeFormat()">時間格式<span id="btnTimeFormat" class="val"></span></button>
+                <button class="menu-item" onclick="goToPage('Report')">回報問題</button>
+                <button class="menu-item" onclick="goToPage('Author')">關於</button>
+                <button class="menu-item" onclick="shareApp()">分享給朋友</button>
             </div>
         </div>
 
-        <div id="pageWhy" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
+        <div id="pageStation" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
+            <div class="picker-head">
+                <div class="modal-header-row"><div id="pickerTitle" class="modal-title">選擇起站</div><button class="back-btn" onclick="closeModal()">取消</button></div>
+                <input id="pickerSearch" class="field" type="search" placeholder="搜尋車站" autocomplete="off" oninput="renderPickerStations()">
+            </div>
+            <div class="picker-cols">
+                <div id="pickerRegions" class="picker-col picker-regions"></div>
+                <div id="pickerStations" class="picker-col picker-stations"></div>
+            </div>
+        </div>
+
+        <div id="pageHelp" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
-                <div class="modal-header-row"><div class="modal-title">設計理念</div><button class="back-btn" onclick="closeModal()">×</button></div>
-                <div class="modal-text">現有的火車時刻表軟體，通常只會顯示「誤點幾分鐘」，而沒有幫忙算出「實際幾點會到」。<br><br>當火車大量誤點時，我們需要在腦中不斷加減計算，非常不便。<br><br><strong>TRAIN LIVE 的設計目標：</strong><br>1. 直接顯示<strong>「誤點後的實際時間」</strong>。<br>2. 依照<strong>「實際發車順序」</strong>排列，而非原定時刻。<br>3. 一眼看出現在該搭哪一班車。<br><br>希望這個工具能解決你的通勤焦慮。</div>
-            </div>
-        </div>
-
-        <div id="pageTutorial" class="modal-page sheet-full" onclick="event.stopPropagation()">
-            <div class="tutorial-container">
-                <div style="text-align:center; margin-bottom:15px; color:#fff; font-weight:bold; font-size:1.1rem;">TRAIN LIVE 介面說明</div>
-                
-                <div class="card" style="border-left-color: #DF3F1F; margin:0; cursor: pointer;" onclick="showFakeCardToast(event)">
-                    <div class="left-indicator">
-                        <div class="led-dot top"></div>
-                        <div class="led-dot bottom"></div>
-                    </div>
-                    <div class="status-badge-container"><div class="status-tag delay">誤點 15 分</div></div>
-                    <div class="train-info" style="color:#DF3F1F;">自強 456 次</div>
-                    <div class="main-time">
-                        <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">教學起點</div><div class="time-part" style="color:#e6b800">10:15</div></div>
-                        <span class="arrow">➔</span>
-                        <div class="time-group"><div class="time-date-label" style="color:#4d7f5e;">教學終點</div><div class="time-part" style="color:#e6b800">10:25</div></div>
-                    </div>
-                    <div class="sub-time">原定 10:00 ➔ 10:10</div>
-                    <div class="t-corner-glow"></div>
-                </div>
-
-                <div class="static-hint-bar">
-                    <div class="hint-group">
-                        <div class="led-pair-mini">
-                            <div class="led-dot top"></div>
-                            <div class="led-dot bottom"></div>
-                        </div>
-                        <div class="hint-text-col">
-                            <span>10分鐘內</span>
-                            <span>發車閃爍</span>
-                        </div>
-                    </div>
-                    <div class="hint-divider"></div>
-                    <div class="hint-group">
-                        <span style="font-size:1.2rem">👆</span>
-                        <div class="hint-text-col" style="align-items: center;">
-                            <span style="font-size: 0.9rem;">點擊卡片</span>
-                            <span class="sub">看即時位置</span>
-                            <span class="sub">& 完整停靠站</span>
-                        </div>
+                <div class="modal-header-row"><div class="modal-title">使用說明</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <div class="help-sample">
+                    <div class="row late" style="border-bottom:0">
+                        <div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
+                        <div class="r-time"><span class="r-dep">10:15</span><span class="r-arr">11:05</span></div>
+                        <div class="r-meta"><span class="r-type" style="color:#DF3F1F">自強號</span><span>456</span><span class="r-orig">原定 10:00 → 10:50</span></div>
+                        <div class="r-side">晚 15 分</div>
                     </div>
                 </div>
-
-                <div class="t-center-group">
-                    <div class="t-arrow-side">⬆</div>
-                    <div class="t-center-text">
-                        大字是實際時間
-                        <span class="sub">(已加上誤點時間)</span>
-                    </div>
-                    <div class="t-arrow-side">⬆</div>
-                </div>
-
-                <label class="tutorial-checkbox" id="tutCheckboxContainer">
-                    <input type="checkbox" id="tutNoShow" />
-                    不再顯示教學
-                </label>
-                <button id="btnStartTutorial" class="menu-btn btn-start" style="text-align:center; justify-content:center; margin-top:10px; background:#4d7f5e; border-color:#4d7f5e; font-weight:bold;" onclick="closeTutorial()">開始使用</button>
+                <ul class="help-list">
+                    <li><b>大字是實際出發時間</b>，已經加上誤點，列表也照實際發車順序排。</li>
+                    <li><b>黃字</b>代表誤點，後面的灰字是原本的時刻。</li>
+                    <li><span class="led inline"><span class="led-dot top"></span><span class="led-dot bottom"></span></span><b>綠燈閃爍</b>代表 10 分鐘內發車。</li>
+                    <li><b>點班次</b>可以看列車即時位置和完整停靠站。</li>
+                    <li>按鈕在換站後是「查詢」，查過後變成「更新」；冷卻中會變灰並倒數。</li>
+                </ul>
             </div>
         </div>
 
         <div id="pageReport" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
-                <div class="modal-header-row"><div class="modal-title">系統診斷</div><button class="back-btn" onclick="closeModal()">×</button></div>
-                <div style="margin-bottom:15px;">
-                    <textarea id="userDesc" class="search-box" style="width:100%; resize:none; font-size:1rem; padding:10px;" rows="5" placeholder="遇到什麼問題？(選填)"></textarea>
-                    <button class="menu-btn" style="width:100%; text-align:center; justify-content:center; margin-top:10px;" onclick="manualUploadReport()">☁️ 送出回報</button>
-                    <div id="autoUploadHint" style="color:#4d7f5e; font-size:0.8rem; text-align:center; margin-top:5px; opacity:0; transition:opacity 1s;">✅ 系統資料已自動歸檔</div>
-                </div>
-                <div class="diag-section" style="border:none;">
-                    <div class="diag-title">系統紀錄 (Log)</div>
-                    <div id="terminalView" class="terminal-box"></div>
-                </div>
+                <div class="modal-header-row"><div class="modal-title">回報問題</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <textarea id="userDesc" class="field" rows="5" placeholder="遇到什麼問題？（選填）"></textarea>
+                <div class="form-gap"></div>
+                <button class="btn" onclick="manualUploadReport()">送出</button>
+                <div id="autoUploadHint" class="hint-ok">已自動附上系統紀錄</div>
+                <div class="section-label">系統紀錄</div>
+                <div id="terminalView" class="terminal-box"></div>
             </div>
         </div>
 
         <div id="pageAuthor" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
-                <div class="modal-header-row"><div class="modal-title">關於作者</div><button class="back-btn" onclick="closeModal()">×</button></div>
-                <div class="modal-text" style="text-align:center;">
-                    <div style="font-size:0.95rem; color:#fff; font-weight:bold; margin-bottom:10px;">
-                        BenjaminDai 與 Gemini
-                    </div>
-                    <a href="https://www.instagram.com/d16benjamin_?igsh=N2c3M25ia3M0a3c4" target="_blank" style="font-size:0.85rem; color:#4d7f5e; display:inline-block; margin-bottom:5px; text-decoration:none;">
-                        @d16benjamin_
-                    </a>
-                    <div style="font-size:0.7rem; color:#444; margin-top:10px;">Start: 2026/1/6</div>
+                <div class="modal-header-row"><div class="modal-title">關於</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <div class="modal-text">
+                    <p>一般的時刻表只告訴你「誤點幾分鐘」，還要自己在腦中加減，才知道車到底幾點來。</p>
+                    <p>TRAIN LIVE 直接顯示<strong>加上誤點後的實際時間</strong>，並照<strong>實際發車順序</strong>排列，一眼就知道現在該搭哪一班。</p>
+                    <div class="section-label">作者</div>
+                    <p>BenjaminDai　·　<a href="https://www.instagram.com/d16benjamin_?igsh=N2c3M25ia3M0a3c4" target="_blank" style="display:inline;color:var(--accent)">@d16benjamin_</a></p>
+                    <p style="font-size:12px;color:var(--dim)">2026/1/6 開始製作</p>
                 </div>
             </div>
         </div>
@@ -593,51 +418,40 @@
         <div id="pageLogin" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
-                <div class="modal-header-row">
-                    <div class="modal-title">🔐 身分驗證</div>
-                    <button class="back-btn" onclick="closeModal()">×</button>
-                </div>
-                <div class="modal-text">
-                    <div style="margin-bottom:15px; color:#aaa; font-size:0.85rem;">請輸入開發者密碼</div>
-                    <input type="password" id="loginPass" class="search-box" placeholder="Password" style="width:100%; margin-bottom:20px;" autocomplete="off" onkeydown="if(event.key==='Enter') doLogin()">
-                    <div id="loginMsg" class="login-msg"></div>
-                    <button id="btnLogin" class="menu-btn" style="text-align:center; justify-content:center;" onclick="doLogin()">登入</button>
-                </div>
+                <div class="modal-header-row"><div class="modal-title">開發者登入</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <input type="password" id="loginPass" class="field" placeholder="密碼" autocomplete="off" onkeydown="if(event.key==='Enter') doLogin()">
+                <div id="loginMsg" class="login-msg"></div>
+                <button id="btnLogin" class="btn" onclick="doLogin()">登入</button>
             </div>
         </div>
 
         <div id="pageDev" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
-                <div class="modal-header-row">
-                    <div class="modal-title" style="color:#334439;">使用者回報</div>
-                    <button class="back-btn" onclick="closeModal()">×</button>
+                <div class="modal-header-row"><div class="modal-title">使用者回報</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <div class="dev-actions">
+                    <button onclick="fetchReportList()">重新整理</button>
+                    <button class="btn-danger" onclick="clearReports()">清空全部</button>
                 </div>
-                <div class="modal-text">
-                    <div style="margin-bottom:10px; display:flex; gap:10px;">
-                        <button class="menu-btn" style="flex:1; padding:8px;" onclick="fetchReportList()">🔄 刷新列表</button>
-                        <button class="menu-btn" style="flex:1; padding:8px; background:#3a1111; border-color:#ff4d4d; color:#ff4d4d;" onclick="clearReports()">🗑️ 清空報告</button>
-                    </div>
-                    <div id="reportListContainer" class="terminal-box" style="height:120px; margin-bottom:10px; white-space:normal;"></div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin: 10px 0 5px 0;">
-                        <div class="info-label">報告內容：</div>
-                        <button class="btn-fav-compact" style="width:auto; padding:2px 8px;" onclick="copyDevContent()">📋 複製內容</button>
-                    </div>
-                    <div id="reportDetailContainer" class="dev-terminal" style="height:200px;">點擊上方列表查看...</div>
-                    <button class="menu-btn" style="width:100%; text-align:center; justify-content:center; margin-top:15px;" onclick="adminLogout()">🚪 登出</button>
+                <div id="reportListContainer" class="report-list"></div>
+                <div class="dev-actions" style="margin-top:18px">
+                    <span class="section-label" style="margin:0">內容</span>
+                    <button onclick="copyDevContent()">複製</button>
                 </div>
+                <div id="reportDetailContainer" class="dev-terminal" style="height:200px;white-space:pre-wrap">點上方的回報查看內容</div>
+                <button class="btn-quiet" style="margin-top:10px" onclick="adminLogout()">登出</button>
             </div>
         </div>
 
         <div id="pageIOS" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
-                <div class="modal-header-row"><div class="modal-title">安裝教學 (iOS)</div><button class="back-btn" onclick="closeModal()">×</button></div>
-                <div class="ios-instruction">
-                    <div class="ios-step">1. 點擊 <span class="ios-icon">⎋</span> <strong>分享</strong> 按鈕</div>
-                    <div class="ios-step">2. 選擇 <span class="ios-icon">⊞</span> <strong>加入主畫面</strong></div>
-                    <div class="ios-step">3. 點擊右上角的「加入」</div>
-                </div>
+                <div class="modal-header-row"><div class="modal-title">加到主畫面</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <ol class="ios-steps">
+                    <li>點 Safari 下方的「分享」按鈕</li>
+                    <li>選「加入主畫面」</li>
+                    <li>點右上角的「加入」</li>
+                </ol>
             </div>
         </div>
     </div>
@@ -671,24 +485,24 @@
         const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
         const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
         
-        // [新增] 強制更新 Key 到 v3，確保所有用戶看得到新教學
-        const LS_TUTORIAL_SEEN="tl_intro_seen_v3";
         const LS_SKELETON_COUNT="tl_skeleton_count";
 
         const startRegion=document.getElementById('startRegion');const startStation=document.getElementById('startStation');
         const endRegion=document.getElementById('endRegion');const endStation=document.getElementById('endStation');
-        const searchInput=document.getElementById('searchInput');const searchTarget=document.getElementById('searchTarget');
-        const btnSearch=document.getElementById('btnSearch');const btnRefresh=document.getElementById('btnRefresh');
+        const btnAction=document.getElementById('btnAction');
         const statusMsg=document.getElementById('statusMsg');const updateTimeDiv=document.getElementById('updateTime');
         const list=document.getElementById('cardList');const btnInstall = document.getElementById('btnInstall');
         const resumePill = document.getElementById('resumePill'); 
 
-        let refreshTimer=null; let searchLockTimer=null; let retryTimer=null;
+        let retryTimer=null; let actionTicker=null; let isFetching=false;
         const LS_SEARCH_COUNT="tl_search_count";const LS_SEARCH_RESET="tl_search_reset_time";
         const LS_SEARCH_LOCK="tl_search_locked_until";const LS_REFRESH_LOCK="tl_refresh_locked_until";
         const LS_UI_LOCK = "tl_ui_button_locked_until"; 
 
         const LS_IS_24H="tl_pref_is_24h"; 
+        const LS_ROW_TAPPED="tl_row_tapped";
+        // 主要車站（選站清單中以白字顯示）
+        const MAJOR_STATIONS = new Set(["基隆","七堵","南港","松山","臺北","板橋","樹林","桃園","中壢","新竹","竹南","苗栗","豐原","臺中","彰化","員林","二水","斗六","嘉義","新營","臺南","岡山","新左營","高雄","鳳山","屏東","潮州","枋寮","臺東","玉里","花蓮","宜蘭","羅東","瑞芳"]);
 
         const MAX_SEARCH_PER_MIN=3;
         let lastFetchedPair={start:"",end:""};
@@ -704,7 +518,6 @@
         
         // 自動喚醒計時器
         let autoResumeTimer = null; 
-        let tutorialTimer = null; // New timer for tutorial button
         
 
         try { localStorage.removeItem('tl_session_v2'); } catch(e) {}
@@ -717,29 +530,27 @@
         if (!isInStandaloneMode) { btnInstall.style.display = 'flex'; }
         window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 
+        // 打開彈出視窗並切到指定頁面
+        function openSheet(id) {
+            const modal = document.getElementById('aboutModal');
+            modal.style.display = 'flex';
+            document.body.classList.add('noscroll');
+            setTimeout(() => modal.classList.add('active'), 10);
+            history.pushState({modal: true}, '', '');
+            goToPage(id);
+        }
+
         function handleInstall() {
             if (isInApp) { document.getElementById('inAppOverlay').style.display = 'flex'; return; }
-            if (isIos) { 
-                document.getElementById('aboutModal').style.display='flex';
-                document.body.classList.add('noscroll');
-                setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
-                history.pushState({modal: true}, '', '');
-                goToPage('IOS'); 
-                return; 
-            }
-            if (deferredPrompt) {
+            if (!isIos && deferredPrompt) {
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((c) => { if(c.outcome==='accepted') btnInstall.style.display='none'; deferredPrompt=null; });
-            } else {
-                document.getElementById('aboutModal').style.display='flex';
-                document.body.classList.add('noscroll');
-                setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
-                history.pushState({modal: true}, '', '');
-                goToPage('IOS');
+                return;
             }
+            openSheet('IOS');
         }
         async function shareApp() {
-            const data = { title: 'TRAIN LIVE', text: '誤點自動計算！', url: window.location.href };
+            const data = { title: 'TRAIN LIVE', text: '台鐵時刻表，直接算好誤點後的實際時間', url: window.location.href };
             if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
         }
 
@@ -753,14 +564,10 @@
             if (logoClickCount >= 5) { clearTimeout(logoClickTimer); logoClickCount = 0; activateGodMode(); }
         }
         function activateGodMode() {
-            document.getElementById('aboutModal').style.display = 'flex';
-            document.body.classList.add('noscroll');
-            setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
-            history.pushState({modal: true}, '', '');
-            if (adminToken) { goToPage('Dev'); fetchReportList(); }
+            if (adminToken) { openSheet('Dev'); fetchReportList(); }
             else {
                 document.getElementById('loginMsg').innerText = "";
-                goToPage('Login');
+                openSheet('Login');
                 setTimeout(() => document.getElementById('loginPass').focus(), 350);
             }
         }
@@ -813,7 +620,7 @@
             if (adminToken) adminApi('logout').catch(() => {});
             adminToken = null;
             document.getElementById('reportListContainer').innerText = "";
-            document.getElementById('reportDetailContainer').innerText = "點擊上方列表查看...";
+            document.getElementById('reportDetailContainer').innerText = "點上方的回報查看內容";
             closeModal();
         }
 
@@ -825,22 +632,20 @@
 
         async function fetchReportList() {
             const container = document.getElementById('reportListContainer');
-            container.innerText = "Loading...";
+            container.innerText = "載入中…";
             try {
                 const json = await adminApi('list_reports');
                 container.innerHTML = "";
-                if (!json.reports || json.reports.length === 0) { container.innerText = "沒有歸檔報告"; return; }
+                if (!json.reports || json.reports.length === 0) { container.innerHTML = '<div class="report-list-empty">目前沒有回報</div>'; return; }
                 json.reports.forEach(key => {
                     // key 格式：report:YYYYMMDD_HHMMSS_xxxx
                     const parts = key.replace('report:', '').split('_');
-                    const item = document.createElement('div');
+                    const item = document.createElement('button');
                     item.className = 'report-list-item';
-                    const ts = document.createElement('span');
-                    ts.className = 'report-timestamp';
-                    ts.innerText = `${parts[0] || ''} ${parts[1] || ''}`;
-                    const icon = document.createElement('span');
-                    icon.innerText = '📄';
-                    item.append(ts, icon);
+                    const d = parts[0] || '', t = parts[1] || '';
+                    item.innerText = (d.length === 8 && t.length === 6)
+                        ? `${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6)}  ${t.slice(0,2)}:${t.slice(2,4)}:${t.slice(4)}`
+                        : `${d} ${t}`;
                     item.onclick = () => {
                         container.querySelectorAll('.report-list-item').forEach(i => i.classList.remove('active'));
                         item.classList.add('active');
@@ -848,36 +653,37 @@
                     };
                     container.appendChild(item);
                 });
-            } catch (e) { container.innerText = "Error: " + e.message; }
+            } catch (e) { container.innerText = "讀取失敗：" + e.message; }
         }
 
         function formatReport(data) {
             const logs = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs";
             const d = data.diagnostics || {};
-            return `📅 時間: ${data.timestamp || '--'}
-💬 使用者描述: ${data.user_desc || '(無)'}
-📱 裝置: ${data.user_agent || 'Unknown'}
-📏 畫面: ${data.screen || '--'}
-📶 一分鐘請求數: ${data.rpm ?? '--'} / 總請求數: ${data.total_requests ?? '--'}
-🔎 時刻表來源: ${d.route_source || '--'} (剩 ${d.route_quota || '--'}) / 誤點來源: ${d.delay_source || '--'} (剩 ${d.delay_quota || '--'})
---------------------------------
+            return `時間　　${data.timestamp || '--'}
+描述　　${data.user_desc || '（無）'}
+裝置　　${data.user_agent || '--'}
+畫面　　${data.screen || '--'}
+請求數　一分鐘 ${data.rpm ?? '--'} / 總共 ${data.total_requests ?? '--'}
+時刻表　${d.route_source || '--'}（剩 ${d.route_quota || '--'}）
+誤點　　${d.delay_source || '--'}（剩 ${d.delay_quota || '--'}）
+
 [系統紀錄]
 ${logs}`;
         }
 
         async function loadReportDetail(reportId) {
             const detailBox = document.getElementById('reportDetailContainer');
-            detailBox.innerText = "Loading content...";
+            detailBox.innerText = "載入中…";
             try {
                 const json = await adminApi('get_report', { id: reportId });
                 detailBox.innerText = json.report_content ? formatReport(json.report_content) : "Error: Not Found";
-            } catch (e) { detailBox.innerText = "Error: " + e.message; }
+            } catch (e) { detailBox.innerText = "讀取失敗：" + e.message; }
         }
 
         function copyDevContent() {
             const text = document.getElementById('reportDetailContainer').innerText || "";
-            if (!text || text.includes("Loading") || text.includes("點擊上方列表")) { alert("沒有內容可複製"); return; }
-            navigator.clipboard.writeText(text).then(() => alert("已複製到剪貼簿 ✅")).catch(err => alert("複製失敗: " + err));
+            if (!text || text.includes("載入中") || text.includes("點上方的回報")) { showToast("沒有內容可複製"); return; }
+            navigator.clipboard.writeText(text).then(() => showToast("已複製")).catch(err => showToast("複製失敗"));
         }
 
         // --- 智慧休眠系統 (Smart Sleep System) ---
@@ -923,7 +729,7 @@ ${logs}`;
         });
 
         // 斷線偵測
-        window.addEventListener('offline', () => { statusMsg.innerText = "⚠️ 網路已中斷"; statusMsg.className = "status-left alert"; });
+        window.addEventListener('offline', () => { statusMsg.innerText = "網路已中斷"; statusMsg.className = "status-left alert"; });
         window.addEventListener('online', () => { statusMsg.innerText = "網路已恢復"; setTimeout(() => statusMsg.innerText="", 2000); });
 
         // [修改] 喚醒提示邏輯 (改為 setTimeout 觸發)
@@ -950,17 +756,10 @@ ${logs}`;
         function setUiLockedUntil(v){localStorage.setItem(LS_UI_LOCK,v);}
 
         function updateToggleBtns() {
-            const btnTime = document.getElementById('btnTimeFormat');
-            if (!is24Hour) btnTime.classList.add('active'); else btnTime.classList.remove('active');
-            const btnAll = document.getElementById('btnShowAll');
-            if (isShowAll) {
-                btnAll.innerHTML = '👁️ 已駛離';
-                btnAll.classList.add('active'); 
-            } else {
-                btnAll.innerHTML = '👁️ 已駛離'; 
-                btnAll.classList.remove('active');
-            }
+            document.getElementById('btnTimeFormat').innerText = is24Hour ? '24 小時制' : '12 小時制';
+            // 「顯示已發車」的文字在 renderCards 依班次數更新
         }
+
         function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
         function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
 
@@ -968,8 +767,8 @@ ${logs}`;
             if(!t) return "";
             if(is24Hour) return t;
             const p = t.split(':'); if(p.length < 2) return t;
-            let h = parseInt(p[0]); let suffix = "AM";
-            if(h >= 12) { suffix = "PM"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; }
+            let h = parseInt(p[0]); let suffix = "上午";
+            if(h >= 12) { suffix = "下午"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; }
             return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
         }
 
@@ -1030,17 +829,14 @@ ${logs}`;
             try {
                 const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
                 const savedSR = localStorage.getItem(PREF_START_R_KEY);
+                startRegion.innerHTML=`<option value=""></option>`+rOpts; endRegion.innerHTML=`<option value=""></option>`+rOpts;
                 if (savedSR) {
-                    startRegion.innerHTML=rOpts; endRegion.innerHTML=rOpts;
                     setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
                     setMenu('end',localStorage.getItem(PREF_END_R_KEY)||"屏東縣",localStorage.getItem(PREF_END_S_KEY)||"潮州");
                     checkLocksOnLoad(); loadDataOrFetch();
                 } else {
-                    startRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts; 
-                    endRegion.innerHTML=`<option value="" disabled selected>選擇縣市</option>`+rOpts;
-                    startStation.innerHTML=endStation.innerHTML=`<option value="" disabled selected>選擇車站</option>`;
-                    list.innerHTML='<div class="message">請選擇 起點 與 終點 車站<br>開始查詢</div>';
-                    statusMsg.innerText="等待輸入...";
+                    startStation.innerHTML=endStation.innerHTML=`<option value=""></option>`;
+                    list.innerHTML='<div class="message">點上方的站名選擇起訖站<small>選好後按「查詢」</small></div>';
                     checkLocksOnLoad();
                 }
             } catch(e) {
@@ -1049,56 +845,118 @@ ${logs}`;
                 window.location.reload();
             }
             
+            updateStationDisplay();
             renderQuickRoutes();
             updateStarState();
+            updateActionButton();
+        }
 
-            // [New] Show tutorial on load
-            if (localStorage.getItem(LS_TUTORIAL_SEEN) !== '1') {
-                setTimeout(() => {
-                    document.getElementById('aboutModal').style.display='flex';
-                    document.body.classList.add('noscroll');
-                    setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
-                    history.pushState({modal: true}, '', '');
-                    goToPage('Tutorial'); // Triggers countdown
-                }, 800);
-            }
-        }
         function checkLocksOnLoad() {
-            const now=Date.now();
-            const sL=getSearchLockedUntil(); if(sL>now) lockSearchButton(Math.ceil((sL-now)/1000));
-            const uL=getUiLockedUntil(); if(uL>now) lockRefreshButton(Math.ceil((uL-now)/1000));
+            updateActionButton();
         }
+
         function setMenu(type,rV,sV) {
             const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            if(!STATION_DATA[rV]) { rSel.value = ""; return; }
+            if(!STATION_DATA[rV]) { rSel.value = ""; updateStationDisplay(); return; }
             rSel.value=rV; sSel.innerHTML=STATION_DATA[rV].map(s=>`<option value="${s}">${s}</option>`).join('');
             if(STATION_DATA[rV].includes(sV)) sSel.value=sV; else sSel.selectedIndex=0;
+            updateStationDisplay();
         }
-        function updateStationList(type) {
-            const rSel=type==='start'?startRegion:endRegion; const sSel=type==='start'?startStation:endStation;
-            const rVal = rSel.value; if (!rVal) return;
-            sSel.innerHTML=STATION_DATA[rVal].map(s=>`<option value="${s}">${s}</option>`).join('');
-            const def=DEFAULT_STATIONS[rVal]; 
-            if(def&&STATION_DATA[rVal].includes(def)) sSel.value=def; else sSel.selectedIndex=0;
-            if(startStation.value&&endStation.value) markAsChanged();
+
+        function updateStationDisplay() {
+            [['start', startStation, startRegion, '選擇起站'], ['end', endStation, endRegion, '選擇迄站']].forEach(([type, sSel, rSel, ph]) => {
+                const el = document.getElementById(type === 'start' ? 'startPick' : 'endPick');
+                const has = !!sSel.value;
+                el.classList.toggle('empty', !has);
+                el.querySelector('b').innerText = has ? sSel.value : ph;
+                el.querySelector('span').innerText = has ? rSel.value : '';
+            });
         }
+
+        // ---------- 選站畫面 ----------
+        let pickerType = 'start'; let pickerRegion = '';
+        function openStationPicker(type) {
+            pickerType = type;
+            const sSel = type === 'start' ? startStation : endStation;
+            const rSel = type === 'start' ? startRegion : endRegion;
+            const other = type === 'start' ? endRegion : startRegion;
+            pickerRegion = rSel.value || other.value || '臺北市';
+            document.getElementById('pickerTitle').innerText = type === 'start' ? '選擇起站' : '選擇迄站';
+            document.getElementById('pickerSearch').value = '';
+            renderPickerRegions();
+            renderPickerStations();
+            openSheet('Station');
+            setTimeout(() => {
+                const on = document.querySelector('#pickerStations .on');
+                if (on) on.scrollIntoView({ block: 'center' });
+                const reg = document.querySelector('#pickerRegions .on');
+                if (reg) reg.scrollIntoView({ block: 'nearest' });
+            }, 60);
+        }
+        function renderPickerRegions() {
+            const box = document.getElementById('pickerRegions');
+            box.innerHTML = '';
+            Object.keys(STATION_DATA).forEach(r => {
+                const b = document.createElement('button');
+                b.innerText = r;
+                if (r === pickerRegion) b.className = 'on';
+                b.onclick = () => {
+                    pickerRegion = r;
+                    document.getElementById('pickerSearch').value = '';
+                    renderPickerRegions(); renderPickerStations();
+                    document.getElementById('pickerStations').scrollTop = 0;
+                };
+                box.appendChild(b);
+            });
+        }
+        function renderPickerStations() {
+            const box = document.getElementById('pickerStations');
+            const q = document.getElementById('pickerSearch').value.trim().replace(/台/g, '臺');
+            const current = (pickerType === 'start' ? startStation : endStation).value;
+            let items;
+            if (q) {
+                items = Object.keys(STATION_INDEX).filter(s => s.includes(q))
+                    .sort((a, b) => (a === q ? -1 : b === q ? 1 : 0))
+                    .map(s => [s, STATION_INDEX[s], true]);
+            } else {
+                items = (STATION_DATA[pickerRegion] || []).map(s => [s, pickerRegion, false]);
+            }
+            box.innerHTML = '';
+            if (items.length === 0) { box.innerHTML = '<div class="picker-empty">找不到這個車站</div>'; return; }
+            items.forEach(([s, r, showRegion]) => {
+                const b = document.createElement('button');
+                const cls = [];
+                if (MAJOR_STATIONS.has(s)) cls.push('major');
+                if (s === current) cls.push('on');
+                b.className = cls.join(' ');
+                const name = document.createElement('span'); name.innerText = s;
+                b.appendChild(name);
+                if (s === current) {
+                    b.insertAdjacentHTML('beforeend', '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>');
+                } else if (showRegion) {
+                    const sm = document.createElement('small'); sm.innerText = r; b.appendChild(sm);
+                }
+                b.onclick = () => pickStation(s, r);
+                box.appendChild(b);
+            });
+        }
+        function pickStation(station, region) {
+            logSystem(`Action: Pick ${pickerType} ${station}`);
+            setMenu(pickerType, region, station);
+            if (startStation.value && endStation.value) markAsChanged();
+            else { updateStarState(); updateActionButton(); }
+            closeModal();
+        }
+
+
+
         function swapStations() {
             if(!startStation.value||!endStation.value) return; logSystem("Action: Swap");
             const sR=startRegion.value; const sS=startStation.value;
             setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
             markAsChanged();
         }
-        function handleSearch() {
-            const rawVal=searchInput.value.trim(); const tgt=searchTarget.value; if(!rawVal) return;
-            const val = rawVal.replace(/台/g, '臺'); // 自動轉臺
-            let found=STATION_INDEX[val]?val:Object.keys(STATION_INDEX).find(s=>s.includes(val));
-            if(found) {
-                logSystem(`Action: InputSearch\n             ${found}`); 
-                setMenu(tgt,STATION_INDEX[found],found);
-                searchInput.style.borderColor="#4d7f5e"; setTimeout(()=>searchInput.style.borderColor="#444",500);
-                if(startStation.value&&endStation.value) markAsChanged();
-            }
-        }
+
         function markAsChanged() {
             if (isResumeHintActive) {
                 closeResumePill();
@@ -1112,6 +970,7 @@ ${logs}`;
             
             attemptLoadCache(false);
             updateStarState();
+            updateActionButton();
         }
         function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
 
@@ -1153,29 +1012,61 @@ ${logs}`;
             if(hitData) {
                 if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
                 renderCards(hitData.payload); 
-                setUpdateText(`更新時間：${hitData.payload.update_time}`);
+                setUpdateText(`${String(hitData.payload.update_time).slice(0,5)} 更新`);
                 statusMsg.innerText=""; statusMsg.className="status-left"; 
                 list.style.opacity="1"; 
                 lastFetchedPair={start:startStation.value,end:endStation.value}; 
                 scrollToFirstActive(); 
             } else {
                 if(isInit) {
-                    statusMsg.innerText="等待查詢"; list.innerHTML='<div class="message">請點擊上方按鈕查詢班次</div>';
+                    list.innerHTML='<div class="message">按「查詢」看班次</div>';
                 } else {
-                    list.style.opacity="0.4"; statusMsg.innerText="設定已變更"; statusMsg.className="status-left warning";
+                    list.style.opacity="0.4"; statusMsg.innerText="已換站，按查詢看新的班次"; statusMsg.className="status-left warning";
+                    document.getElementById('rowTools').style.display = 'flex';
                 }
             }
-            updateButtonMode();
+            updateActionButton();
         }
         function loadDataOrFetch(){attemptLoadCache(true);}
-        function updateButtonMode() {
-            if(getSearchLockedUntil()>Date.now()) return;
-            if(startStation.value!==lastFetchedPair.start||endStation.value!==lastFetchedPair.end) btnSearch.disabled=false;
+        // ---------- 查詢／更新共用的按鈕 ----------
+        function routeIsCurrent() {
+            return !!startStation.value && startStation.value === lastFetchedPair.start && endStation.value === lastFetchedPair.end;
+        }
+        const ICON_REFRESH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13.5 8A5.5 5.5 0 1 1 11.9 4.1M13.5 2.5v3h-3"/></svg>';
+        function updateActionButton() {
+            const now = Date.now();
+            const sL = getSearchLockedUntil(); const uL = getUiLockedUntil();
+            // UI 冷卻結束時，同步解除更新鎖（沿用原本的行為）
+            if (uL && uL <= now) { setUiLockedUntil(0); setRefreshLockedUntil(0); }
+            if (sL && sL <= now) { setSearchLockedUntil(0); }
+
+            let html = '查詢', disabled = false;
+            const secs = t => Math.ceil((t - now) / 1000);
+            if (isFetching) {
+                html = '載入中'; disabled = true;
+            } else if (!startStation.value || !endStation.value) {
+                disabled = true;
+            } else if (routeIsCurrent()) {
+                html = ICON_REFRESH + '更新';
+                if (uL > now) { html += ` <span class="cd">${secs(uL)}</span>`; disabled = true; }
+            } else if (sL > now) {
+                html = `查詢次數已滿 <span class="cd">${secs(sL)}</span>`; disabled = true;
+            }
+            btnAction.innerHTML = html;
+            btnAction.disabled = disabled;
+
+            const needTick = (uL > now) || (sL > now);
+            if (needTick && !actionTicker) actionTicker = setInterval(updateActionButton, 1000);
+            if (!needTick && actionTicker) { clearInterval(actionTicker); actionTicker = null; }
+        }
+        function handleAction() {
+            if (btnAction.disabled) return;
+            if (routeIsCurrent()) doRefresh(); else doSearch();
         }
 
         function doSearch() {
             const sS=startStation.value; const eS=endStation.value;
-            if(!sS||!eS) { statusMsg.innerText="請先選擇起點與終點"; statusMsg.className="status-left alert"; setTimeout(()=>statusMsg.innerText="",2000); return; }
+            if(!sS||!eS) { showToast("請先選擇起訖站"); return; }
             markAsChanged();
             if(sS===lastFetchedPair.start&&eS===lastFetchedPair.end) { doRefresh(); return; }
             const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime();
@@ -1208,7 +1099,7 @@ ${logs}`;
                 logSystem("Action: Soft Refresh (Cache)");
                 
                 reRenderLocal(); 
-                statusMsg.innerText = "資料有效中 (快取)";
+                statusMsg.innerText = "已是最新資料";
                 statusMsg.className = "status-left";
                 setTimeout(() => statusMsg.innerText="", 2000);
                 setUiLockedUntil(now + 30000); 
@@ -1223,7 +1114,7 @@ ${logs}`;
         function handleLoadNextDay() {
             logSystem("Action: Load Next Day");
             const btn = document.getElementById('btnLoadNext');
-            if(btn) { btn.disabled=true; btn.innerText = "⏳ 載入中..."; }
+            if(btn) { btn.disabled=true; btn.innerText = "載入中…"; }
             fetchData("load_next_day");
         }
 
@@ -1256,14 +1147,14 @@ ${logs}`;
                         statusHint.style.opacity = '1';
                         setTimeout(() => { statusHint.style.opacity = '0'; }, 3000);
                     } else {
-                        alert("✅ 感謝回報！開發者已收到您的訊息。");
+                        showToast("已送出，謝謝回報");
                         document.getElementById('userDesc').value = ""; 
                     }
                 } else {
-                    if (!isAuto) alert('❌ 上傳失敗: ' + (json.error || 'Unknown'));
+                    if (!isAuto) showToast(json.error === 'Too Many Reports' ? '回報太頻繁，請稍後再試' : '送出失敗，請稍後再試');
                 }
             } catch (e) {
-                if (!isAuto) alert('❌ 上傳錯誤: ' + e.message);
+                if (!isAuto) showToast('送出失敗，請檢查網路');
             }
         }
         
@@ -1293,14 +1184,14 @@ ${logs}`;
 
         function getSkeletonHTML() {
             const lastCount = parseInt(localStorage.getItem(LS_SKELETON_COUNT) || "3");
-            const count = Math.min(Math.max(lastCount, 3), 10);
-            let html = ''; 
-            for(let i=0; i<count; i++) html += `<div class="skeleton-card"><div class="sk-line sk-title"></div><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
+            const count = Math.min(Math.max(lastCount, 3), 8);
+            let html = '';
+            for(let i=0; i<count; i++) html += `<div class="skeleton-row"><div class="sk-line sk-main"></div><div class="sk-line sk-sub"></div></div>`;
             return html;
         }
 
         async function fetchData(mode) {
-            if(mode==="search") btnSearch.disabled=true; if(mode==="refresh") btnRefresh.disabled=true;
+            isFetching = true; updateActionButton();
             
             if(mode !== "load_next_day") {
                 list.innerHTML = getSkeletonHTML(); 
@@ -1341,15 +1232,13 @@ ${logs}`;
 
                 if(json.delay_failed) {
                     scheduleRetry("誤點資料失敗", "status-left warning");
-                    setUpdateText(`更新時間：${json.update_time} (僅時刻)`);
+                    setUpdateText(`${String(json.update_time).slice(0,5)} 更新 · 誤點資料暫缺`);
                 } else {
-                    setUpdateText(`更新時間：${json.update_time}`);
-                    statusMsg.innerText = "更新完成";
-                    setTimeout(()=> { if(statusMsg.innerText==="更新完成") statusMsg.innerText=""; }, 2000);
+                    setUpdateText(`${String(json.update_time).slice(0,5)} 更新`);
+                    statusMsg.innerText = ""; statusMsg.className = "status-left";
                 }
                 
                 if(mode==="search"){ 
-                    setTimeout(()=>btnSearch.disabled=false,500); 
                     setRefreshLockedUntil(now+90000); 
                     setUiLockedUntil(now+30000);
                     lockRefreshButton(30);            
@@ -1381,7 +1270,10 @@ ${logs}`;
             } catch(err) {
                 console.error(err); logSystem("API Error: " + err.message);
                 scheduleRetry("連線錯誤", "status-left alert");
-                list.innerHTML=`<div class="message">連線發生問題 ⚠️<br><span style="font-size:0.8rem;color:#888">請見系統診斷</span></div>`;
+                list.innerHTML=`<div class="message">連線失敗<small>30 秒後會自動重試</small></div>`;
+            } finally {
+                isFetching = false;
+                updateActionButton();
             }
         }
         
@@ -1398,27 +1290,12 @@ ${logs}`;
         }
 
         function lockSearchButton(s) {
-            if(searchLockTimer) clearInterval(searchLockTimer);
-            statusMsg.innerText="請勿頻繁操作"; statusMsg.className="status-left alert";
-            btnSearch.disabled=true; btnSearch.innerText=`頻繁操作 (${s})`;
-            const t=()=>{
-                btnSearch.innerText=`頻繁操作 (${s})`;
-                if(s<=0){
-                    clearInterval(searchLockTimer); btnSearch.disabled=false; btnSearch.innerText="🔍 查詢路線";
-                    statusMsg.innerText=""; setSearchLockedUntil(0);
-                } s--;
-            }; t(); searchLockTimer=setInterval(t,1000);
+            statusMsg.innerText = "查詢太頻繁，請稍等"; statusMsg.className = "status-left alert";
+            updateActionButton();
         }
+
         function lockRefreshButton(s) {
-            if(refreshTimer) clearInterval(refreshTimer);
-            btnRefresh.disabled=true;
-            const t=()=>{
-                btnRefresh.innerText=`更新 (${s})`;
-                if(s<=0){
-                    clearInterval(refreshTimer); btnRefresh.disabled=false;
-                    btnRefresh.innerText="🔄 更新"; setRefreshLockedUntil(0);
-                } s--;
-            }; t(); refreshTimer=setInterval(t,1000);
+            updateActionButton();
         }
 
         function getStrictDateStr(ts) {
@@ -1428,188 +1305,99 @@ ${logs}`;
 
         function renderCards(data) {
             currentTrainData = data; 
-            
             if(data.trains) localStorage.setItem(LS_SKELETON_COUNT, data.trains.length);
 
             const elTools = document.getElementById('rowTools');
-            const hasTrains = data.trains && data.trains.length > 0;
+            const btnAll = document.getElementById('btnShowAll');
+            const trains = data.trains || [];
             const originalCount = (data.stats && data.stats.original_count) ? data.stats.original_count : 0;
-            const showTools = hasTrains || originalCount > 0;
-            elTools.style.display = showTools ? 'flex' : 'none';
+            elTools.style.display = (trains.length > 0 || originalCount > 0) ? 'flex' : 'none';
+            list.style.opacity = "1";
 
-            const footerHints = document.getElementById('fixedFooterHints');
-            const hintArrival = document.getElementById('hintArrival');
-            const hintDivider = document.getElementById('hintDivider');
+            const nowSec = Math.floor(Date.now() / 1000);
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+            const isLateNight = now.getHours() >= 22;
+            const delayOk = !data.delay_failed;
 
-            if(hasTrains) {
-                footerHints.style.display = 'flex';
+            // 已發車超過 10 分鐘的班次預設收起來
+            const hiddenCount = trains.filter(t => Math.floor((t.sort_key - nowSec) / 60) < -10).length;
+            const CHEVRON = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5l3 3 3-3"/></svg>';
+            if (hiddenCount > 0) {
+                btnAll.style.display = 'inline-flex';
+                btnAll.innerHTML = (isShowAll ? '收起已發車' : `顯示 ${hiddenCount} 班已發車`) + CHEVRON;
+                btnAll.classList.toggle('active', isShowAll);
+            } else {
+                btnAll.style.display = 'none';
+            }
 
-                let cardsHtml = '';
-                let anyArriving = false; 
-                let has = false;
-                let hasShownNextDayDivider = false;
-                let lastTrainTs = 0;
-                let foundFirstActive = false;
-                const nowSec = Math.floor(Date.now() / 1000);
+            const loadNextBtn = (isLateNight && !isNextDayLoaded)
+                ? `<button id="btnLoadNext" class="load-next" onclick="handleLoadNextDay()">載入明天的班次</button>` : '';
 
-                const now = new Date();
-                const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-                
-                const nowHour = now.getHours();
-                const isLateNight = nowHour >= 22; 
-
-                data.trains.forEach((t, index) => {
-                    const diffSec = t.sort_key - nowSec;
-                    const diffMin = Math.floor(diffSec / 60);
-                    let isDeparted = diffSec < 0; 
-                    let isArriving = !isDeparted && diffMin <= 10;
-                    if(isArriving) anyArriving = true;
-
-                    if (!isShowAll && diffMin < -10) return;
-
-                    const trainDate = getStrictDateStr(t.sort_key);
-                    const isStrictTomorrow = trainDate > todayStr;
-
-                    if (has && !hasShownNextDayDivider && lastTrainTs > 0) {
-                        const lastTrainDate = getStrictDateStr(lastTrainTs);
-                        if (trainDate !== lastTrainDate) {
-                            cardsHtml += `<div id="tomorrow-divider" style="text-align:center; padding:20px 0 10px 0; color:#4d7f5e; font-size:0.9rem; font-weight:bold; border-top:1px dashed #333; margin-top:15px; scroll-margin-top: 160px;">⬇ 明日班次 ⬇</div>`;
-                            hasShownNextDayDivider = true;
-                        }
-                    }
-                    lastTrainTs = t.sort_key;
-                    has = true;
-
-                    let activeId = "";
-                    if (!isDeparted && !foundFirstActive) { activeId = 'id="firstActive"'; foundFirstActive = true; }
-
-                    let leftIndicatorHtml = '';
-                    if (isArriving) {
-                        leftIndicatorHtml = `
-                        <div class="left-indicator">
-                            <div class="led-dot top"></div>
-                            <div class="led-dot bottom"></div>
-                        </div>`;
-                    }
-
-                    let rightBadgesHtml = '';
-                    if (isDeparted) {
-                        rightBadgesHtml = `<div class="status-tag departed">已駛離</div>`;
-                    } else {
-                        if (!isStrictTomorrow && !data.delay_failed && t.delay > 0) {
-                            rightBadgesHtml += `<div class="status-tag delay">誤點 ${t.delay} 分</div>`;
-                        }
-                    }
-
-                    const url = `https://railway.chienwen.net/taiwan/train/TRA-${t.no}/live`;
-                    let cardClass = "card"; if (isDeparted) cardClass += " departed-card";
-
-                    const depDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
-                    const arrDateLabel = isStrictTomorrow ? `<span style="color:#e6b800; font-weight:bold;">(明日)</span>` : "";
-
-                    let subTimeContent = '';
-                    if (!isStrictTomorrow && !data.delay_failed && t.delay === 0) {
-                        subTimeContent = `<span style="color:#4d7f5e; font-weight:bold; letter-spacing:1px;">● 準點</span>`;
-                    } else {
-                        subTimeContent = `原定 ${formatTime(t.sch_dep)} ➔ ${formatTime(t.sch_arr)}`;
-                    }
-
-                    let delayColorStyle = "";
-                    if (!isStrictTomorrow && !data.delay_failed && t.delay > 0) {
-                        delayColorStyle = 'style="color:#e6b800"';
-                    }
-
-                    cardsHtml += `<a href="${url}" target="_blank" ${activeId}>
-                        <div class="${cardClass}" style="border-left-color:${t.color};">
-                            ${leftIndicatorHtml}
-                            <div class="status-badge-container">${rightBadgesHtml}</div>
-                            <div class="train-info" style="color:${isDeparted ? '#888' : t.color};">${t.type} ${t.no} 次</div>
-                            <div class="main-time">
-                                <div class="time-group">
-                                    <div class="time-date-label" style="color:#4d7f5e;">${startStation.value} ${depDateLabel}</div>
-                                    <div class="time-part" ${delayColorStyle}>${formatTime(t.act_dep)}</div>
-                                </div>
-                                <span class="arrow">➔</span>
-                                <div class="time-group">
-                                    <div class="time-date-label" style="color:#4d7f5e;">${endStation.value} ${arrDateLabel}</div>
-                                    <div class="time-part" ${delayColorStyle}>${formatTime(t.act_arr)}</div>
-                                </div>
-                            </div>
-                            <div class="sub-time">${subTimeContent}</div>
-                        </div>
-                    </a>`;
-                });
-
-                if (isLateNight && !isNextDayLoaded) {
-                    cardsHtml += `
-                        <div style="padding: 20px 0 40px 0; display: flex; justify-content: center;">
-                            <button id="btnLoadNext" onclick="handleLoadNextDay()" style="
-                                background: #222; color: #aaa; border: 1px solid #444; 
-                                padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; 
-                                cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;">
-                                ⬇ 載入明日班次
-                            </button>
-                        </div>
-                    `;
-                }
-
-                if (anyArriving) {
-                    hintArrival.style.display = 'flex';
-                    hintDivider.style.display = 'block';
-                    footerHints.classList.remove('centered'); 
-                } else {
-                    hintArrival.style.display = 'none';
-                    hintDivider.style.display = 'none';
-                    footerHints.classList.add('centered'); 
-                }
-
-                list.innerHTML = (!has && !isShowAll) ? `<div class="message">查無班次 ⚠️</div>` : cardsHtml;
+            if (trains.length === 0) {
+                list.innerHTML = originalCount > 0
+                    ? `<div class="message">今天的班次都已經開走了<small>今日共 ${originalCount} 班</small></div>${loadNextBtn}`
+                    : `<div class="message">這兩站之間沒有直達車</div>`;
                 return;
             }
 
-            footerHints.style.display = 'none';
+            let html = '';
+            let shown = 0, anyArriving = false, foundFirstActive = false, shownDivider = false;
+            trains.forEach(t => {
+                const diffSec = t.sort_key - nowSec;
+                const diffMin = Math.floor(diffSec / 60);
+                const isDeparted = diffSec < 0;
+                const isArriving = !isDeparted && diffMin <= 10;
+                if (!isShowAll && diffMin < -10) return;
 
-            if (originalCount > 0) {
-                 const nowHour = new Date().getHours();
-                 const isLateNight = nowHour >= 22;
-                 let extraBtn = "";
-                 if (isLateNight && !isNextDayLoaded) {
-                     extraBtn = `<div style="padding: 20px 0; display: flex; justify-content: center;">
-                            <button id="btnLoadNext" onclick="handleLoadNextDay()" style="
-                                background: #222; color: #aaa; border: 1px solid #444; 
-                                padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; 
-                                cursor: pointer; transition: all 0.2s;">
-                                ⬇ 載入明日班次
-                            </button>
-                        </div>`;
-                 }
-                 list.innerHTML = `<div class="message">今日班次已全數駛離 👋<br><span style="font-size:0.8rem;color:#666">TDX 正常 (原有 ${originalCount} 班)</span></div>` + extraBtn;
-            } else {
-                 list.innerHTML = `<div class="message">查無此區間直達列車 ⚠️</div>`;
-            }
+                const isTomorrow = getStrictDateStr(t.sort_key) > todayStr;
+                if (isTomorrow && !shownDivider) {
+                    html += `<div id="tomorrow-divider" class="day-divider">明天</div>`;
+                    shownDivider = true;
+                }
+
+                const isLate = !isTomorrow && delayOk && t.delay > 0;
+                if (isArriving) anyArriving = true;
+                let activeId = '';
+                if (!isDeparted && !foundFirstActive) { activeId = 'id="firstActive"'; foundFirstActive = true; }
+
+                const cls = ['row'];
+                if (isDeparted) cls.push('departed');
+                if (isLate) cls.push('late');
+
+                const led = isArriving ? '<div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>' : '';
+                const typeColor = t.color && t.color.toLowerCase() !== '#ffffff' ? t.color : '#ddd';
+                const orig = isLate ? `<span class="r-orig">原定 ${formatTime(t.sch_dep)} → ${formatTime(t.sch_arr)}</span>` : '';
+                const side = isDeparted ? '已發車' : (isLate ? `晚 ${t.delay} 分` : '');
+                const url = `https://railway.chienwen.net/taiwan/train/TRA-${encodeURIComponent(t.no)}/live`;
+
+                html += `<a class="${cls.join(' ')}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="markRowTapped()">
+                    ${led}
+                    <div class="r-time"><span class="r-dep">${formatTime(t.act_dep)}</span><span class="r-arr">${formatTime(t.act_arr)}</span></div>
+                    <div class="r-meta"><span class="r-type" style="color:${typeColor}">${t.type}</span><span>${t.no}</span>${orig}</div>
+                    <div class="r-side">${side}</div>
+                </a>`;
+                shown++;
+            });
+
+            if (shown === 0) html = `<div class="message">目前沒有要發車的班次</div>`;
+
+            const tips = [];
+            if (anyArriving) tips.push('<span class="led inline"><span class="led-dot top"></span><span class="led-dot bottom"></span></span>10 分鐘內發車');
+            if (localStorage.getItem(LS_ROW_TAPPED) !== '1') tips.push('點班次看即時位置和停靠站');
+            if (tips.length) html += `<div class="list-foot">${tips.join('<br>')}</div>`;
+
+            list.innerHTML = html + loadNextBtn;
+        }
+
+        function markRowTapped() {
+            try { localStorage.setItem(LS_ROW_TAPPED, '1'); } catch (e) {}
         }
 
         // [新增] 關閉教學並判斷 Checkbox
-        function closeTutorial() {
-            const noShow = document.getElementById('tutNoShow').checked;
-            if (noShow) {
-                localStorage.setItem(LS_TUTORIAL_SEEN, '1');
-            }
-            
-            if(tutorialTimer) clearInterval(tutorialTimer); // Clear any running timer
 
-            // 優化關閉順序
-            document.getElementById('pageTutorial').classList.remove('active');
-            setTimeout(() => {
-                closeModal(); // 用 History back 關閉 Overlay
-                // 這裡不需手動移除 noscroll，因為 popstate 監聽器會處理
-            }, 300);
-        }
 
-        function showFakeCardToast(e) {
-            e.stopPropagation();
-            showToast("💡 請點擊首頁的「真實卡片」查看詳情");
-        }
+
 
         function showToast(msg) {
             const t = document.getElementById('toastMsg');
@@ -1626,21 +1414,14 @@ ${logs}`;
         function recordRequest(){requestHistory.push(Date.now());}
         
         // [修改] Modal System
-        function openMenu(){
-            document.getElementById('aboutModal').style.display='flex';
-            document.body.classList.add('noscroll');
-            setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
-            history.pushState({modal: true}, '', '');
-            goToPage('Menu');
-        }
-        
+        function openMenu(){ openSheet('Menu'); }
+
         function closeModal(){
             // Clear manual transforms first
             document.querySelectorAll('.modal-page').forEach(el => {
                 el.style.transform = '';
                 el.style.transition = '';
             });
-            if(tutorialTimer) clearInterval(tutorialTimer);
             history.back();
         }
 
@@ -1652,8 +1433,6 @@ ${logs}`;
                 // Close active pages inside
                 document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
 
-                if(tutorialTimer) clearInterval(tutorialTimer);
-
                 setTimeout(() => {
                     modal.style.display = 'none';
                     document.body.classList.remove('noscroll');
@@ -1661,36 +1440,9 @@ ${logs}`;
             }
         });
 
-        function goToPage(id, isManual=false){
+        function goToPage(id){
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
-            
-            if (id === 'Tutorial') {
-                const btn = document.getElementById('btnStartTutorial');
-                const cb = document.getElementById('tutCheckboxContainer');
-                if (tutorialTimer) clearInterval(tutorialTimer); // Reset
-
-                if(isManual) {
-                    cb.style.display = 'none';
-                    btn.disabled = false;
-                    btn.innerText = "開始使用";
-                } else {
-                    cb.style.display = 'flex';
-                    btn.disabled = true;
-                    let c = 5;
-                    btn.innerText = `開始使用 (${c})`;
-                    tutorialTimer = setInterval(() => {
-                        c--;
-                        if(c > 0) btn.innerText = `開始使用 (${c})`;
-                        else {
-                            clearInterval(tutorialTimer);
-                            btn.disabled = false;
-                            btn.innerText = "開始使用";
-                        }
-                    }, 1000);
-                }
-            }
-
             if(id==='Report'){
                 document.getElementById('terminalView').innerText = systemLogs.join("\n");
                 uploadReport(); 
@@ -1722,6 +1474,8 @@ ${logs}`;
                 // [New] Prevent drag if touching inner scrollable area
                 const isInnerScroll = e.target.closest('.terminal-box') || 
                                       e.target.closest('.dev-terminal') || 
+                                      e.target.closest('.picker-col') || 
+                                      e.target.closest('.report-list') || 
                                       e.target.tagName === 'TEXTAREA';
 
                 if (isInnerScroll) return; 
@@ -1827,14 +1581,13 @@ ${logs}`;
         }
         function updateStarState() {
             const cur = getCurrentPair();
-            if (isFavorite(cur.start, cur.end)) { 
-                btnStar.innerHTML = '★<br>已收藏'; 
-                btnStar.classList.add('fav-active'); 
-            } else { 
-                btnStar.innerHTML = '☆ 收藏<br>路線'; 
-                btnStar.classList.remove('fav-active'); 
-            }
+            const on = isFavorite(cur.start, cur.end);
+            btnStar.classList.toggle('fav-active', on);
+            btnStar.setAttribute('aria-label', on ? '取消收藏' : '收藏路線');
+            btnStar.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 2.5l2.3 4.8 5.2.7-3.8 3.6.9 5.2L10 14.3l-4.6 2.5.9-5.2-3.8-3.6 5.2-.7z"/></svg>`;
+            renderQuickRoutes();
         }
+
         function loadRoute(s, e) {
             const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
             if (sR && eR) {
@@ -1845,18 +1598,15 @@ ${logs}`;
         function renderQuickRoutes() {
             const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
             const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-            let html = '';
-            favs.forEach(r => { html += `<div class="route-chip fav" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; });
-            hist.forEach(r => { if (!isFavorite(r.start, r.end)) { html += `<div class="route-chip hist" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}<span class="chip-arrow">➔</span>${r.end}</div>`; } });
-            quickArea.innerHTML = html || '<div style="color:#666; font-size:0.8rem; padding:4px;">(尚無常用路線)</div>';
+            const chip = (r, cls) => `<button class="chip ${cls}" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}–${r.end}</button>`;
+            let html = favs.map(r => chip(r, 'fav')).join('');
+            hist.forEach(r => { if (!isFavorite(r.start, r.end)) html += chip(r, 'hist'); });
+            quickArea.innerHTML = html || '<span class="chip" style="color:var(--dim)">按右邊星號收藏常用路線</span>';
 
             const elRow = document.getElementById('rowQuickRoute');
-            if (favs.length === 0 && hist.length === 0) {
-                elRow.style.display = 'none';
-            } else {
-                elRow.style.display = 'flex';
-                setTimeout(updateScrollHint, 100);
-            }
+            const hasRoute = !!(startStation.value && endStation.value);
+            elRow.style.display = (favs.length || hist.length || hasRoute) ? 'flex' : 'none';
+            setTimeout(updateScrollHint, 100);
         }
 
         function updateScrollHint() {
