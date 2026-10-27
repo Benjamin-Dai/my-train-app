@@ -4,5 +4,8 @@
       "source": "/api/(.*)",
       "destination": "/api/index.py"
     }
+  ],
+  "regions": [
+    "hkg1"
   ]
 }
