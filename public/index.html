@@ -29,15 +29,20 @@
             --alert: #ff4d4d;
             --radius: 3px;
         }
+        /* 數字與英文用 Barlow Semi Condensed（交通看板風），中文維持系統字 */
+        @font-face { font-family: 'Barlow SC'; src: url(/fonts/barlow-sc-500.woff) format('woff'); font-weight: 100 500; font-display: swap; }
+        @font-face { font-family: 'Barlow SC'; src: url(/fonts/barlow-sc-600.woff) format('woff'); font-weight: 600 900; font-display: swap; }
+
         *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         html { scroll-behavior: smooth; }
         body {
             background: var(--bg); color: var(--text); margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+            font-family: 'Barlow SC', -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
             -webkit-font-smoothing: antialiased;
         }
         body.noscroll { overflow: hidden; }
         button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+        input, textarea { font-family: inherit; }
         a { display: block; text-decoration: none; color: inherit; }
         .hidden-state { display: none; }
 
@@ -114,7 +119,7 @@
         .row.departed::before { background: #444; }
         .row:active { background: #0b0b0c; }
         .r-time { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .r-dep { font-size: 30px; font-weight: 600; letter-spacing: -.01em; line-height: 1.1; display: flex; align-items: baseline; }
+        .r-dep { font-size: 33px; font-weight: 600; letter-spacing: -.01em; line-height: 1.1; display: flex; align-items: baseline; }
         .r-arr { font-size: 17px; color: var(--sub); font-weight: 500; display: flex; align-items: baseline; }
         .r-arr::before { content: "→"; margin-right: 6px; }
         .ampm { font-size: .55em; margin-right: 3px; font-weight: 500; opacity: .75; }
