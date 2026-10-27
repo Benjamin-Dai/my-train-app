@@ -46,6 +46,10 @@ REPORT_ID_RE = re.compile(r"^report:\d{8}_\d{6}_\d{4}$")
 
 ROUTE_CACHE_TTL = 1800          # 時刻表快取 30 分鐘（原本 12 小時，臨時停駛會來不及反映）
 
+ALERT_KEY = "tra_alert_v1"
+ALERT_CACHE_TTL = 300           # 營運通阻公告快取 5 分鐘
+ALERT_FAIL_TTL = 120            # 抓不到時，2 分鐘內不再重試
+
 TOKEN_KEY = "tdx_token"
 DELAY_KEY = "v3_tra_delay_data"
 
@@ -77,6 +81,44 @@ def is_suspended(info, dep_stop, arr_stop):
     if flag == 2:
         return _flag(dep_stop.get('SuspendedFlag')) == 1 or _flag(arr_stop.get('SuspendedFlag')) == 1
     return False
+
+
+def _text(v):
+    """TDX 的文字欄位有時是字串，有時是 {Zh_tw, En}。"""
+    if isinstance(v, dict):
+        return str(v.get('Zh_tw') or v.get('En') or '').strip()
+    return str(v or '').strip()
+
+
+def parse_alerts(data, now_aware):
+    """把 TDX 營運通阻資料整理成要顯示的公告；格式不認得就回傳空的。
+    Status 1 視為正常營運（不顯示），其他狀態或沒有 Status 都當成異常。"""
+    items = data.get('Alerts') if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        return []
+    out = []
+    for a in items:
+        if not isinstance(a, dict):
+            continue
+        title = _text(a.get('Title'))
+        desc = _text(a.get('Description'))
+        if not title and not desc:
+            continue
+        if _flag(a.get('Status')) == 1 or '營運正常' in title or '正常營運' in title:
+            continue
+        end = a.get('EndTime')
+        if end:
+            try:
+                if datetime.fromisoformat(str(end)).astimezone(TW_TZ) < now_aware:
+                    continue
+            except ValueError:
+                pass
+        out.append({
+            "title": (title or desc)[:80],
+            "desc": desc[:600],
+            "url": _text(a.get('AlertURL'))[:300] if str(a.get('AlertURL', '')).startswith('http') else ''
+        })
+    return out[:5]
 
 
 def route_key(start_id, end_id, date_str):
@@ -148,6 +190,35 @@ class handler(BaseHTTPRequestHandler):
         else:
             raise Exception(f"Delay Error: {res.status_code}")
 
+    def fetch_alert_raw(self, get_headers):
+        """先試 v3，再試 v2。回傳 (原始 JSON, 用到的版本)。"""
+        last = None
+        for base in (API_BASE_V3, API_BASE_V2):
+            try:
+                res = HTTP.get(f"{base}/Alert", headers=get_headers(), timeout=TDX_TIMEOUT)
+                if res.status_code == 200:
+                    return res.json(), base.rsplit('/', 3)[-3]
+                last = f"HTTP {res.status_code}"
+            except Exception as e:
+                last = str(e)
+        raise Exception(f"Alert Error: {last}")
+
+    def get_alerts(self, cached_raw, get_headers, now_aware):
+        if cached_raw is not None:
+            try:
+                return json.loads(cached_raw)
+            except Exception:
+                pass
+        try:
+            raw, _ = self.fetch_alert_raw(get_headers)
+            alerts = parse_alerts(raw, now_aware)
+            redis_set(ALERT_KEY, json.dumps(alerts, ensure_ascii=False), ALERT_CACHE_TTL)
+            return alerts
+        except Exception as e:
+            print(f"Alert fetch failed: {e}")
+            redis_set(ALERT_KEY, "[]", ALERT_FAIL_TTL)
+            return []
+
     def get_route_timetable(self, start_id, end_id, date_str, cached_raw, get_headers):
         if cached_raw:
             try:
@@ -178,7 +249,9 @@ class handler(BaseHTTPRequestHandler):
                 if s_id == start_id: dep_time = stop.get('DepartureTime'); dep_stop = stop
                 elif s_id == end_id: arr_time = stop.get('ArrivalTime'); arr_stop = stop
             if not dep_time or not arr_time: continue 
-            if is_suspended(info, dep_stop, arr_stop): continue
+            if is_suspended(info, dep_stop, arr_stop):
+                self.suspended_count = getattr(self, 'suspended_count', 0) + 1
+                continue
 
             display_type = raw_type
             type_color = "#ffffff"
@@ -344,12 +417,56 @@ class handler(BaseHTTPRequestHandler):
                 return self.send_json(404, {"error": "Not Found"}, admin=True)
             return self.send_json(200, {"report_content": json.loads(content)}, admin=True)
 
+        if action == 'tdx_check':
+            return self.send_json(200, self.tdx_check(data), admin=True)
+
         if action == 'clear_reports':
             keys = list(redis_client.scan_iter(match="report:*", count=200))
             if keys: redis_client.delete(*keys)
             return self.send_json(200, {"status": "ok", "deleted": len(keys)}, admin=True)
 
         return self.send_json(400, {"error": "Unknown Action"}, admin=True)
+
+    def tdx_check(self, data):
+        """開發者用：直接看 TDX 回傳的停駛欄位和營運通阻原始資料，確認程式有對上。"""
+        now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
+        token = {"v": None}
+        def get_headers():
+            if not token["v"]:
+                cached = redis_client.get(TOKEN_KEY)
+                token["v"] = cached.decode('utf-8') if cached else self.fetch_token()
+                if not token["v"]:
+                    raise Exception("Auth Failed")
+            return {'authorization': f'Bearer {token["v"]}'}
+
+        out = {"time": now_aware.strftime("%Y-%m-%d %H:%M:%S")}
+        try:
+            raw, ver = self.fetch_alert_raw(get_headers)
+            out["alert_api"] = ver
+            out["alert_parsed"] = parse_alerts(raw, now_aware)
+            out["alert_raw"] = json.dumps(raw, ensure_ascii=False)[:3000]
+        except Exception as e:
+            out["alert_error"] = str(e)
+
+        start = STATION_MAP.get(str(data.get('start', '臺北')), '1000')
+        end = STATION_MAP.get(str(data.get('end', '高雄')), '4400')
+        try:
+            res = HTTP.get(f"{API_BASE_V3}/DailyTrainTimetable/OD/{start}/to/{end}/{now_aware.strftime('%Y-%m-%d')}", headers=get_headers(), timeout=TDX_TIMEOUT)
+            items = res.json().get('TrainTimetables', []) if res.status_code == 200 else []
+            out["timetable_status"] = res.status_code
+            out["train_count"] = len(items)
+            flags = {}
+            for it in items:
+                k = str(it.get('TrainInfo', {}).get('SuspendedFlag', '（沒有這個欄位）'))
+                flags[k] = flags.get(k, 0) + 1
+            out["suspended_flag_counts"] = flags
+            if items:
+                out["sample_train_info_keys"] = sorted(items[0].get('TrainInfo', {}).keys())
+                st = items[0].get('StopTimes') or [{}]
+                out["sample_stop_keys"] = sorted(st[0].keys())
+        except Exception as e:
+            out["timetable_error"] = str(e)
+        return out
 
     @staticmethod
     def token_key(token):
@@ -378,7 +495,8 @@ class handler(BaseHTTPRequestHandler):
         need_yesterday = now_aware.hour < 4
 
         # 一次 MGET 取回 token、時刻表、誤點的快取（原本是一個一個 GET）
-        keys = [TOKEN_KEY, DELAY_KEY, route_key(start_id, end_id, today_str)]
+        keys = [TOKEN_KEY, DELAY_KEY, ALERT_KEY, route_key(start_id, end_id, today_str)]
+        self.suspended_count = 0
         if want_next_day: keys.append(route_key(start_id, end_id, tomorrow_str))
         if need_yesterday: keys.append(route_key(start_id, end_id, yesterday_str))
         cached = redis_mget(keys)
@@ -414,6 +532,8 @@ class handler(BaseHTTPRequestHandler):
                 delays, delay_status = self.get_delays(cached.get(DELAY_KEY), get_headers, allow_api=allow_v2)
             except Exception as e:
                 delay_failed, delay_status = True, "Failed"
+
+            alerts = self.get_alerts(cached.get(ALERT_KEY), get_headers, now_aware)
 
             processed = []
             if raw_yest:
@@ -451,7 +571,8 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "update_time": now_aware.strftime("%H:%M:%S"),
                 "start": start_station, "end": end_station, "delay_failed": delay_failed,
-                "trains": result, "stats": { "original_count": len(final_result) },
+                "trains": result, "stats": { "original_count": len(final_result), "suspended": self.suspended_count },
+                "alerts": alerts,
                 "diagnostics": { "route_status": diag_route_status, "delay_status": delay_status }
             }).encode())
         except Exception as e:
