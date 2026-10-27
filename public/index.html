@@ -315,7 +315,7 @@
         .ios-steps { margin: 0; padding-left: 20px; font-size: 15px; line-height: 2.2; color: #ccc; }
     </style>
 </head>
-<body class="tick-a fresh nostation">
+<body class="tick-a nostation">
     <div id="inAppOverlay" onclick="this.style.display='none'">
         <div class="big">請改用瀏覽器開啟</div>
         <ol>
@@ -855,8 +855,19 @@ ${logs}`;
             }, 300); 
         }
 
+        // 只有「從來沒查詢過」才顯示第一次打開的畫面（快取過期不算）
+        const LS_HAS_QUERIED = "tl_has_queried";
+        function hasQueriedBefore() {
+            try {
+                return localStorage.getItem(LS_HAS_QUERIED) === '1'
+                    || JSON.parse(localStorage.getItem('tl_history') || '[]').length > 0
+                    || JSON.parse(localStorage.getItem('tl_favorites') || '[]').length > 0;
+            } catch (e) { return false; }
+        }
+
         function init() {
             logSystem("App Started"); 
+            if (!hasQueriedBefore()) document.body.classList.add('fresh');
             startTicker(); 
             updateToggleBtns();
             
@@ -1231,6 +1242,7 @@ ${logs}`;
         async function fetchData(mode) {
             isFetching = true; updateActionButton();
             document.body.classList.remove('fresh');
+            try { localStorage.setItem(LS_HAS_QUERIED, '1'); } catch (e) {}
             
             if(mode !== "load_next_day") {
                 list.innerHTML = getSkeletonHTML(); 
