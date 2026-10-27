@@ -45,7 +45,8 @@ REPORT_RATE_WINDOW = 600
 REPORT_TTL = 604800             # 回報保留 7 天
 REPORT_ID_RE = re.compile(r"^report:\d{8}_\d{6}_\d{4}$")
 
-ROUTE_CACHE_TTL = 1800          # 時刻表快取 30 分鐘（原本 12 小時，臨時停駛會來不及反映）
+ROUTE_CACHE_TTL = 7200          # 時刻表快取 2 小時（TDX 時刻表約 4 小時更新一次；即時停駛靠營運通阻公告）
+RATE_LIMIT_WAIT = 0.8           # TDX 回 429（太頻繁）時，等這麼久再重試一次
 
 ALERT_KEY = "tra_alert_v1"
 ALERT_CACHE_TTL = 300           # 營運通阻公告快取 5 分鐘
@@ -126,6 +127,15 @@ def route_key(start_id, end_id, date_str):
     return f"v3_route_{start_id}_{end_id}_{date_str}"
 
 
+def tdx_get(url, headers):
+    """打 TDX；碰到 429（請求太頻繁）就等一下再試一次。"""
+    res = HTTP.get(url, headers=headers, timeout=TDX_TIMEOUT)
+    if res.status_code == 429:
+        time.sleep(RATE_LIMIT_WAIT)
+        res = HTTP.get(url, headers=headers, timeout=TDX_TIMEOUT)
+    return res
+
+
 def redis_mget(keys):
     """一次來回讀回所有需要的快取，回傳 {key: bytes}；失敗就當作全部沒快取。"""
     if not redis_client or not keys:
@@ -180,7 +190,7 @@ class handler(BaseHTTPRequestHandler):
         if not allow_api:
             return ({}, "Skipped")
 
-        res = HTTP.get(f"{API_BASE_V2}/LiveTrainDelay", headers=get_headers(), timeout=TDX_TIMEOUT)
+        res = tdx_get(f"{API_BASE_V2}/LiveTrainDelay", get_headers())
         if res.status_code == 200:
             status_str = self.get_header_info(res)
             d_data = res.json()
@@ -196,7 +206,7 @@ class handler(BaseHTTPRequestHandler):
         last = None
         for base in (API_BASE_V3, API_BASE_V2):
             try:
-                res = HTTP.get(f"{base}/Alert", headers=get_headers(), timeout=TDX_TIMEOUT)
+                res = tdx_get(f"{base}/Alert", get_headers())
                 if res.status_code == 200:
                     return res.json(), base.rsplit('/', 3)[-3]
                 last = f"HTTP {res.status_code}"
@@ -227,7 +237,7 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-        res = HTTP.get(f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}", headers=get_headers(), timeout=TDX_TIMEOUT)
+        res = tdx_get(f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}", get_headers())
         if res.status_code == 200:
             status_str = self.get_header_info(res)
             raw_list = res.json().get('TrainTimetables', [])
@@ -470,7 +480,8 @@ class handler(BaseHTTPRequestHandler):
         start = STATION_MAP.get(str(data.get('start', '臺北')), '1000')
         end = STATION_MAP.get(str(data.get('end', '高雄')), '4400')
         try:
-            res = HTTP.get(f"{API_BASE_V3}/DailyTrainTimetable/OD/{start}/to/{end}/{now_aware.strftime('%Y-%m-%d')}", headers=get_headers(), timeout=TDX_TIMEOUT)
+            time.sleep(0.5)  # 跟上一個請求錯開，避免檢查工具自己撞到頻率限制
+            res = tdx_get(f"{API_BASE_V3}/DailyTrainTimetable/OD/{start}/to/{end}/{now_aware.strftime('%Y-%m-%d')}", get_headers())
             items = res.json().get('TrainTimetables', []) if res.status_code == 200 else []
             out["timetable_status"] = res.status_code
             out["train_count"] = len(items)
@@ -498,7 +509,7 @@ class handler(BaseHTTPRequestHandler):
                     raise Exception("Auth Failed")
             return {'authorization': f'Bearer {token["v"]}'}
         try:
-            res = HTTP.get(f"{API_BASE_V3}/Station", headers=get_headers(), timeout=TDX_TIMEOUT)
+            res = tdx_get(f"{API_BASE_V3}/Station", get_headers())
             if res.status_code != 200:
                 return {"error": f"HTTP {res.status_code}"}
             data = res.json()
