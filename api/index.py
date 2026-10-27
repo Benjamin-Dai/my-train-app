@@ -3,6 +3,7 @@ import json
 import requests
 import os
 import random
+import time
 import re
 import hmac
 import hashlib
@@ -420,6 +421,9 @@ class handler(BaseHTTPRequestHandler):
         if action == 'tdx_check':
             return self.send_json(200, self.tdx_check(data), admin=True)
 
+        if action == 'station_check':
+            return self.send_json(200, self.station_check(), admin=True)
+
         if action == 'clear_reports':
             keys = list(redis_client.scan_iter(match="report:*", count=200))
             if keys: redis_client.delete(*keys)
@@ -439,9 +443,18 @@ class handler(BaseHTTPRequestHandler):
                     raise Exception("Auth Failed")
             return {'authorization': f'Bearer {token["v"]}'}
 
-        out = {"time": now_aware.strftime("%Y-%m-%d %H:%M:%S")}
+        out = {"time": now_aware.strftime("%Y-%m-%d %H:%M:%S"),
+               "server_region": os.environ.get('VERCEL_REGION', '（未知）')}
         try:
+            t0 = time.perf_counter(); redis_client.ping()
+            out["redis_ms"] = round((time.perf_counter() - t0) * 1000)
+        except Exception as e:
+            out["redis_error"] = str(e)
+        try:
+            get_headers()
+            t0 = time.perf_counter()
             raw, ver = self.fetch_alert_raw(get_headers)
+            out["tdx_ms"] = round((time.perf_counter() - t0) * 1000)
             out["alert_api"] = ver
             out["alert_parsed"] = parse_alerts(raw, now_aware)
             out["alert_raw"] = json.dumps(raw, ensure_ascii=False)[:3000]
@@ -467,6 +480,44 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             out["timetable_error"] = str(e)
         return out
+
+    def station_check(self):
+        """開發者用：拿 TDX 官方車站資料，跟 stations.py 的站碼逐站比對。"""
+        token = {"v": None}
+        def get_headers():
+            if not token["v"]:
+                cached = redis_client.get(TOKEN_KEY)
+                token["v"] = cached.decode('utf-8') if cached else self.fetch_token()
+                if not token["v"]:
+                    raise Exception("Auth Failed")
+            return {'authorization': f'Bearer {token["v"]}'}
+        try:
+            res = HTTP.get(f"{API_BASE_V3}/Station", headers=get_headers(), timeout=TDX_TIMEOUT)
+            if res.status_code != 200:
+                return {"error": f"HTTP {res.status_code}"}
+            data = res.json()
+            items = data.get('Stations', []) if isinstance(data, dict) else data
+        except Exception as e:
+            return {"error": str(e)}
+        official = {}
+        for st in items:
+            name = _text(st.get('StationName')).replace('台', '臺')
+            if name and st.get('StationID'):
+                official[name] = str(st.get('StationID'))
+        wrong, not_found = [], []
+        for name, sid in STATION_MAP.items():
+            n = name.replace('台', '臺')
+            if n not in official:
+                not_found.append(f"{name} {sid}")
+            elif official[n] != sid:
+                wrong.append(f"{name}：程式 {sid}，官方 {official[n]}")
+        mapped = {n.replace('台', '臺') for n in STATION_MAP}
+        return {
+            "official_count": len(official), "app_count": len(STATION_MAP),
+            "wrong": wrong,
+            "app_only": not_found,
+            "official_only": sorted(f"{n} {i}" for n, i in official.items() if n not in mapped)
+        }
 
     @staticmethod
     def token_key(token):
