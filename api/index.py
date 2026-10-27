@@ -33,7 +33,6 @@ HTTP = requests.Session()
 TDX_TIMEOUT = (3.05, 8)
 
 # 開發者後台（只用來看使用者回報）
-ADMIN_USER = os.environ.get('ADMIN_USER')
 ADMIN_PASS = os.environ.get('ADMIN_PASS')
 ADMIN_TOKEN_TTL = 1800          # 登入後 30 分鐘內有效（每次使用會延長）
 LOGIN_MAX_FAILS = 5             # 同一個 IP 最多錯 5 次
@@ -263,8 +262,8 @@ class handler(BaseHTTPRequestHandler):
     def handle_admin(self, action, body):
         if not redis_client:
             return self.send_json(503, {"error": "No Redis"}, admin=True)
-        if not ADMIN_USER or not ADMIN_PASS:
-            # 沒設定帳密就整個關閉，避免空帳密被當成正確
+        if not ADMIN_PASS:
+            # 沒設定密碼就整個關閉，避免空密碼被當成正確
             return self.send_json(503, {"error": "Admin Disabled"}, admin=True)
 
         try:
@@ -281,12 +280,9 @@ class handler(BaseHTTPRequestHandler):
             if int(fails or 0) >= LOGIN_MAX_FAILS or int(global_fails or 0) >= LOGIN_GLOBAL_MAX_FAILS:
                 return self.send_json(429, {"error": "Too Many Attempts"}, admin=True)
 
-            u = str(data.get('u', '')).encode('utf-8')
             p = str(data.get('p', '')).encode('utf-8')
             # compare_digest：比對時間固定，不會因為「前幾個字對了」而比較慢
-            ok_u = hmac.compare_digest(u, ADMIN_USER.encode('utf-8'))
-            ok_p = hmac.compare_digest(p, ADMIN_PASS.encode('utf-8'))
-            if not (ok_u and ok_p):
+            if not hmac.compare_digest(p, ADMIN_PASS.encode('utf-8')):
                 pipe = redis_client.pipeline()
                 pipe.incr(fail_key); pipe.expire(fail_key, LOGIN_LOCK_SECONDS)
                 pipe.incr(global_key)

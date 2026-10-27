@@ -598,8 +598,7 @@
                     <button class="back-btn" onclick="closeModal()">×</button>
                 </div>
                 <div class="modal-text">
-                    <div style="margin-bottom:15px; color:#aaa; font-size:0.85rem;">請輸入開發者帳號密碼</div>
-                    <input type="text" id="loginUser" class="search-box" placeholder="User" style="width:100%; margin-bottom:10px;" autocomplete="off">
+                    <div style="margin-bottom:15px; color:#aaa; font-size:0.85rem;">請輸入開發者密碼</div>
                     <input type="password" id="loginPass" class="search-box" placeholder="Password" style="width:100%; margin-bottom:20px;" autocomplete="off" onkeydown="if(event.key==='Enter') doLogin()">
                     <div id="loginMsg" class="login-msg"></div>
                     <button id="btnLogin" class="menu-btn" style="text-align:center; justify-content:center;" onclick="doLogin()">登入</button>
@@ -759,7 +758,11 @@
             setTimeout(() => document.getElementById('aboutModal').classList.add('active'), 10);
             history.pushState({modal: true}, '', '');
             if (adminToken) { goToPage('Dev'); fetchReportList(); }
-            else { document.getElementById('loginMsg').innerText = ""; goToPage('Login'); }
+            else {
+                document.getElementById('loginMsg').innerText = "";
+                goToPage('Login');
+                setTimeout(() => document.getElementById('loginPass').focus(), 350);
+            }
         }
 
         async function adminApi(action, body) {
@@ -781,29 +784,25 @@
         }
 
         async function doLogin() {
-            const uEl = document.getElementById('loginUser');
             const pEl = document.getElementById('loginPass');
             const msg = document.getElementById('loginMsg');
             const btn = document.getElementById('btnLogin');
-            const u = uEl.value; const p = pEl.value;
-            if (!u || !p) return;
+            const p = pEl.value;
+            if (!p) return;
             btn.disabled = true; msg.innerText = "";
             adminToken = null; // 驗證成功前一律視為未登入
             try {
-                const json = await adminApi('login', { u, p });
+                const json = await adminApi('login', { p });
                 if (!json.token) throw new Error("Login Failed");
                 adminToken = json.token;
-                uEl.value = "";
                 goToPage('Dev');
                 fetchReportList();
             } catch (e) {
                 adminToken = null;
                 msg.innerText = e.message === 'Too Many Attempts' ? "嘗試次數過多，請 15 分鐘後再試"
-                              : e.message === 'Auth Failed' ? "帳號或密碼錯誤" : "登入失敗：" + e.message;
-                [uEl, pEl].forEach(el => {
-                    el.classList.add('shake-anim');
-                    setTimeout(() => el.classList.remove('shake-anim'), 300);
-                });
+                              : e.message === 'Auth Failed' ? "密碼錯誤" : "登入失敗：" + e.message;
+                pEl.classList.add('shake-anim');
+                setTimeout(() => pEl.classList.remove('shake-anim'), 300);
             } finally {
                 pEl.value = "";
                 btn.disabled = false;
