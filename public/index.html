@@ -67,7 +67,20 @@
         .stn.to::before { border: 2px solid var(--accent); background: var(--bg); }
         .stn b { font-size: 28px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
         .stn span { font-size: 12px; color: var(--sub); white-space: nowrap; }
-        .stn.empty b { color: var(--dim); font-weight: 600; }
+        /* 還沒選站：只留一條空白的底線，不寫字 */
+        .stn.empty b { display: inline-block; width: 4.2em; height: 1.2em; border-bottom: 2px solid var(--line-strong); }
+        .stn.empty:active b { border-bottom-color: var(--accent); opacity: 1; }
+
+        /* 第一次打開（還沒有班次）：起訖站放在畫面中間，其他都先藏起來 */
+        body.fresh .container { padding-bottom: 0; }
+        body.fresh .header { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+        body.fresh .header-static-part { flex: 1; display: flex; flex-direction: column; }
+        body.fresh .route { margin-top: auto; }
+        body.fresh #stickyHeader { flex: 1; }
+        body.fresh .stn b { font-size: 32px; }
+        body.fresh .stn.empty b { font-size: 32px; }
+        body.fresh #rowQuickRoute, body.fresh #rowTools, body.fresh #cardList { display: none !important; }
+        body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
         .stn:active b { opacity: .6; }
         .swap { width: 40px; height: 40px; display: grid; place-items: center; color: var(--sub); }
         .swap:active { color: var(--text); }
@@ -215,7 +228,7 @@
         .menu-item { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 17px 24px; font-size: 16px; border-bottom: 1px solid var(--line); text-align: left; }
         .menu-item:active { background: #18181b; }
         .menu-item .val { color: var(--sub); font-size: 14px; }
-        .menu-close { display: flex; justify-content: flex-end; padding: 14px 16px 6px; }
+        .menu-close { display: flex; justify-content: flex-end; padding: 10px 12px 2px; }
 
         /* 表單 */
         .field { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--line-strong); color: #fff; font-size: 16px; padding: 10px 0; border-radius: 0; }
@@ -258,11 +271,6 @@
         .picker-stations button:active { background: #18181b; }
         .picker-empty { padding: 24px 18px; color: var(--dim); font-size: 14px; }
 
-        /* 使用說明 */
-        .help-sample { margin: 4px 0 18px; }
-        .help-list { list-style: none; padding: 0; margin: 0; font-size: 14px; color: #ccc; line-height: 1.7; }
-        .help-list li { padding: 10px 0; border-bottom: 1px solid var(--line); }
-        .help-list b { color: #fff; }
 
         /* 開發者 */
         @keyframes shake { 0%,100% { transform: translateX(0); } 25%,75% { transform: translateX(-5px); } 50% { transform: translateX(5px); } }
@@ -296,12 +304,13 @@
         .coach-btns { display: flex; gap: 6px; }
         .coach-btns button { font-size: 14px; padding: 8px 12px; border-radius: var(--radius); }
         .coach-skip { color: var(--sub); }
+        .about-team a { display: inline; color: var(--accent); font-weight: 600; }
         .coach-next { background: #eee; color: #000; font-weight: 700; }
 
         .ios-steps { margin: 0; padding-left: 20px; font-size: 15px; line-height: 2.2; color: #ccc; }
     </style>
 </head>
-<body class="tick-a">
+<body class="tick-a fresh nostation">
     <div id="inAppOverlay" onclick="this.style.display='none'">
         <div class="big">請改用瀏覽器開啟</div>
         <ol>
@@ -325,7 +334,7 @@
             <div class="coach-foot">
                 <span id="coachStep" class="coach-step"></span>
                 <div class="coach-btns">
-                    <button class="coach-skip" onclick="endCoach(true)">略過教學</button>
+                    <button class="coach-skip" onclick="endCoach(true)">略過</button>
                     <button id="coachNext" class="coach-next" onclick="nextCoach()">下一步</button>
                 </div>
             </div>
@@ -347,8 +356,8 @@
 
                 <div class="route">
                     <div class="route-stops">
-                        <button id="startPick" class="stn from" onclick="openStationPicker('start')"><b>選擇起站</b><span></span></button>
-                        <button id="endPick" class="stn to" onclick="openStationPicker('end')"><b>選擇迄站</b><span></span></button>
+                        <button id="startPick" class="stn from empty" onclick="openStationPicker('start')" aria-label="起站"><b></b><span></span></button>
+                        <button id="endPick" class="stn to empty" onclick="openStationPicker('end')" aria-label="迄站"><b></b><span></span></button>
                     </div>
                     <button class="swap" onclick="swapStations()" aria-label="交換起訖站">
                         <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2v12M2 5l3-3 3 3M11 14V2M8 11l3 3 3-3"/></svg>
@@ -391,19 +400,19 @@
     <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
 
         <div id="pageMenu" class="modal-page sheet-right" onclick="event.stopPropagation()">
-            <div class="menu-close"><button class="back-btn" onclick="closeModal()">關閉</button></div>
+            <div class="menu-close"><button class="icon-btn" onclick="closeModal()" aria-label="關閉"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button></div>
             <div class="menu-list">
-                <button class="menu-item" onclick="goToPage('Help')">使用說明</button>
-                <button class="menu-item" onclick="toggleTimeFormat()">時間格式<span id="btnTimeFormat" class="val"></span></button>
-                <button class="menu-item" onclick="goToPage('Report')">回報問題</button>
+                <button class="menu-item" onclick="replayCoach()">教學</button>
+                <button class="menu-item" onclick="toggleTimeFormat()">時間<span id="btnTimeFormat" class="val"></span></button>
+                <button class="menu-item" onclick="goToPage('Report')">回報</button>
                 <button class="menu-item" onclick="goToPage('Author')">關於</button>
-                <button class="menu-item" onclick="shareApp()">分享給朋友</button>
+                <button class="menu-item" onclick="shareApp()">分享</button>
             </div>
         </div>
 
         <div id="pageStation" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="picker-head">
-                <div class="modal-header-row"><div id="pickerTitle" class="modal-title">選擇起站</div><button class="back-btn" onclick="closeModal()">取消</button></div>
+                <div class="modal-header-row"><div id="pickerTitle" class="modal-title">起站</div><button class="back-btn" onclick="closeModal()">取消</button></div>
                 <input id="pickerSearch" class="field" type="search" placeholder="搜尋車站" autocomplete="off" oninput="renderPickerStations()">
             </div>
             <div class="picker-cols">
@@ -412,40 +421,14 @@
             </div>
         </div>
 
-        <div id="pageHelp" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
-            <div class="sheet-handle" onclick="closeModal()"></div>
-            <div class="modal-content-inner">
-                <div class="modal-header-row"><div class="modal-title">使用說明</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
-                <div class="help-sample">
-                    <div class="row late" style="--tc:#DF3F1F">
-                        <div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>
-                        <div class="r-time"><span class="r-dep">10:15</span><span class="r-arr">11:05</span></div>
-                        <div class="r-meta"><span class="r-type" style="color:#DF3F1F">自強號</span><span>456</span></div>
-                        <div class="r-side">晚 15 分<span class="o">原定 10:00</span></div>
-                    </div>
-                </div>
-                <ul class="help-list">
-                    <li><b>大字是實際出發時間</b>，已經加上誤點，列表也照實際發車順序排。</li>
-                    <li><b>黃字</b>代表誤點，右邊的灰字是原本的出發時間。</li>
-                    <li><span class="led inline"><span class="led-dot top"></span><span class="led-dot bottom"></span></span><b>綠燈閃爍</b>代表 10 分鐘內發車。</li>
-                    <li><b>點班次</b>可以看列車即時位置和完整停靠站。</li>
-                    <li>按鈕在換站後是「查詢」，查過後變成「更新」；冷卻中會變灰並倒數。</li>
-                </ul>
-                <div class="form-gap"></div>
-                <button class="btn" onclick="replayCoach()">重新看一次教學</button>
-            </div>
-        </div>
-
         <div id="pageReport" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
             <div class="sheet-handle" onclick="closeModal()"></div>
             <div class="modal-content-inner">
-                <div class="modal-header-row"><div class="modal-title">回報問題</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
-                <textarea id="userDesc" class="field" rows="5" placeholder="遇到什麼問題？（選填）"></textarea>
+                <div class="modal-header-row"><div class="modal-title">回報</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <textarea id="userDesc" class="field" rows="5" placeholder="遇到什麼問題？"></textarea>
                 <div class="form-gap"></div>
                 <button class="btn" onclick="manualUploadReport()">送出</button>
-                <div id="autoUploadHint" class="hint-ok">已自動附上系統紀錄</div>
-                <div class="section-label">系統紀錄</div>
-                <div id="terminalView" class="terminal-box"></div>
+                <div id="autoUploadHint" hidden></div>
             </div>
         </div>
 
@@ -457,8 +440,7 @@
                     <p>一般的時刻表只告訴你「誤點幾分鐘」，還要自己在腦中加減，才知道車到底幾點來。</p>
                     <p>TRAIN LIVE 直接顯示<strong>加上誤點後的實際時間</strong>，並照<strong>實際發車順序</strong>排列，一眼就知道現在該搭哪一班。</p>
                     <div class="section-label">作者</div>
-                    <p>BenjaminDai　·　<a href="https://www.instagram.com/d16benjamin_?igsh=N2c3M25ia3M0a3c4" target="_blank" style="display:inline;color:var(--accent)">@d16benjamin_</a></p>
-                    <p style="font-size:13px;color:var(--sub)">與 Gemini、Claude 一起製作</p>
+                    <p class="about-team"><a href="https://www.instagram.com/d16benjamin_?igsh=N2c3M25ia3M0a3c4" target="_blank" rel="noopener">BenjaminDai</a>　·　Claude　·　Gemini</p>
                     <p style="font-size:12px;color:var(--dim)">2026/1/6 開始製作</p>
                 </div>
             </div>
@@ -805,7 +787,7 @@ ${logs}`;
         function setUiLockedUntil(v){localStorage.setItem(LS_UI_LOCK,v);}
 
         function updateToggleBtns() {
-            document.getElementById('btnTimeFormat').innerText = is24Hour ? '24 小時制' : '12 小時制';
+            document.getElementById('btnTimeFormat').innerText = is24Hour ? '24 小時' : '12 小時';
             // 「顯示已發車」的文字在 renderCards 依班次數更新
         }
 
@@ -885,7 +867,7 @@ ${logs}`;
                     checkLocksOnLoad(); loadDataOrFetch();
                 } else {
                     startStation.innerHTML=endStation.innerHTML=`<option value=""></option>`;
-                    list.innerHTML='<div class="message">點上方的站名選擇起訖站<small>選好後按「查詢」</small></div>';
+                    list.innerHTML='';
                     checkLocksOnLoad();
                 }
             } catch(e) {
@@ -917,9 +899,10 @@ ${logs}`;
                 const el = document.getElementById(type === 'start' ? 'startPick' : 'endPick');
                 const has = !!sSel.value;
                 el.classList.toggle('empty', !has);
-                el.querySelector('b').innerText = has ? sSel.value : ph;
+                el.querySelector('b').innerText = has ? sSel.value : '';
                 el.querySelector('span').innerText = has ? rSel.value : '';
             });
+            document.body.classList.toggle('nostation', !(startStation.value && endStation.value));
         }
 
         // ---------- 選站畫面 ----------
@@ -930,7 +913,7 @@ ${logs}`;
             const rSel = type === 'start' ? startRegion : endRegion;
             const other = type === 'start' ? endRegion : startRegion;
             pickerRegion = rSel.value || other.value || '臺北市';
-            document.getElementById('pickerTitle').innerText = type === 'start' ? '選擇起站' : '選擇迄站';
+            document.getElementById('pickerTitle').innerText = type === 'start' ? '起站' : '迄站';
             document.getElementById('pickerSearch').value = '';
             renderPickerRegions();
             renderPickerStations();
@@ -1067,8 +1050,8 @@ ${logs}`;
                 lastFetchedPair={start:startStation.value,end:endStation.value}; 
                 scrollToFirstActive(); 
             } else {
-                if(isInit) {
-                    list.innerHTML='<div class="message">按「查詢」看班次</div>';
+                if(isInit || !currentTrainData) {
+                    if (!currentTrainData) list.innerHTML='';
                 } else {
                     list.style.opacity="0.4"; statusMsg.innerText="已換站，按查詢看新的班次"; statusMsg.className="status-left warning";
                     document.getElementById('rowTools').style.display = 'flex';
@@ -1241,6 +1224,7 @@ ${logs}`;
 
         async function fetchData(mode) {
             isFetching = true; updateActionButton();
+            document.body.classList.remove('fresh');
             
             if(mode !== "load_next_day") {
                 list.innerHTML = getSkeletonHTML(); 
@@ -1354,6 +1338,7 @@ ${logs}`;
 
         function renderCards(data) {
             currentTrainData = data; 
+            document.body.classList.remove('fresh');
             if(data.trains) localStorage.setItem(LS_SKELETON_COUNT, data.trains.length);
 
             const elTools = document.getElementById('rowTools');
@@ -1433,7 +1418,6 @@ ${logs}`;
 
             const tips = [];
             if (anyArriving) tips.push('<span class="led inline"><span class="led-dot top"></span><span class="led-dot bottom"></span></span>10 分鐘內發車');
-            if (localStorage.getItem(LS_ROW_TAPPED) !== '1') tips.push('點班次看即時位置和停靠站');
             if (tips.length) html += `<div class="list-foot">${tips.join('<br>')}</div>`;
 
             list.innerHTML = html + loadNextBtn;
@@ -1493,10 +1477,7 @@ ${logs}`;
         function goToPage(id){
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
-            if(id==='Report'){
-                document.getElementById('terminalView').innerText = systemLogs.join("\n");
-                uploadReport(); 
-            }
+            if(id==='Report'){ uploadReport(); }
         }
 
         // [Advanced] 1:1 Interactive Swipe Gestures
@@ -1651,11 +1632,11 @@ ${logs}`;
             const chip = (r, cls) => `<button class="chip ${cls}" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}–${r.end}</button>`;
             let html = favs.map(r => chip(r, 'fav')).join('');
             hist.forEach(r => { if (!isFavorite(r.start, r.end)) html += chip(r, 'hist'); });
-            quickArea.innerHTML = html || '<span class="chip" style="color:var(--dim)">按右邊星號收藏常用路線</span>';
+            quickArea.innerHTML = html;
 
             const elRow = document.getElementById('rowQuickRoute');
             const hasRoute = !!(startStation.value && endStation.value);
-            elRow.style.display = (favs.length || hist.length || hasRoute) ? 'flex' : 'none';
+            elRow.style.display = (favs.length || hist.length || (hasRoute && currentTrainData)) ? 'flex' : 'none';
             setTimeout(updateScrollHint, 100);
         }
 
@@ -1677,7 +1658,6 @@ ${logs}`;
         }
 
         // ---------- 第一次使用的教學提示 ----------
-        const LS_COACH_START = "tl_coach_start_v1";
         const LS_COACH_LIST = "tl_coach_list_v1";
         let coachSteps = [], coachIdx = 0, coachKey = null, coachTarget = null;
 
@@ -1725,49 +1705,38 @@ ${logs}`;
             else endCoach(false);
         }
         function endCoach(skipAll) {
-            const finished = coachKey;
             if (coachKey) coachMark(coachKey);
-            if (skipAll) { coachMark(LS_COACH_START); coachMark(LS_COACH_LIST); }
+            if (skipAll) coachMark(LS_COACH_LIST);
             coachKey = null; coachTarget = null;
             document.getElementById('coach').classList.remove('on');
             document.body.classList.remove('noscroll');
-            // 第一段看完時，如果畫面上已經有班次，接著介紹列表
-            if (finished === LS_COACH_START && !skipAll) setTimeout(maybeStartListCoach, 300);
         }
         window.addEventListener('resize', () => { if (coachTarget) placeCoach(); });
 
-        function maybeStartStartCoach() {
-            if (coachSeen(LS_COACH_START) || coachKey || modalOpen()) return;
-            startCoach(LS_COACH_START, [
-                { target: '.route-stops', text: '<b>點站名</b>就能選擇起站和迄站，可以打字搜尋，也可以從縣市找。' },
-                { target: '.swap', text: '這個按鈕可以<b>交換起訖站</b>，回程時很方便。' },
-                { target: '#btnAction', text: '選好站之後按這裡<b>查詢</b>。查過之後會變成「更新」，冷卻中會變灰並倒數。' }
-            ]);
-        }
-        function maybeStartListCoach() {
-            if (coachSeen(LS_COACH_LIST) || coachKey || modalOpen()) return;
-            if (!document.querySelector('#cardList .row:not(.departed)')) return;
+        function maybeStartListCoach(force) {
+            if ((!force && coachSeen(LS_COACH_LIST)) || coachKey || modalOpen()) return false;
+            if (!document.querySelector('#cardList .row:not(.departed)')) return false;
             setTimeout(() => {
-                if (coachKey || modalOpen() || coachSeen(LS_COACH_LIST)) return;
-                const ledRow = document.querySelector('#cardList .row.arriving') ? '#cardList .row.arriving' : null;
-                const steps = [
-                    { target: '#cardList .row:not(.departed)', text: '大字是<b>加上誤點後的實際出發時間</b>，箭頭後面是抵達時間。左邊色條和車種文字的顏色代表車種。' },
-                    { target: '#cardList .row.late', text: '<span class="late">黃色</span>代表誤點，右邊會寫晚幾分鐘和原定的出發時間。' }
-                ];
-                if (ledRow) steps.push({ target: ledRow, extraLeft: 14, text: '左邊的<b>綠燈在閃</b>，代表這班車 10 分鐘內就要發車。' });
-                steps.push({ target: '#cardList .row:not(.departed)', text: '<b>點一下班次</b>，可以看列車的即時位置和停靠站。' });
-                steps.push({ target: '#btnStar', text: '常用的路線按<b>星星</b>收藏，之後一點就能查。' });
+                if (coachKey || modalOpen() || (!force && coachSeen(LS_COACH_LIST))) return;
+                const row = '#cardList .row:not(.departed)';
+                const steps = [{ target: row, text: '大字是實際發車時間，<span class="late">黃色</span>代表誤點' }];
+                if (document.querySelector('#cardList .row.arriving')) steps.push({ target: '#cardList .row.arriving', extraLeft: 14, text: '綠燈閃爍：10 分鐘內發車' });
+                steps.push({ target: row, text: '點班次看列車位置' });
                 startCoach(LS_COACH_LIST, steps);
-            }, 700);
+            }, force ? 50 : 700);
+            return true;
         }
         function replayCoach() {
-            try { localStorage.removeItem(LS_COACH_START); localStorage.removeItem(LS_COACH_LIST); } catch (e) {}
-            closeModal();
-            setTimeout(() => { window.scrollTo(0, 0); maybeStartStartCoach(); }, 450);
+            const wasOpen = modalOpen();
+            if (wasOpen) closeModal();
+            // 等選單關閉的動畫（0.3 秒）結束後再開始
+            setTimeout(() => {
+                if (!document.querySelector('#cardList .row:not(.departed)')) { showToast('查詢班次後就能看教學'); return; }
+                maybeStartListCoach(true);
+            }, wasOpen ? 380 : 0);
         }
 
         init();
-        setTimeout(maybeStartStartCoach, 600);
     </script>
 </body>
 </html>
