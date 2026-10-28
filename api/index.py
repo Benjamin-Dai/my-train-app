@@ -56,6 +56,8 @@ ALERT_FAIL_TTL = 120            # 抓不到時，2 分鐘內不再重試
 
 TOKEN_KEY = "tdx_token"
 DELAY_KEY = "v3_tra_delay_data"
+POS_KEY = "v3_tra_last_station"   # 每班車最後經過的站（跟誤點同時抓、同樣 75 秒）
+TRAIN_NO_RE = re.compile(r"^\d{1,5}$")
 
 # 不在啟動時 ping：連線會在第一次下指令時才建立，省掉冷啟動多一趟來回
 redis_client = None
@@ -125,8 +127,63 @@ def parse_alerts(data, now_aware):
     return out[:5]
 
 
+def train_type_style(raw_type):
+    """車種名稱 → (顯示名稱, 色條顏色)。"""
+    if "區間快" in raw_type: return "區間快", "#0076B2"
+    if "區間" in raw_type: return "區間車", "#0076B2"
+    if "普悠瑪" in raw_type: return "普悠瑪", "#9C1637"
+    if "3000" in raw_type: return "自強3000", "#ffffff"
+    if "自強" in raw_type: return "自強號", "#DF3F1F"
+    if "太魯閣" in raw_type: return "太魯閣", "#9C1637"
+    if "莒光" in raw_type: return "莒光號", "#FF8C00"
+    return raw_type, "#ffffff"
+
+
+def build_train_detail(item, date_str, delay, last_id, now_aware):
+    """單一班次：整理停靠站清單。
+    位置只用 TDX 給的「最後經過的站」，不推算在站上或兩站之間。
+    已經過（含最後經過那站）的站顯示原定時間；還沒到的站顯示原定時間加上目前誤點（預估）。"""
+    info = item.get('TrainInfo', {})
+    stop_times = item.get('StopTimes', [])
+    display_type, color = train_type_style(info.get('TrainTypeName', {}).get('Zh_tw', ''))
+    last_idx = next((i for i, st in enumerate(stop_times) if st.get('StationID') == last_id), None) if last_id else None
+
+    stops = []
+    base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=TW_TZ)
+    prev_min = -1
+    for i, st in enumerate(stop_times):
+        t = st.get('DepartureTime') or st.get('ArrivalTime')
+        if not t:
+            continue
+        h, m = int(t[:2]), int(t[3:5])
+        if h * 60 + m < prev_min:   # 過午夜：日期往後一天
+            base += timedelta(days=1)
+        prev_min = h * 60 + m
+        sch = base.replace(hour=h, minute=m)
+        passed = last_idx is not None and i <= last_idx
+        stops.append({
+            "name": _text(st.get('StationName')),
+            "sch": sch.strftime("%H:%M"),
+            "est": (sch + timedelta(minutes=delay)).strftime("%H:%M") if (delay and not passed) else None,
+            "passed": passed,
+        })
+
+    last = None
+    if last_idx is not None and last_idx < len(stop_times):
+        last = {"name": _text(stop_times[last_idx].get('StationName')), "ended": last_idx == len(stop_times) - 1}
+    return {
+        "no": info.get('TrainNo'), "type": display_type, "color": color,
+        "origin": _text(info.get('StartingStationName')), "dest": _text(info.get('EndingStationName')),
+        "delay": delay, "last": last, "stops": stops,
+    }
+
+
 def route_key(start_id, end_id, date_str):
     return f"v3_route_{start_id}_{end_id}_{date_str}"
+
+
+def train_key(no, date_str):
+    return f"v3_train_{no}_{date_str}"
 
 
 def tdx_get(url, headers):
@@ -215,6 +272,9 @@ class handler(BaseHTTPRequestHandler):
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             redis_set(DELAY_KEY, json.dumps(new_delays), 75)
+            last_pos = {t.get('TrainNo'): str(t.get('StationID', '')) for t in d_list if t.get('StationID')}
+            redis_set(POS_KEY, json.dumps(last_pos), 75)
+            self.last_pos = last_pos
             return (new_delays, status_str)
         else:
             raise Exception(f"Delay Error: {res.status_code}")
@@ -264,6 +324,79 @@ class handler(BaseHTTPRequestHandler):
         else:
             raise Exception(f"Timetable Error: {res.status_code}")
 
+    def get_train_timetable(self, no, date_str, cached_raw, get_headers):
+        """單一車次當天的時刻表（含所有停靠站）。回傳 TrainTimetables 的第一筆，沒有就回 None。"""
+        if cached_raw is not None:
+            try:
+                return json.loads(cached_raw)
+            except Exception:
+                pass
+        res = tdx_get(f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/{date_str}", get_headers())
+        if res.status_code == 404:
+            item = None
+        elif res.status_code == 200:
+            lst = res.json().get('TrainTimetables', [])
+            item = lst[0] if lst else None
+        else:
+            raise Exception(f"Train Timetable Error: {res.status_code}")
+        redis_set(train_key(no, date_str), json.dumps(item), ROUTE_CACHE_TTL)
+        return item
+
+    def handle_train(self, no):
+        """GET /api/index?train=123：單一車次的誤點、最後經過的站、停靠站。"""
+        if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Env")
+        if not TRAIN_NO_RE.match(no): return self.send_json(400, {"error": "Bad Train No"})
+
+        now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
+        dates = [now_aware.strftime('%Y-%m-%d')]
+        if now_aware.hour < 4:   # 凌晨還在跑的是前一天的班次
+            dates.insert(0, (now_aware - timedelta(days=1)).strftime('%Y-%m-%d'))
+
+        keys = [TOKEN_KEY, DELAY_KEY, POS_KEY] + [train_key(no, d) for d in dates]
+        cached, query_count = redis_mget_and_count(keys, f"rl:query:{self.client_ip()}", QUERY_RATE_WINDOW)
+        if query_count > QUERY_RATE_MAX:
+            return self.send_json(429, {"error": "Too Many Requests"})
+
+        token_box = {"token": cached[TOKEN_KEY].decode('utf-8') if TOKEN_KEY in cached else None}
+        def get_headers():
+            if not token_box["token"]:
+                token_box["token"] = self.fetch_token()
+                if not token_box["token"]:
+                    raise Exception("Auth Failed")
+            return {'authorization': f'Bearer {token_box["token"]}'}
+
+        try:
+            item, date_str = None, dates[-1]
+            for d in dates:
+                item = self.get_train_timetable(no, d, cached.get(train_key(no, d)), get_headers)
+                if item:
+                    date_str = d
+                    break
+
+            delays, last_pos, delay_failed = {}, {}, False
+            try:
+                # 兩份快取要一起有；缺一份就重抓（會同時寫回兩份）
+                self.last_pos = {}
+                use_cache = cached.get(DELAY_KEY) if POS_KEY in cached else None
+                delays, _ = self.get_delays(use_cache, get_headers)
+                last_pos = json.loads(cached[POS_KEY]) if use_cache else self.last_pos
+            except Exception:
+                delay_failed = True
+
+            out = {"update_time": now_aware.strftime("%H:%M:%S"), "delay_failed": delay_failed, "train": None}
+            if item:
+                delay = int(delays.get(no, 0) or 0)
+                out["train"] = build_train_detail(item, date_str, delay, last_pos.get(no), now_aware)
+                out["train"]["running"] = no in delays
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
+            self.end_headers()
+            self.wfile.write(json.dumps(out, ensure_ascii=False).encode())
+        except Exception as e:
+            self.send_error_response(str(e))
+
     def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, now_aware, fix_crossing_night=False):
         processed = []
         for item in raw_list:
@@ -282,15 +415,7 @@ class handler(BaseHTTPRequestHandler):
                 self.suspended_count = getattr(self, 'suspended_count', 0) + 1
                 continue
 
-            display_type = raw_type
-            type_color = "#ffffff"
-            if "區間快" in raw_type: display_type, type_color = "區間快", "#0076B2"
-            elif "區間" in raw_type: display_type, type_color = "區間車", "#0076B2"
-            elif "普悠瑪" in raw_type: display_type, type_color = "普悠瑪", "#9C1637"
-            elif "3000" in raw_type: display_type, type_color = "自強3000", "#ffffff"
-            elif "自強" in raw_type: display_type, type_color = "自強號", "#DF3F1F"
-            elif "太魯閣" in raw_type: display_type, type_color = "太魯閣", "#9C1637"
-            elif "莒光" in raw_type: display_type, type_color = "莒光號", "#FF8C00"
+            display_type, type_color = train_type_style(raw_type)
 
             raw_delay = int(delays.get(no, 0))
             dep_dt = datetime.strptime(f"{date_str} {dep_time}", "%Y-%m-%d %H:%M").replace(tzinfo=TW_TZ)
@@ -571,6 +696,10 @@ class handler(BaseHTTPRequestHandler):
         end_station = params.get('end', [''])[0]
         want_next_day = params.get('next_day', ['0'])[0] == '1'
         raw_mode = params.get('mode', ['Query'])[0]
+
+        train_no = params.get('train', [''])[0].strip()
+        if train_no:
+            return self.handle_train(train_no)
 
         if not CLIENT_ID or not CLIENT_SECRET: return self.send_error_response("Missing Env")
         start_id = STATION_MAP.get(start_station)

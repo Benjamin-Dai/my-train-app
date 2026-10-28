@@ -152,5 +152,53 @@ class RouteKeyTests(unittest.TestCase):
         self.assertNotEqual(k, index.route_key("1000", "1210", "2026-10-29"))
 
 
+def stop(sid, name, dep=None, arr=None):
+    d = {"StationID": sid, "StationName": {"Zh_tw": name}}
+    if dep: d["DepartureTime"] = dep
+    if arr: d["ArrivalTime"] = arr
+    return d
+
+
+def detail_item():
+    return {
+        "TrainInfo": {"TrainNo": "123", "TrainTypeName": {"Zh_tw": "自強(3000)"},
+                      "StartingStationName": {"Zh_tw": "臺北"}, "EndingStationName": {"Zh_tw": "新竹"}},
+        "StopTimes": [stop("1000", "臺北", dep="23:30"), stop("1020", "板橋", dep="23:45"), stop("1210", "新竹", arr="00:20")],
+    }
+
+
+class TrainDetailTests(unittest.TestCase):
+    def test_last_station_marks_passed_and_estimates_rest(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, "1020", NOW)
+        self.assertEqual([s["passed"] for s in d["stops"]], [True, True, False])
+        self.assertEqual(d["last"], {"name": "板橋", "ended": False})
+        self.assertIsNone(d["stops"][1]["est"])      # 已經過的站不加誤點
+        self.assertEqual(d["stops"][2]["est"], "00:25")  # 過午夜也正確
+        self.assertEqual(d["stops"][2]["sch"], "00:20")
+
+    def test_no_position_data(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, None, NOW)
+        self.assertIsNone(d["last"])
+        self.assertFalse(any(s["passed"] for s in d["stops"]))
+        self.assertTrue(all(s["est"] is None for s in d["stops"]))
+
+    def test_unknown_last_station_is_not_guessed(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 3, "9999", NOW)
+        self.assertIsNone(d["last"])
+
+    def test_ended(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, "1210", NOW)
+        self.assertTrue(d["last"]["ended"])
+
+    def test_header_fields(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, None, NOW)
+        self.assertEqual((d["type"], d["origin"], d["dest"]), ("自強3000", "臺北", "新竹"))
+
+    def test_train_no_validation(self):
+        self.assertTrue(index.TRAIN_NO_RE.match("123"))
+        for bad in ("", "12a", "123456", "1 2", "../x"):
+            self.assertFalse(index.TRAIN_NO_RE.match(bad), bad)
+
+
 if __name__ == '__main__':
     unittest.main()

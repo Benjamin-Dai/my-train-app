@@ -263,6 +263,27 @@
         .btn-quiet { display: block; width: 100%; padding: 12px 0; font-size: 14px; color: var(--sub); text-align: center; }
         .btn-danger { color: var(--alert); }
         .form-gap { height: 14px; }
+
+        /* 查車次 */
+        .tn-row { display: flex; gap: 10px; align-items: flex-end; }
+        .tn-row .field { font-size: 30px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+        .tn-row .btn { width: 96px; flex: none; }
+        .tn-msg { padding: 28px 0; color: var(--sub); font-size: 14px; }
+        .tn-head { margin-top: 18px; }
+        .tn-head.row { padding-top: 14px; padding-bottom: 14px; }
+        .tn-head.row::before { top: 14px; bottom: 14px; }
+        .tn-pos { padding: 12px 0 2px; font-size: 13px; color: var(--sub); }
+        .tn-pos b { color: #fff; font-weight: 600; }
+        .tn-stop { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 0 12px 16px; border-bottom: 1px solid var(--line); position: relative; font-size: 16px; }
+        .tn-stop::before { content: ""; position: absolute; left: 1px; top: 50%; width: 7px; height: 7px; margin-top: -3px; border-radius: 50%; background: #fff; }
+        .tn-stop.passed { color: var(--dim); }
+        .tn-stop.passed::before { background: #444; }
+        .tn-stop.last { color: #fff; }
+        .tn-stop.last::before { background: var(--accent); box-shadow: 0 0 0 3px rgba(77,127,94,.25); }
+        .tn-t { text-align: right; font-variant-numeric: tabular-nums; font-size: 17px; }
+        .tn-t .o { display: block; font-size: 12px; color: #6a6a6e; }
+        .tn-stop.est .tn-t:not(.o) { color: var(--late); }
+        .tn-note { padding: 14px 0 0; font-size: 12px; color: var(--dim); line-height: 1.7; }
         .hint-ok { color: var(--accent); font-size: 12px; text-align: center; margin-top: 8px; opacity: 0; transition: opacity 1s; }
         .section-label { font-size: 12px; color: var(--sub); letter-spacing: .1em; margin: 22px 0 8px; }
 
@@ -430,6 +451,7 @@
             <div class="menu-close"><button class="icon-btn" onclick="closeModal()" aria-label="關閉"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button></div>
             <div class="menu-list">
                 <button class="menu-item" onclick="replayCoach()">教學</button>
+                <button class="menu-item" onclick="goToPage('Train')">車次</button>
                 <button class="menu-item" onclick="toggleTimeFormat()">時間<span id="btnTimeFormat" class="val"></span></button>
                 <button class="menu-item" onclick="goToPage('Report')">回報</button>
                 <button class="menu-item" onclick="goToPage('Author')">關於</button>
@@ -456,6 +478,18 @@
                 <div class="form-gap"></div>
                 <button class="btn" onclick="manualUploadReport()">送出</button>
                 <div id="autoUploadHint" hidden></div>
+            </div>
+        </div>
+
+        <div id="pageTrain" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
+            <div class="sheet-handle" onclick="closeModal()"></div>
+            <div class="modal-content-inner">
+                <div class="modal-header-row"><div class="modal-title">車次</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <div class="tn-row">
+                    <input id="trainNo" class="field" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="車次" autocomplete="off" oninput="trainInputChanged()" onkeydown="if(event.key==='Enter')searchTrain()">
+                    <button id="btnTrain" class="btn" onclick="searchTrain()">查詢</button>
+                </div>
+                <div id="trainResult"></div>
             </div>
         </div>
 
@@ -1854,6 +1888,70 @@ ${logs}`;
             if (!document.querySelector('#cardList .row')) return;
             setTimeout(() => { if (!coachKey && !modalOpen() && !coachSeen(LS_COACH_LIST)) startCoach(LS_COACH_LIST); }, 700);
         }
+        // ---------- 查車次 ----------
+        let trainLastNo = '', trainCooldown = 0;
+        function escHtml(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function trainInputChanged() {
+            const el = document.getElementById('trainNo');
+            el.value = el.value.replace(/\D/g, '').slice(0, 5);
+            updateTrainBtn();
+        }
+        function updateTrainBtn() {
+            const btn = document.getElementById('btnTrain');
+            const no = document.getElementById('trainNo').value;
+            const left = Math.ceil((trainCooldown - Date.now()) / 1000);
+            btn.textContent = left > 0 ? left + '' : (no && no === trainLastNo ? '更新' : '查詢');
+            btn.disabled = !no || left > 0;
+        }
+        async function searchTrain() {
+            const no = document.getElementById('trainNo').value;
+            const box = document.getElementById('trainResult');
+            if (!no || Date.now() < trainCooldown) return;
+            trainCooldown = Date.now() + 10000;
+            const timer = setInterval(() => { updateTrainBtn(); if (Date.now() >= trainCooldown) clearInterval(timer); }, 500);
+            updateTrainBtn();
+            box.innerHTML = '<div class="tn-msg">查詢中</div>';
+            try {
+                const res = await fetch('/api/index?train=' + encodeURIComponent(no));
+                if (res.status === 429) { box.innerHTML = '<div class="tn-msg">查太多次了，稍後再試</div>'; return; }
+                const data = await res.json();
+                if (!res.ok || data.error) throw new Error(data.error || res.status);
+                trainLastNo = no;
+                renderTrain(data, no);
+            } catch (e) {
+                box.innerHTML = '<div class="tn-msg">查詢失敗，稍後再試</div>';
+            }
+            updateTrainBtn();
+        }
+        function renderTrain(data, no) {
+            const box = document.getElementById('trainResult');
+            const t = data.train;
+            if (!t) { box.innerHTML = '<div class="tn-msg">今天沒有這班車</div>'; return; }
+            const late = t.delay > 0;
+            let pos;
+            if (data.delay_failed) pos = '誤點資料暫時抓不到';
+            else if (t.last && t.last.ended) pos = `已到終點 <b>${escHtml(t.last.name)}</b>`;
+            else if (t.last) pos = `最後經過 <b>${escHtml(t.last.name)}</b>`;
+            else pos = '還沒有即時資料';
+            // 最後經過的站 = 已經過的站裡最後一個
+            const lastIdx = t.last ? t.stops.map(s => s.passed).lastIndexOf(true) : -1;
+            const html = t.stops.map((s, i) => {
+                const cls = ['tn-stop', s.passed ? 'passed' : '', i === lastIdx ? 'last' : '', s.est ? 'est' : ''].filter(Boolean).join(' ');
+                const time = s.est ? `<span class="tn-t">${formatTime(s.est)}<span class="o">原定 ${formatTime(s.sch)}</span></span>`
+                                   : `<span class="tn-t">${formatTime(s.sch)}</span>`;
+                return `<div class="${cls}"><span>${escHtml(s.name)}</span>${time}</div>`;
+            }).join('');
+            box.innerHTML = `
+                <div class="row tn-head ${late ? 'late' : ''}" style="--tc:${escHtml(t.color)}">
+                    <div class="r-meta"><span class="r-type" style="color:${escHtml(t.color)}">${escHtml(t.type)}</span><span>${escHtml(t.origin)} → ${escHtml(t.dest)}</span></div>
+                    <div class="r-time"><span class="r-dep">${escHtml(t.no)}</span></div>
+                    <div class="r-side">${late ? '晚 ' + t.delay + ' 分' : ''}</div>
+                </div>
+                <div class="tn-pos">${pos} · ${escHtml(data.update_time)} 更新</div>
+                ${html}
+                <div class="tn-note">${late ? '還沒到的站是預估時間，誤點會隨時變動' : '誤點會隨時變動'}</div>`;
+        }
+
         function replayCoach() {
             const wasOpen = modalOpen();
             if (wasOpen) closeModal();
