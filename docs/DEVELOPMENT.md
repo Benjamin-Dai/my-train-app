@@ -79,6 +79,7 @@
   - TrainLiveBoard 抓不到時退回 `LiveTrainDelay`，只能寫「最後經過 X」。
   - 班次列表本身仍用 `LiveTrainDelay`，沒有改。
 - 還沒到的站顯示「原定時間＋目前誤點」，標明是預估。
+- 車次頁面開著且在前景時**每 60 秒自動更新**（首頁「不自動查詢」的例外，2026/10/28 討論）：TrainLiveBoard 在 Redis 共用快取 75 秒，自動更新不會多打 TDX；TDX 本身約 1 分鐘更新，再快沒意義。關掉或切到背景就停。
 - 班次列表點卡片 → 直接開啟這個畫面並查詢（原本是跳到外部網站 railway.chienwen.net，已取代）。
 - `LiveTrainDelay` 同時存誤點（`DELAY_KEY`）和最後經過站（`POS_KEY`），都是 75 秒。
 - 車次時刻表用 `GeneralTrainTimetable/TrainNo/{車次}`（2026/10/28 確認可用；`DailyTrainTimetable/TrainNo/…` 系列都是 404），沒有才抓整天時刻表 `DailyTrainTimetable/TrainDate/{日期}` 自己挑。快取 2 小時。

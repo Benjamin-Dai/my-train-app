@@ -1918,27 +1918,54 @@ ${logs}`;
             openSheet('Train');
             searchTrain(true);
         }
-        async function searchTrain(force) {
+        // 車次頁面開著、畫面在前景時每 60 秒自動更新一次。
+        // 後端把 TrainLiveBoard 共用快取 75 秒，自動更新不會多打 TDX；TDX 本身約 1 分鐘更新一次，再快也沒用。
+        const TRAIN_AUTO_MS = 60000;
+        let trainAutoTimer = null;
+        function trainPageOpen() {
+            const pg = document.getElementById('pageTrain');
+            return pg.classList.contains('active') && document.getElementById('aboutModal').style.display === 'flex';
+        }
+        function scheduleTrainAuto() {
+            clearTimeout(trainAutoTimer);
+            trainAutoTimer = setTimeout(() => {
+                if (!trainPageOpen() || !trainLastNo) return;            // 關掉就停
+                if (document.visibilityState !== 'visible') return;       // 切到背景就停，回來再接上
+                if (document.getElementById('trainNo').value !== trainLastNo) { scheduleTrainAuto(); return; }
+                searchTrain(true, true);
+            }, TRAIN_AUTO_MS);
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && trainPageOpen() && trainLastNo) searchTrain(true, true);
+        });
+        async function searchTrain(force, silent) {
             const no = document.getElementById('trainNo').value;
             const box = document.getElementById('trainResult');
             if (!no || (force !== true && Date.now() < trainCooldown)) return;
-            trainCooldown = Date.now() + 10000;
-            const timer = setInterval(() => { updateTrainBtn(); if (Date.now() >= trainCooldown) clearInterval(timer); }, 500);
-            updateTrainBtn();
-            box.innerHTML = '<div class="tn-msg">查詢中</div>';
+            clearTimeout(trainAutoTimer);
+            if (!silent) {
+                trainCooldown = Date.now() + 10000;
+                const timer = setInterval(() => { updateTrainBtn(); if (Date.now() >= trainCooldown) clearInterval(timer); }, 500);
+                updateTrainBtn();
+                box.innerHTML = '<div class="tn-msg">查詢中</div>';
+            }
             try {
                 const res = await fetch('/api/index?train=' + encodeURIComponent(no));
-                if (res.status === 429) { box.innerHTML = '<div class="tn-msg">查太多次了，稍後再試</div>'; return; }
-                if (res.status === 503) { box.innerHTML = '<div class="tn-msg">資料來源太忙，過一分鐘再試</div>'; return; }
-                const data = await res.json();
-                if (!res.ok || data.error) throw new Error(data.error || res.status);
-                if (no !== trainLastNo) trainShowPassed = false;
-                trainLastNo = no;
-                renderTrain(data);
+                if (res.status === 429 || res.status === 503) {
+                    // 自動更新失敗就保留畫面上的資料，下一輪再試
+                    if (!silent) box.innerHTML = `<div class="tn-msg">${res.status === 429 ? '查太多次了，稍後再試' : '資料來源太忙，過一分鐘再試'}</div>`;
+                } else {
+                    const data = await res.json();
+                    if (!res.ok || data.error) throw new Error(data.error || res.status);
+                    if (no !== trainLastNo) trainShowPassed = false;
+                    trainLastNo = no;
+                    renderTrain(data);
+                }
             } catch (e) {
-                box.innerHTML = '<div class="tn-msg">查詢失敗，稍後再試</div>';
+                if (!silent) box.innerHTML = '<div class="tn-msg">查詢失敗，稍後再試</div>';
             }
             updateTrainBtn();
+            if (trainLastNo === no) scheduleTrainAuto();
         }
         function renderTrain(data) {
             trainLastData = data;
@@ -1984,7 +2011,7 @@ ${logs}`;
                 </div>
                 <div class="tn-pos">${pos} · ${t.data_time ? escHtml(t.data_time) + ' 的資料' : escHtml(data.update_time) + ' 更新'}</div>
                 ${html}
-                <div class="tn-note">${late ? '還沒到的站是預估時間，誤點會隨時變動' : '誤點會隨時變動'}</div>`;
+                <div class="tn-note">${late ? '還沒到的站是預估時間，誤點會隨時變動。' : ''}開著時每分鐘自動更新</div>`;
         }
 
         function replayCoach() {
