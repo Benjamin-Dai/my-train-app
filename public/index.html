@@ -284,6 +284,8 @@
         .tn-t { text-align: right; font-variant-numeric: tabular-nums; font-size: 17px; }
         .tn-t .o { display: block; font-size: 12px; color: #6a6a6e; }
         .tn-stop.est .tn-t:not(.o) { color: var(--late); }
+        .tn-here { position: relative; padding: 9px 0 9px 16px; font-size: 13px; color: var(--accent); border-bottom: 1px solid var(--line); }
+        .tn-here::before { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--accent); }
         .tn-note { padding: 14px 0 0; font-size: 12px; color: var(--dim); line-height: 1.7; }
         .hint-ok { color: var(--accent); font-size: 12px; text-align: center; margin-top: 8px; opacity: 0; transition: opacity 1s; }
         .section-label { font-size: 12px; color: var(--sub); letter-spacing: .1em; margin: 22px 0 8px; }
@@ -1936,19 +1938,31 @@ ${logs}`;
             const t = data.train;
             if (!t) { box.innerHTML = '<div class="tn-msg">今天沒有這班車</div>'; return; }
             const late = t.delay > 0;
+            // 位置文字：TrainLiveBoard 有車站狀態（0 進站中、1 在站上、2 已離站）；沒有狀態只能說「最後經過」
+            const L = t.last, st = L ? L.status : null;
             let pos;
             if (data.delay_failed) pos = '誤點資料暫時抓不到';
-            else if (t.last && t.last.ended) pos = `已到終點 <b>${escHtml(t.last.name)}</b>`;
-            else if (t.last) pos = `最後經過 <b>${escHtml(t.last.name)}</b>`;
-            else pos = '還沒有即時資料';
-            // 最後經過的站 = 已經過的站裡最後一個
-            const lastIdx = t.last ? t.stops.map(s => s.passed).lastIndexOf(true) : -1;
-            const html = t.stops.map((s, i) => {
-                const cls = ['tn-stop', s.passed ? 'passed' : '', i === lastIdx ? 'last' : '', s.est ? 'est' : ''].filter(Boolean).join(' ');
+            else if (!L) pos = t.running ? '還沒有位置資料' : '還沒有即時資料';
+            else if (L.ended) pos = `已到終點 <b>${escHtml(L.name)}</b>`;
+            else if (st === 1) pos = `目前在 <b>${escHtml(L.name)}</b>`;
+            else if (st === 2 && L.next) pos = `<b>${escHtml(L.name)}～${escHtml(L.next)}</b> 之間`;
+            else if (st === 0) pos = `即將到 <b>${escHtml(L.name)}</b>`;
+            else pos = `最後經過 <b>${escHtml(L.name)}</b>`;
+            const posPlain = pos.replace(/<[^>]+>/g, '');
+
+            const lastPassed = L ? t.stops.map(s => s.passed).lastIndexOf(true) : -1;
+            // 綠線插在哪：已離站 → 那站之後；進站中 → 下一個還沒到的站之前；在站上／最後經過 → 那站本身亮綠點
+            const hereAfter = L && !L.ended && (st === 2 || st === 0) ? lastPassed : null;
+            const dotIdx = L && hereAfter === null ? lastPassed : -1;
+            let html = '';
+            if (hereAfter === -1) html += `<div class="tn-here">${posPlain}</div>`;
+            t.stops.forEach((s, i) => {
+                const cls = ['tn-stop', s.passed ? 'passed' : '', i === dotIdx ? 'last' : '', s.est ? 'est' : ''].filter(Boolean).join(' ');
                 const time = s.est ? `<span class="tn-t">${formatTime(s.est)}<span class="o">原定 ${formatTime(s.sch)}</span></span>`
                                    : `<span class="tn-t">${formatTime(s.sch)}</span>`;
-                return `<div class="${cls}"><span>${escHtml(s.name)}</span>${time}</div>`;
-            }).join('');
+                html += `<div class="${cls}"><span>${escHtml(s.name)}</span>${time}</div>`;
+                if (i === hereAfter) html += `<div class="tn-here">${posPlain}</div>`;
+            });
             box.innerHTML = `
                 <div class="row tn-head ${late ? 'late' : ''}" style="--tc:${escHtml(t.color)}">
                     <div class="r-meta"><span class="r-type" style="color:${escHtml(t.color)}">${escHtml(t.type)}</span><span>${escHtml(t.origin)} → ${escHtml(t.dest)}</span></div>

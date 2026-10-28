@@ -171,7 +171,7 @@ class TrainDetailTests(unittest.TestCase):
     def test_last_station_marks_passed_and_estimates_rest(self):
         d = index.build_train_detail(detail_item(), "2026-10-28", 5, "1020", NOW)
         self.assertEqual([s["passed"] for s in d["stops"]], [True, True, False])
-        self.assertEqual(d["last"], {"name": "板橋", "ended": False})
+        self.assertEqual(d["last"], {"name": "板橋", "idx": 1, "status": None, "next": "新竹", "ended": False})
         self.assertIsNone(d["stops"][1]["est"])      # 已經過的站不加誤點
         self.assertEqual(d["stops"][2]["est"], "00:25")  # 過午夜也正確
         self.assertEqual(d["stops"][2]["sch"], "00:20")
@@ -182,6 +182,26 @@ class TrainDetailTests(unittest.TestCase):
         self.assertFalse(any(s["passed"] for s in d["stops"]))
         # 不知道車在哪就不顯示預估時間（不然已經過的站也會被加上誤點）
         self.assertTrue(all(s["est"] is None for s in d["stops"]))
+
+    def test_status_at_station(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["1020", "板橋", 1], NOW)
+        self.assertEqual([s["passed"] for s in d["stops"]], [True, True, False])
+        self.assertEqual(d["last"]["status"], 1)
+
+    def test_status_approaching_station_is_not_passed(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["1020", "板橋", 0], NOW)
+        self.assertEqual([s["passed"] for s in d["stops"]], [True, False, False])
+        self.assertEqual(d["stops"][1]["est"], "23:50")   # 還沒到的站要有預估
+
+    def test_status_departed_shows_next(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, ["1020", "板橋", 2], NOW)
+        self.assertEqual(d["last"]["next"], "新竹")
+
+    def test_approaching_final_stop_is_not_ended(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, ["1210", "新竹", 0], NOW)
+        self.assertFalse(d["last"]["ended"])
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, ["1210", "新竹", 1], NOW)
+        self.assertTrue(d["last"]["ended"])
 
     def test_position_as_id_and_name(self):
         d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["1020", "板橋"], NOW)

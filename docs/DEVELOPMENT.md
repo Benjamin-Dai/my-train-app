@@ -74,7 +74,10 @@
 
 ### 查車次（`GET /api/index?train=123`）
 - 選單「車次」→ 輸入車次 → 顯示車種、起訖、誤點、最後經過的站、全部停靠站。
-- 位置**只用 TDX 給的「最後經過的站」**，不用時間推算「在站上／兩站之間」（誤點只在經過車站時更新，推算會誤導趕車的人）。
+- 位置**只用 TDX 給的資料，不用時間推算**（推算會誤導趕車的人）：
+  - 優先用 `v3/TrainLiveBoard` 的 `TrainStationStatus`：0 進站中 →「即將到 X」、1 在站上 →「目前在 X」、2 已離站 →「X～Y 之間」（對應方式**還沒驗證**，後台 `train_probe.status_examples` 每種狀態各列一班可對照）。
+  - TrainLiveBoard 抓不到時退回 `LiveTrainDelay`，只能寫「最後經過 X」。
+  - 班次列表本身仍用 `LiveTrainDelay`，沒有改。
 - 還沒到的站顯示「原定時間＋目前誤點」，標明是預估。
 - 班次列表點卡片 → 直接開啟這個畫面並查詢（原本是跳到外部網站 railway.chienwen.net，已取代）。
 - `LiveTrainDelay` 同時存誤點（`DELAY_KEY`）和最後經過站（`POS_KEY`），都是 75 秒。
