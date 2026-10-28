@@ -56,8 +56,7 @@ ALERT_FAIL_TTL = 120            # 抓不到時，2 分鐘內不再重試
 
 TOKEN_KEY = "tdx_token"
 DELAY_KEY = "v3_tra_delay_data"
-LIVE_KEY = "v2_tra_liveboard"     # 查車次用：TrainLiveBoard 整理成 {車次: [站碼, 站名, 車站狀態, 誤點, 資料時間]}，75 秒
-POS_KEY = "v4_tra_last_station"   # 每班車最後經過的站 [站碼, 站名]（跟誤點同時抓、同樣 75 秒）
+POS_KEY = "v5_tra_last_station"   # 每班車最後經過的站 [站碼, 站名, 回報時間]（跟誤點同時抓、同樣 75 秒）
 TRAIN_NO_RE = re.compile(r"^\d{1,5}$")
 
 # 不在啟動時 ping：連線會在第一次下指令時才建立，省掉冷啟動多一趟來回
@@ -143,8 +142,8 @@ def train_type_style(raw_type):
 def build_train_detail(item, date_str, delay, last_pos, now_aware):
     """單一班次：整理停靠站清單。
     位置只用 TDX 給的資料，不自己推算：
-      last_pos = [站碼, 站名, 車站狀態]；車站狀態來自 TrainLiveBoard（0 進站中、1 在站上、2 已離站），
-      從 LiveTrainDelay 來的沒有狀態（None），只能說「最後經過」。
+      last_pos = [站碼, 站名, 車站狀態]；車站狀態 0 進站中、1 在站上、2 已離站，None 只能說「最後經過」。
+      目前 handle_train 固定給 2（TDX 回報的都是離站事件）。
     已經過的站顯示原定時間；還沒到的站顯示原定時間加上目前誤點（預估）。"""
     info = item.get('TrainInfo', {})
     stop_times = item.get('StopTimes', [])
@@ -321,33 +320,14 @@ class handler(BaseHTTPRequestHandler):
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             redis_set(DELAY_KEY, json.dumps(new_delays), 75)
-            last_pos = {t.get('TrainNo'): [str(t.get('StationID') or ''), _text(t.get('StationName'))]
+            last_pos = {t.get('TrainNo'): [str(t.get('StationID') or ''), _text(t.get('StationName')),
+                                           str(t.get('SrcUpdateTime') or '')]
                         for t in d_list if t.get('StationID') or t.get('StationName')}
             redis_set(POS_KEY, json.dumps(last_pos), 75)
             self.last_pos = last_pos
             return (new_delays, status_str)
         else:
             raise Exception(f"Delay Error: {res.status_code}")
-
-    def get_liveboard(self, cached_raw, get_headers):
-        """TrainLiveBoard：每班車目前所在的站、車站狀態、誤點。回傳 {車次: [站碼, 站名, 狀態, 誤點]}。"""
-        if cached_raw:
-            try:
-                return json.loads(cached_raw)
-            except Exception:
-                pass
-        res = tdx_get(f"{API_BASE_V3}/TrainLiveBoard", get_headers())
-        if res.status_code == 429:
-            raise TdxBusy()
-        if res.status_code != 200:
-            raise Exception(f"LiveBoard Error: {res.status_code}")
-        d = res.json()
-        lst = d.get('TrainLiveBoards', []) if isinstance(d, dict) else d
-        board = {str(t.get('TrainNo')): [str(t.get('StationID') or ''), _text(t.get('StationName')),
-                                         t.get('TrainStationStatus'), t.get('DelayTime', 0), t.get('UpdateTime') or '']
-                 for t in lst if t.get('TrainNo')}
-        redis_set(LIVE_KEY, json.dumps(board, ensure_ascii=False), 75)
-        return board
 
     def fetch_alert_raw(self, get_headers):
         """先試 v3，再試 v2。回傳 (原始 JSON, 用到的版本)。"""
@@ -428,7 +408,7 @@ class handler(BaseHTTPRequestHandler):
         now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
         today_str = now_aware.strftime('%Y-%m-%d')
 
-        keys = [TOKEN_KEY, LIVE_KEY, DELAY_KEY, POS_KEY, train_key(no)]
+        keys = [TOKEN_KEY, DELAY_KEY, POS_KEY, train_key(no)]
         cached, query_count = redis_mget_and_count(keys, f"rl:query:{self.client_ip()}", QUERY_RATE_WINDOW)
         if query_count > QUERY_RATE_MAX:
             return self.send_json(429, {"error": "Too Many Requests"})
@@ -450,25 +430,22 @@ class handler(BaseHTTPRequestHandler):
                 if first >= "12:00":
                     date_str = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
 
-            # 位置和誤點優先用 TrainLiveBoard（有「在站上／已離站」狀態）；抓不到才退回 LiveTrainDelay
+            # 位置和誤點跟主畫面共用 LiveTrainDelay 的快取，不多花 TDX 次數。
+            # TrainLiveBoard 實測（2026-10-28）站、誤點、時間都跟它一樣，車站狀態永遠是 2（已離站），所以不另外抓。
             delay, pos, running, delay_failed, data_time = 0, None, False, False, None
             try:
-                board = self.get_liveboard(cached.get(LIVE_KEY), get_headers)
-                if no in board:
-                    sid, sname, status, d = board[no][:4]
-                    upd = board[no][4] if len(board[no]) > 4 else ''
+                self.last_pos = {}
+                use_cache = cached.get(DELAY_KEY) if POS_KEY in cached else None
+                delays, _ = self.get_delays(use_cache, get_headers)
+                last_pos = json.loads(cached[POS_KEY]) if use_cache else self.last_pos
+                delay, running = int(delays.get(no, 0) or 0), no in delays
+                p = last_pos.get(no)
+                if p:
+                    upd = p[2] if len(p) > 2 else ''
                     data_time = upd[11:16] if len(upd) >= 16 else None   # TDX 這筆資料的時間（HH:MM）
-                    delay, pos, running = int(d or 0), [sid, sname, status], True
+                    pos = [p[0], p[1], 2]
             except Exception:
-                try:
-                    self.last_pos = {}
-                    use_cache = cached.get(DELAY_KEY) if POS_KEY in cached else None
-                    delays, _ = self.get_delays(use_cache, get_headers)
-                    last_pos = json.loads(cached[POS_KEY]) if use_cache else self.last_pos
-                    delay, running = int(delays.get(no, 0) or 0), no in delays
-                    pos = last_pos.get(no)
-                except Exception:
-                    delay_failed = True
+                delay_failed = True
 
             out = {"update_time": now_aware.strftime("%H:%M:%S"), "delay_failed": delay_failed, "train": None}
             if item:

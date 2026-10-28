@@ -1924,7 +1924,7 @@ ${logs}`;
             searchTrain(true);
         }
         // 車次頁面開著、畫面在前景時每 60 秒自動更新一次。
-        // 後端把 TrainLiveBoard 共用快取 75 秒，自動更新不會多打 TDX；TDX 本身約 1 分鐘更新一次，再快也沒用。
+        // 後端把誤點／位置共用快取 75 秒，自動更新不會多打 TDX；TDX 本身約 1 分鐘更新一次，再快也沒用。
         const TRAIN_AUTO_MS = 60000;
         let trainAutoTimer = null;
         function trainPageOpen() {
@@ -1978,7 +1978,7 @@ ${logs}`;
             const t = data.train;
             if (!t) { box.innerHTML = '<div class="tn-msg">今天沒有這班車</div>'; return; }
             const late = t.delay > 0;
-            // 位置文字：TrainLiveBoard 有車站狀態（0 進站中、1 在站上、2 已離站）；沒有狀態只能說「最後經過」
+            // 位置文字：後端目前固定給狀態 2（已離站，TDX 實測都是 2）；沒有狀態只能說「最後經過」
             const L = t.last, st = L ? L.status : null;
             let pos;
             if (data.delay_failed) pos = '誤點資料暫時抓不到';
