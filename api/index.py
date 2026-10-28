@@ -182,6 +182,28 @@ def route_key(start_id, end_id, date_str):
     return f"v3_route_{start_id}_{end_id}_{date_str}"
 
 
+def train_timetable_urls(no, date_str, is_today):
+    """查單一車次時刻表的候選端點（依序試）。前面的寫法回 404 已確認不存在，所以不再列。
+    整天時刻表最大（要自己挑車次），放最後。"""
+    urls = []
+    if is_today:
+        urls.append(f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}")
+    urls.append(f"{API_BASE_V3}/GeneralTrainTimetable/TrainNo/{no}")
+    urls.append(f"{API_BASE_V3}/DailyTrainTimetable/TrainDate/{date_str}")
+    return urls
+
+
+def pick_train(data, no):
+    """從 TDX 回傳資料挑出指定車次那一筆；沒有就回 None。"""
+    lst = data.get('TrainTimetables', []) if isinstance(data, dict) else data
+    if not isinstance(lst, list):
+        return None
+    for it in lst:
+        if str(it.get('TrainInfo', {}).get('TrainNo')) == str(no):
+            return it
+    return None
+
+
 def train_key(no, date_str):
     return f"v4_train_{no}_{date_str}"   # v3 時期的「沒有這班車」錯誤快取不要沿用
 
@@ -324,30 +346,29 @@ class handler(BaseHTTPRequestHandler):
         else:
             raise Exception(f"Timetable Error: {res.status_code}")
 
-    def get_train_timetable(self, no, date_str, cached_raw, get_headers):
-        """單一車次當天的時刻表（含所有停靠站）。回傳 TrainTimetables 的第一筆，沒有這班車就回 None。
-        端點名稱沒用真實資料確認過，所以依序試幾個；全部失敗要丟錯誤（不能當成「沒有這班車」，也不快取）。"""
+    def get_train_timetable(self, no, date_str, cached_raw, get_headers, is_today=True):
+        """單一車次當天的時刻表（含所有停靠站）。回傳那一班的資料，沒有這班車就回 None。
+        依序試幾個端點；全部失敗要丟錯誤（不能當成「沒有這班車」，也不快取）。"""
         if cached_raw is not None:
             try:
                 return json.loads(cached_raw)
             except Exception:
                 pass
-        urls = [
-            f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/TrainDate/{date_str}",
-            f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/{date_str}",
-            f"{API_BASE_V2}/DailyTimetable/TrainNo/{no}/{date_str}",
-        ]
-        errors = []
-        for url in urls:
+        errors, day_list_ok = [], False
+        for url in train_timetable_urls(no, date_str, is_today):
             res = tdx_get(url, get_headers())
             if res.status_code != 200:
                 errors.append(f"{res.status_code} {url.split('/Rail/TRA/')[-1]}")
                 continue
-            data = res.json()
-            lst = data.get('TrainTimetables', []) if isinstance(data, dict) else data
-            item = lst[0] if isinstance(lst, list) and lst else None
-            redis_set(train_key(no, date_str), json.dumps(item), ROUTE_CACHE_TTL if item else 300)
-            return item
+            item = pick_train(res.json(), no)
+            if item is not None:
+                redis_set(train_key(no, date_str), json.dumps(item), ROUTE_CACHE_TTL)
+                return item
+            errors.append(f"empty {url.split('/Rail/TRA/')[-1]}")
+            day_list_ok = "/TrainDate/" in url   # 整天時刻表有回來但沒這班 = 確定今天沒有
+        if day_list_ok:
+            redis_set(train_key(no, date_str), "null", 300)
+            return None
         raise Exception("Train Timetable Error: " + "; ".join(errors))
 
     def handle_train(self, no):
@@ -376,7 +397,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             item, date_str = None, dates[-1]
             for d in dates:
-                item = self.get_train_timetable(no, d, cached.get(train_key(no, d)), get_headers)
+                item = self.get_train_timetable(no, d, cached.get(train_key(no, d)), get_headers, is_today=(d == dates[-1]))
                 if item:
                     date_str = d
                     break
@@ -659,21 +680,21 @@ class handler(BaseHTTPRequestHandler):
         """檢查「查車次」用的端點：各回幾號、回傳資料長怎樣，以及誤點資料有沒有最後經過站。"""
         date_str = now_aware.strftime('%Y-%m-%d')
         probes = []
-        for url in (f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/TrainDate/{date_str}",
-                    f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/{date_str}",
-                    f"{API_BASE_V2}/DailyTimetable/TrainNo/{no}/{date_str}",
-                    f"{API_BASE_V2}/LiveTrainDelay"):
-            time.sleep(0.5)
+        for url in train_timetable_urls(no, date_str, True) + [f"{API_BASE_V2}/LiveTrainDelay"]:
+            time.sleep(1.2)   # 免費帳號有頻率上限，慢一點避免檢查工具自己撞 429
             row = {"url": url.split('/Rail/TRA/')[-1]}
             try:
                 res = tdx_get(url, get_headers())
                 row["status"] = res.status_code
                 if res.status_code == 200:
                     d = res.json()
-                    lst = d.get('TrainTimetables') or d.get('LiveTrainDelay') if isinstance(d, dict) else d
+                    lst = (d.get('TrainTimetables') or d.get('LiveTrainDelay') or []) if isinstance(d, dict) else d
                     row["top_keys"] = sorted(d.keys()) if isinstance(d, dict) else "list"
+                    row["count"] = len(lst) if isinstance(lst, list) else None
                     if isinstance(lst, list) and lst:
                         row["sample_keys"] = sorted(lst[0].keys())
+                        if "LiveTrainDelay" in url:
+                            row["sample"] = lst[0]
             except Exception as e:
                 row["error"] = str(e)
             probes.append(row)

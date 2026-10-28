@@ -222,17 +222,28 @@ class TrainTimetableFetchTests(unittest.TestCase):
 
     def test_falls_back_to_next_endpoint(self):
         item = detail_item()
-        got, calls = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [item]}) if "/v2/" in u else self.Res(404))
+        item["TrainInfo"]["TrainNo"] = "123"
+        got, calls = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [item]}) if "General" in u else self.Res(404))
         self.assertEqual(got, item)
-        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(calls), 2)
 
-    def test_empty_result_means_no_such_train(self):
+    def test_picks_the_right_train_from_day_list(self):
+        a, b = detail_item(), detail_item()
+        a["TrainInfo"]["TrainNo"], b["TrainInfo"]["TrainNo"] = "999", "123"
+        got, _ = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [a, b]}) if "TrainDate" in u else self.Res(404))
+        self.assertEqual(got["TrainInfo"]["TrainNo"], "123")
+
+    def test_day_list_without_train_means_no_such_train(self):
         got, _ = self.fetch(lambda u: self.Res(200, {"TrainTimetables": []}))
         self.assertIsNone(got)
 
     def test_all_failing_is_an_error_not_no_such_train(self):
         with self.assertRaises(Exception):
             self.fetch(lambda u: self.Res(404))
+
+    def test_urls_skip_today_only_endpoint_for_other_days(self):
+        self.assertEqual(len(index.train_timetable_urls("1", "2026-10-27", False)), 2)
+        self.assertEqual(len(index.train_timetable_urls("1", "2026-10-28", True)), 3)
 
 
 if __name__ == '__main__':
