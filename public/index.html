@@ -151,6 +151,7 @@
         .row { position: relative; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; padding: 20px 0 20px 16px; border-bottom: 1px solid var(--line); }
         .row::before { content: ""; position: absolute; left: 0; top: 20px; bottom: 20px; width: 3px; border-radius: 2px; background: var(--tc); }
         .row.departed::before { background: #444; }
+        .row { cursor: pointer; }
         .row:active { background: #0b0b0c; }
         .r-time { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .r-dep { font-size: 33px; font-weight: 600; letter-spacing: -.01em; line-height: 1.1; display: flex; align-items: baseline; }
@@ -1558,14 +1559,13 @@ ${logs}`;
                 const led = isArriving ? '<div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>' : '';
                 const typeColor = t.color && t.color.toLowerCase() !== '#ffffff' ? t.color : '#ddd';
                 const side = isDeparted ? '已發車' : (isLate ? `晚 ${t.delay} 分<span class="o">原定 ${formatTime(t.sch_dep)}</span>` : '');
-                const url = `https://railway.chienwen.net/taiwan/train/TRA-${encodeURIComponent(t.no)}/live`;
 
-                html += `<a class="${cls.join(' ')}" style="--tc:${typeColor}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="markRowTapped()">
+                html += `<div class="${cls.join(' ')}" style="--tc:${typeColor}" role="button" data-no="${escHtml(t.no)}" ${activeId} onclick="markRowTapped(); openTrainDetail(this.dataset.no)">
                     ${led}
                     <div class="r-time"><span class="r-dep">${formatTime(t.act_dep)}</span><span class="r-arr">${formatTime(t.act_arr)}</span></div>
                     <div class="r-meta"><span class="r-type" style="color:${typeColor}">${t.type}</span><span>${t.no}</span></div>
                     <div class="r-side">${side}</div>
-                </a>`;
+                </div>`;
                 shown++;
             });
 
@@ -1855,7 +1855,7 @@ ${logs}`;
                      { type: '區間車', color: '#0076B2', no: '3175', dep: '16:08', arr: '16:58', late: 5, orig: '16:03' }],
               text: '<span class="late">黃色</span>是誤點的車，顯示的時間<b>已經加上誤點</b>。' },
             { demo: [{ type: '區間快', color: '#0076B2', no: '3179', dep: '16:12', arr: '17:02', led: true, tap: true }],
-              text: '<b>綠燈閃爍</b>代表 10 分鐘內發車。<b>點班次</b>可以看列車現在在哪。' }
+              text: '<b>綠燈閃爍</b>代表 10 分鐘內發車。<b>點班次</b>可以看停靠站和最後經過的站。' }
         ];
 
         function startCoach(key) {
@@ -1903,10 +1903,17 @@ ${logs}`;
             btn.textContent = left > 0 ? left + '' : (no && no === trainLastNo ? '更新' : '查詢');
             btn.disabled = !no || left > 0;
         }
-        async function searchTrain() {
+        function openTrainDetail(no) {
+            // 從班次列表點進來：直接開啟並查詢，不受按鈕冷卻限制（後端另有每分鐘上限）
+            document.getElementById('trainNo').value = no;
+            document.getElementById('trainResult').innerHTML = '';
+            openSheet('Train');
+            searchTrain(true);
+        }
+        async function searchTrain(force) {
             const no = document.getElementById('trainNo').value;
             const box = document.getElementById('trainResult');
-            if (!no || Date.now() < trainCooldown) return;
+            if (!no || (force !== true && Date.now() < trainCooldown)) return;
             trainCooldown = Date.now() + 10000;
             const timer = setInterval(() => { updateTrainBtn(); if (Date.now() >= trainCooldown) clearInterval(timer); }, 500);
             updateTrainBtn();
