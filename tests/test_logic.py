@@ -222,6 +222,16 @@ class TrainDetailTests(unittest.TestCase):
         self.assertTrue(d["last"]["via"])
         self.assertFalse(any(s["passed"] for s in d["stops"]))
 
+    def test_non_stop_station_placed_by_report_time(self):
+        # 23:50 經過不停靠站、誤點 3 分：板橋（23:45+3）已開過，新竹還沒到 → 標在板橋～新竹之間
+        d = index.build_train_detail(detail_item(), "2026-10-28", 3, ["5000", "九曲堂", 2], NOW,
+                                     "2026-10-28T23:50:00+08:00")
+        self.assertEqual(d["last"]["idx"], 1)
+        self.assertEqual(d["last"]["next"], "新竹")
+        self.assertEqual(d["last"]["via_name"], "九曲堂")
+        self.assertEqual([s["passed"] for s in d["stops"]], [True, True, False])
+        self.assertEqual(d["stops"][2]["est"], "00:23")
+
     def test_ended(self):
         d = index.build_train_detail(detail_item(), "2026-10-28", 0, "1210", NOW)
         self.assertTrue(d["last"]["ended"])

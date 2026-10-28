@@ -139,11 +139,12 @@ def train_type_style(raw_type):
     return raw_type, "#ffffff"
 
 
-def build_train_detail(item, date_str, delay, last_pos, now_aware):
+def build_train_detail(item, date_str, delay, last_pos, now_aware, report_iso=None):
     """單一班次：整理停靠站清單。
     位置只用 TDX 給的資料，不自己推算：
       last_pos = [站碼, 站名, 車站狀態]；車站狀態 0 進站中、1 在站上、2 已離站，None 只能說「最後經過」。
       目前 handle_train 固定給 2（TDX 回報的都是離站事件）。
+      回報的是不停靠的站時，用回報時間（report_iso）對照時刻表＋誤點，找出車在哪兩個停靠站之間。
     已經過的站顯示原定時間；還沒到的站顯示原定時間加上目前誤點（預估）。"""
     info = item.get('TrainInfo', {})
     stop_times = item.get('StopTimes', [])
@@ -157,18 +158,37 @@ def build_train_detail(item, date_str, delay, last_pos, now_aware):
            (last_name and norm_station(_text(st.get('StationName'))) == norm_station(last_name)):
             last_idx = i
 
-    stops = []
+    # 先算每站原定時間（過午夜日期往後一天）
     base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=TW_TZ)
     prev_min = -1
-    for i, st in enumerate(stop_times):
+    schs = []
+    for st in stop_times:
         t = st.get('DepartureTime') or st.get('ArrivalTime')
         if not t:
+            schs.append(None)
             continue
         h, m = int(t[:2]), int(t[3:5])
-        if h * 60 + m < prev_min:   # 過午夜：日期往後一天
+        if h * 60 + m < prev_min:
             base += timedelta(days=1)
         prev_min = h * 60 + m
-        sch = base.replace(hour=h, minute=m)
+        schs.append(base.replace(hour=h, minute=m))
+
+    via = False
+    if last_idx is None and last_name and report_iso:
+        # 經過不停靠的站：回報時間之前（原定＋誤點）已經開過的最後一個停靠站，就是車所在區間的起點
+        try:
+            rep = datetime.fromisoformat(report_iso)
+            done = [i for i, sch in enumerate(schs) if sch and sch + timedelta(minutes=delay or 0) <= rep]
+            if done and done[-1] < len(stop_times) - 1:
+                last_idx, via = done[-1], True
+        except ValueError:
+            pass
+
+    stops = []
+    for i, st in enumerate(stop_times):
+        sch = schs[i]
+        if not sch:
+            continue
         # 進站中：那一站還沒到；在站上／已離站／最後經過：那一站算已經到過
         passed = last_idx is not None and (i < last_idx if status == 0 else i <= last_idx)
         stops.append({
@@ -181,9 +201,13 @@ def build_train_detail(item, date_str, delay, last_pos, now_aware):
 
     last = None
     if last_idx is None and last_name:
-        # 回報的是不停靠的站（例如自強號經過九曲堂）：列表上沒有這站，只用文字說「經過 X」，不標位置
+        # 回報的是不停靠的站，又對不上時刻表：只用文字說「經過 X」，不標位置
         last = {"name": last_name, "idx": None, "status": status, "next": None, "ended": False, "via": True}
-    if last_idx is not None:
+    elif via:
+        # 經過不停靠的站：標在前後兩個停靠站之間
+        last = {"name": _text(stop_times[last_idx].get('StationName')), "idx": last_idx, "status": 2,
+                "next": _text(stop_times[last_idx + 1].get('StationName')), "ended": False, "via_name": last_name}
+    if last_idx is not None and not via:
         is_final = last_idx == len(stop_times) - 1
         last = {
             "name": _text(stop_times[last_idx].get('StationName')),
@@ -432,7 +456,7 @@ class handler(BaseHTTPRequestHandler):
 
             # 位置和誤點跟主畫面共用 LiveTrainDelay 的快取，不多花 TDX 次數。
             # TrainLiveBoard 實測（2026-10-28）站、誤點、時間都跟它一樣，車站狀態永遠是 2（已離站），所以不另外抓。
-            delay, pos, running, delay_failed, data_time = 0, None, False, False, None
+            delay, pos, running, delay_failed, data_time, report_iso = 0, None, False, False, None, None
             try:
                 self.last_pos = {}
                 use_cache = cached.get(DELAY_KEY) if POS_KEY in cached else None
@@ -442,6 +466,7 @@ class handler(BaseHTTPRequestHandler):
                 p = last_pos.get(no)
                 if p:
                     upd = p[2] if len(p) > 2 else ''
+                    report_iso = upd or None
                     data_time = upd[11:16] if len(upd) >= 16 else None   # TDX 這筆資料的時間（HH:MM）
                     pos = [p[0], p[1], 2]
             except Exception:
@@ -449,7 +474,7 @@ class handler(BaseHTTPRequestHandler):
 
             out = {"update_time": now_aware.strftime("%H:%M:%S"), "delay_failed": delay_failed, "train": None}
             if item:
-                out["train"] = build_train_detail(item, date_str, delay, pos, now_aware)
+                out["train"] = build_train_detail(item, date_str, delay, pos, now_aware, report_iso)
                 out["train"]["running"] = running
                 out["train"]["data_time"] = data_time
             self.send_response(200)
