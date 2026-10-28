@@ -2009,7 +2009,7 @@ ${logs}`;
                     <div class="r-time"><span class="r-dep">${escHtml(t.no)}</span></div>
                     <div class="r-side">${late ? '晚 ' + t.delay + ' 分' : ''}</div>
                 </div>
-                <div class="tn-pos">${pos} · ${t.data_time ? escHtml(t.data_time) + ' 的資料' : escHtml(data.update_time) + ' 更新'}</div>
+                <div class="tn-pos">${pos} · ${t.data_time ? escHtml(t.data_time) + ' ' + ({0: '回報', 1: '到站', 2: '離站'}[st] || '回報') : escHtml(data.update_time) + ' 更新'}</div>
                 ${html}
                 <div class="tn-note">${late ? '還沒到的站是預估時間，誤點會隨時變動。' : ''}開著時每分鐘自動更新</div>`;
         }
