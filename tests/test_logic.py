@@ -200,5 +200,40 @@ class TrainDetailTests(unittest.TestCase):
             self.assertFalse(index.TRAIN_NO_RE.match(bad), bad)
 
 
+class TrainTimetableFetchTests(unittest.TestCase):
+    class Res:
+        def __init__(self, code, data=None):
+            self.status_code, self._d, self.headers = code, data, {}
+        def json(self):
+            return self._d
+
+    def fetch(self, responses):
+        calls = []
+        def fake(url, headers):
+            calls.append(url)
+            return responses(url)
+        orig, orig_set = index.tdx_get, index.redis_set
+        index.tdx_get, index.redis_set = fake, lambda *a, **k: None
+        try:
+            ctx = types.SimpleNamespace()
+            return index.handler.get_train_timetable(ctx, "123", "2026-10-28", None, lambda: {}), calls
+        finally:
+            index.tdx_get, index.redis_set = orig, orig_set
+
+    def test_falls_back_to_next_endpoint(self):
+        item = detail_item()
+        got, calls = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [item]}) if "/v2/" in u else self.Res(404))
+        self.assertEqual(got, item)
+        self.assertEqual(len(calls), 3)
+
+    def test_empty_result_means_no_such_train(self):
+        got, _ = self.fetch(lambda u: self.Res(200, {"TrainTimetables": []}))
+        self.assertIsNone(got)
+
+    def test_all_failing_is_an_error_not_no_such_train(self):
+        with self.assertRaises(Exception):
+            self.fetch(lambda u: self.Res(404))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -183,7 +183,7 @@ def route_key(start_id, end_id, date_str):
 
 
 def train_key(no, date_str):
-    return f"v3_train_{no}_{date_str}"
+    return f"v4_train_{no}_{date_str}"   # v3 時期的「沒有這班車」錯誤快取不要沿用
 
 
 def tdx_get(url, headers):
@@ -325,22 +325,30 @@ class handler(BaseHTTPRequestHandler):
             raise Exception(f"Timetable Error: {res.status_code}")
 
     def get_train_timetable(self, no, date_str, cached_raw, get_headers):
-        """單一車次當天的時刻表（含所有停靠站）。回傳 TrainTimetables 的第一筆，沒有就回 None。"""
+        """單一車次當天的時刻表（含所有停靠站）。回傳 TrainTimetables 的第一筆，沒有這班車就回 None。
+        端點名稱沒用真實資料確認過，所以依序試幾個；全部失敗要丟錯誤（不能當成「沒有這班車」，也不快取）。"""
         if cached_raw is not None:
             try:
                 return json.loads(cached_raw)
             except Exception:
                 pass
-        res = tdx_get(f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/{date_str}", get_headers())
-        if res.status_code == 404:
-            item = None
-        elif res.status_code == 200:
-            lst = res.json().get('TrainTimetables', [])
-            item = lst[0] if lst else None
-        else:
-            raise Exception(f"Train Timetable Error: {res.status_code}")
-        redis_set(train_key(no, date_str), json.dumps(item), ROUTE_CACHE_TTL)
-        return item
+        urls = [
+            f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/TrainDate/{date_str}",
+            f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/{date_str}",
+            f"{API_BASE_V2}/DailyTimetable/TrainNo/{no}/{date_str}",
+        ]
+        errors = []
+        for url in urls:
+            res = tdx_get(url, get_headers())
+            if res.status_code != 200:
+                errors.append(f"{res.status_code} {url.split('/Rail/TRA/')[-1]}")
+                continue
+            data = res.json()
+            lst = data.get('TrainTimetables', []) if isinstance(data, dict) else data
+            item = lst[0] if isinstance(lst, list) and lst else None
+            redis_set(train_key(no, date_str), json.dumps(item), ROUTE_CACHE_TTL if item else 300)
+            return item
+        raise Exception("Train Timetable Error: " + "; ".join(errors))
 
     def handle_train(self, no):
         """GET /api/index?train=123：單一車次的誤點、最後經過的站、停靠站。"""
@@ -641,9 +649,35 @@ class handler(BaseHTTPRequestHandler):
                 out["sample_train_info_keys"] = sorted(items[0].get('TrainInfo', {}).keys())
                 st = items[0].get('StopTimes') or [{}]
                 out["sample_stop_keys"] = sorted(st[0].keys())
+            if items:
+                self.probe_train_endpoints(out, items[0].get('TrainInfo', {}).get('TrainNo'), now_aware, get_headers)
         except Exception as e:
             out["timetable_error"] = str(e)
         return out
+
+    def probe_train_endpoints(self, out, no, now_aware, get_headers):
+        """檢查「查車次」用的端點：各回幾號、回傳資料長怎樣，以及誤點資料有沒有最後經過站。"""
+        date_str = now_aware.strftime('%Y-%m-%d')
+        probes = []
+        for url in (f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/TrainDate/{date_str}",
+                    f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}/{date_str}",
+                    f"{API_BASE_V2}/DailyTimetable/TrainNo/{no}/{date_str}",
+                    f"{API_BASE_V2}/LiveTrainDelay"):
+            time.sleep(0.5)
+            row = {"url": url.split('/Rail/TRA/')[-1]}
+            try:
+                res = tdx_get(url, get_headers())
+                row["status"] = res.status_code
+                if res.status_code == 200:
+                    d = res.json()
+                    lst = d.get('TrainTimetables') or d.get('LiveTrainDelay') if isinstance(d, dict) else d
+                    row["top_keys"] = sorted(d.keys()) if isinstance(d, dict) else "list"
+                    if isinstance(lst, list) and lst:
+                        row["sample_keys"] = sorted(lst[0].keys())
+            except Exception as e:
+                row["error"] = str(e)
+            probes.append(row)
+        out["train_probe"] = {"train_no": no, "endpoints": probes}
 
     def station_check(self):
         """開發者用：拿 TDX 官方車站資料，跟 stations.py 的站碼逐站比對。"""
