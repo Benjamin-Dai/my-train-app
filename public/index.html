@@ -273,6 +273,11 @@
         .tn-fold { display: flex; align-items: center; gap: 4px; width: 100%; padding: 12px 0 12px 16px; font-size: 13px; color: #b0b0b4; border-bottom: 1px solid var(--line); }
         .tn-fold svg { transition: transform .2s; }
         .tn-fold.open svg { transform: rotate(180deg); }
+        .tn-auto { display: none; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+        .tn-auto.on { display: flex; }
+        .tn-auto .bar { flex: 1; height: 2px; background: var(--line); overflow: hidden; }
+        .tn-auto .fill { height: 100%; width: 0; background: var(--accent); }
+        .tn-auto .s { flex: none; min-width: 64px; text-align: right; }
         .tn-msg { padding: 28px 0; color: var(--sub); font-size: 14px; }
         .tn-head { margin-top: 18px; }
         .tn-head.row { padding-top: 14px; padding-bottom: 14px; }
@@ -501,6 +506,7 @@
                     <input id="trainNo" class="field" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="車次" autocomplete="off" oninput="trainInputChanged()" onkeydown="if(event.key==='Enter')searchTrain()">
                     <button id="btnTrain" class="btn" onclick="searchTrain()">查詢</button>
                 </div>
+                <div id="trainAuto" class="tn-auto"><div class="bar"><div class="fill"></div></div><span class="s"></span></div>
                 <div id="trainResult"></div>
             </div>
         </div>
@@ -1663,6 +1669,7 @@ ${logs}`;
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
             if(id==='Report'){ uploadReport(); }
+            if(id==='Train' && trainAutoStale){ trainAutoStale = false; searchTrain(true, true); }
         }
 
         // [Advanced] 1:1 Interactive Swipe Gestures
@@ -1905,6 +1912,7 @@ ${logs}`;
         function trainInputChanged() {
             const el = document.getElementById('trainNo');
             el.value = el.value.replace(/\D/g, '').slice(0, 5);
+            document.getElementById('trainAuto').style.visibility = el.value === trainLastNo ? '' : 'hidden';
             updateTrainBtn();
         }
         function updateTrainBtn() {
@@ -1920,6 +1928,7 @@ ${logs}`;
             // 從班次列表點進來：直接開啟並查詢，不受按鈕冷卻限制（後端另有每分鐘上限）
             document.getElementById('trainNo').value = no;
             document.getElementById('trainResult').innerHTML = '';
+            trainAutoStale = false;
             openSheet('Train');
             searchTrain(true);
         }
@@ -1931,10 +1940,31 @@ ${logs}`;
             const pg = document.getElementById('pageTrain');
             return pg.classList.contains('active') && document.getElementById('aboutModal').style.display === 'flex';
         }
+        // 自動更新進度條：60 秒內慢慢填滿，旁邊寫剩幾秒
+        let trainNextAt = 0, trainAutoTick = null, trainAutoStale = false;
+        function showTrainAuto(state) {
+            const box = document.getElementById('trainAuto');
+            const fill = box.querySelector('.fill'), label = box.querySelector('.s');
+            clearInterval(trainAutoTick);
+            box.classList.toggle('on', state !== 'off');
+            box.style.visibility = '';
+            if (state === 'loading') {
+                fill.style.transition = 'none'; fill.style.width = '100%';
+                label.textContent = '更新中';
+            } else if (state === 'wait') {
+                fill.style.transition = 'none'; fill.style.width = '0';
+                void fill.offsetWidth;   // 先歸零再開始填
+                fill.style.transition = `width ${TRAIN_AUTO_MS}ms linear`; fill.style.width = '100%';
+                const tick = () => { label.textContent = Math.max(0, Math.ceil((trainNextAt - Date.now()) / 1000)) + ' 秒後更新'; };
+                tick(); trainAutoTick = setInterval(tick, 1000);
+            }
+        }
         function scheduleTrainAuto() {
             clearTimeout(trainAutoTimer);
+            trainNextAt = Date.now() + TRAIN_AUTO_MS;
+            showTrainAuto('wait');
             trainAutoTimer = setTimeout(() => {
-                if (!trainPageOpen() || !trainLastNo) return;            // 關掉就停
+                if (!trainPageOpen() || !trainLastNo) { trainAutoStale = !!trainLastNo; return; }   // 關掉就停，重新打開再補抓
                 if (document.visibilityState !== 'visible') return;       // 切到背景就停，回來再接上
                 if (document.getElementById('trainNo').value !== trainLastNo) { scheduleTrainAuto(); return; }
                 searchTrain(true, true);
@@ -1948,6 +1978,7 @@ ${logs}`;
             const box = document.getElementById('trainResult');
             if (!no || (force !== true && Date.now() < trainCooldown)) return;
             clearTimeout(trainAutoTimer);
+            if (trainLastNo === no) showTrainAuto('loading');
             if (!silent) {
                 trainCooldown = Date.now() + 10000;
                 const timer = setInterval(() => { updateTrainBtn(); if (Date.now() >= trainCooldown) clearInterval(timer); }, 500);
@@ -1970,7 +2001,7 @@ ${logs}`;
                 if (!silent) box.innerHTML = '<div class="tn-msg">查詢失敗，稍後再試</div>';
             }
             updateTrainBtn();
-            if (trainLastNo === no) scheduleTrainAuto();
+            if (trainLastNo === no) scheduleTrainAuto(); else showTrainAuto('off');
         }
         function renderTrain(data) {
             trainLastData = data;
@@ -2032,7 +2063,7 @@ ${logs}`;
                 <div class="tn-pos">${pos} · ${t.data_time ? escHtml(t.data_time) + ' ' + (L && L.via ? '回報' : ({0: '回報', 1: '到站', 2: '離站'}[st] || '回報')) : escHtml(data.update_time) + ' 更新'}</div>
                 ${guess}
                 ${html}
-                <div class="tn-note">${late ? '還沒到的站是預估時間，誤點會隨時變動。' : ''}開著時每分鐘自動更新</div>`;
+                ${late ? '<div class="tn-note">還沒到的站是預估時間，誤點會隨時變動。</div>' : ''}`;
         }
 
         function replayCoach() {
