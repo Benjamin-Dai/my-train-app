@@ -1983,6 +1983,7 @@ ${logs}`;
             let pos;
             if (data.delay_failed) pos = '誤點資料暫時抓不到';
             else if (!L) pos = t.running ? '還沒有位置資料' : '還沒有即時資料';
+            else if (L.via) pos = `經過 <b>${escHtml(L.name)}</b>（不停靠）`;
             else if (L.ended) pos = `已到終點 <b>${escHtml(L.name)}</b>`;
             else if (st === 1) pos = `目前在 <b>${escHtml(L.name)}</b>`;
             else if (st === 2 && L.next) pos = `<b>${escHtml(L.name)}～${escHtml(L.next)}</b> 之間`;
@@ -1991,7 +1992,7 @@ ${logs}`;
             const posPlain = pos.replace(/<[^>]+>/g, '');
             // TDX 只在經過有回報的車站時更新；超過下一站預估時間還沒新回報時，另外標一行「推算」
             let guess = '', guessIdx = -1;
-            if (L && !L.ended && !data.delay_failed) {
+            if (L && !L.ended && !L.via && !data.delay_failed) {
                 // 用台灣時間比（時刻表是台灣時間）
                 const tw = new Date(Date.now() + 8 * 3600000);
                 const nowMin = tw.getUTCHours() * 60 + tw.getUTCMinutes();
@@ -2003,10 +2004,10 @@ ${logs}`;
                 });
                 if (guessIdx >= 0) guess = `<div class="tn-guess">依時刻推算，可能已過 <b>${escHtml(t.stops[guessIdx].name)}</b></div>`;
             }
-            const lastPassed = L ? t.stops.map(s => s.passed).lastIndexOf(true) : -1;
+            const lastPassed = L && !L.via ? t.stops.map(s => s.passed).lastIndexOf(true) : -1;
             // 綠線插在哪：已離站 → 那站之後；進站中 → 下一個還沒到的站之前；在站上／最後經過 → 那站本身亮綠點
-            const hereAfter = L && !L.ended && (st === 2 || st === 0) ? lastPassed : null;
-            const dotIdx = L && hereAfter === null ? lastPassed : -1;
+            const hereAfter = L && !L.via && !L.ended && (st === 2 || st === 0) ? lastPassed : null;
+            const dotIdx = L && !L.via && hereAfter === null ? lastPassed : -1;
             let html = '';
             if (hereAfter === -1) html += `<div class="tn-here">${posPlain}</div>`;
             // 已經過的站太多時收起來，只留最後一站，不用一直往下滑
@@ -2028,7 +2029,7 @@ ${logs}`;
                     <div class="r-time"><span class="r-dep">${escHtml(t.no)}</span></div>
                     <div class="r-side">${late ? '晚 ' + t.delay + ' 分' : ''}</div>
                 </div>
-                <div class="tn-pos">${pos} · ${t.data_time ? escHtml(t.data_time) + ' ' + ({0: '回報', 1: '到站', 2: '離站'}[st] || '回報') : escHtml(data.update_time) + ' 更新'}</div>
+                <div class="tn-pos">${pos} · ${t.data_time ? escHtml(t.data_time) + ' ' + (L && L.via ? '回報' : ({0: '回報', 1: '到站', 2: '離站'}[st] || '回報')) : escHtml(data.update_time) + ' 更新'}</div>
                 ${guess}
                 ${html}
                 <div class="tn-note">${late ? '還沒到的站是預估時間，誤點會隨時變動。' : ''}開著時每分鐘自動更新</div>`;

@@ -181,6 +181,9 @@ def build_train_detail(item, date_str, delay, last_pos, now_aware):
         })
 
     last = None
+    if last_idx is None and last_name:
+        # 回報的是不停靠的站（例如自強號經過九曲堂）：列表上沒有這站，只用文字說「經過 X」，不標位置
+        last = {"name": last_name, "idx": None, "status": status, "next": None, "ended": False, "via": True}
     if last_idx is not None:
         is_final = last_idx == len(stop_times) - 1
         last = {

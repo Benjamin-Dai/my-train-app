@@ -215,6 +215,13 @@ class TrainDetailTests(unittest.TestCase):
         d = index.build_train_detail(detail_item(), "2026-10-28", 3, "9999", NOW)
         self.assertIsNone(d["last"])
 
+    def test_non_stop_station_reported_as_via(self):
+        # 自強號經過不停靠的九曲堂：只用文字，不標已經過哪些站
+        d = index.build_train_detail(detail_item(), "2026-10-28", 3, ["5000", "九曲堂", 2], NOW)
+        self.assertEqual(d["last"]["name"], "九曲堂")
+        self.assertTrue(d["last"]["via"])
+        self.assertFalse(any(s["passed"] for s in d["stops"]))
+
     def test_ended(self):
         d = index.build_train_detail(detail_item(), "2026-10-28", 0, "1210", NOW)
         self.assertTrue(d["last"]["ended"])
