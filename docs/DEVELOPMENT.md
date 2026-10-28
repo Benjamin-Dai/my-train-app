@@ -28,8 +28,6 @@
 | `public/fonts/` | Barlow Semi Condensed（只含英數符號，各約 36 KB） |
 | `vercel.json` | `/api/*` 轉到 `api/index.py`；`regions: ["hkg1"]` |
 
-`weather-icon/` 目前沒有被任何程式使用。
-
 ### 環境變數（Vercel → Settings → Environment Variables）
 
 | 名稱 | 用途 |
@@ -167,4 +165,4 @@ Vercel 預覽網址可能需要登入 Vercel 才看得到；要給朋友看的�
 - [ ] Redis 換成新加坡可再快約 50 ms（要刪掉重建，目前判斷不值得）
 - [ ] 刪掉 Vercel 環境變數 `ADMIN_USER`
 - [ ] 清理 GitHub 上已合併的分支（`design/cards-a`、`design/cards-b` 等；`design/font-test` 想留著比較字體可以不刪）
-- [ ] `weather-icon/` 沒在用，可以刪
+- [x] `weather-icon/` 沒在用，已刪除（原本是別的專案用的）
