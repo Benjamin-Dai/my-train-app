@@ -290,7 +290,11 @@
         .tn-stop.est .tn-t:not(.o) { color: var(--late); }
         .tn-here { position: relative; padding: 9px 0 9px 16px; font-size: 13px; color: var(--accent); border-bottom: 1px solid var(--line); }
         .tn-here::before { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--accent); }
-        .tn-guess { padding: 2px 0 0; font-size: 12px; color: var(--dim); }
+        .tn-guess { padding: 4px 0 2px; font-size: 13px; color: var(--accent); }
+        .tn-guess b { font-weight: 600; }
+        .tn-here.guess::before { background: none; border-left: 3px dashed var(--accent); width: 0; }
+        .tn-stop.guessed { color: #8a8a8e; }
+        .tn-stop.guessed::before { background: #6a6a6e; }
         .tn-note { padding: 14px 0 0; font-size: 12px; color: var(--dim); line-height: 1.7; }
         .hint-ok { color: var(--accent); font-size: 12px; text-align: center; margin-top: 8px; opacity: 0; transition: opacity 1s; }
         .section-label { font-size: 12px; color: var(--sub); letter-spacing: .1em; margin: 22px 0 8px; }
@@ -1986,21 +1990,19 @@ ${logs}`;
             else pos = `最後經過 <b>${escHtml(L.name)}</b>`;
             const posPlain = pos.replace(/<[^>]+>/g, '');
             // TDX 只在經過有回報的車站時更新；超過下一站預估時間還沒新回報時，另外標一行「推算」
-            let guess = '';
+            let guess = '', guessIdx = -1;
             if (L && !L.ended && !data.delay_failed) {
                 // 用台灣時間比（時刻表是台灣時間）
                 const tw = new Date(Date.now() + 8 * 3600000);
                 const nowMin = tw.getUTCHours() * 60 + tw.getUTCMinutes();
                 const toMin = hm => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
-                let passedName = '';
-                t.stops.forEach(s => {
+                t.stops.forEach((s, i) => {
                     if (s.passed) return;
                     const diff = nowMin - toMin(s.est || s.sch);
-                    if (diff >= 1 && diff < 12 * 60) passedName = s.name;   // 已超過預估時間
+                    if (diff >= 1 && diff < 12 * 60) guessIdx = i;   // 已超過預估時間
                 });
-                if (passedName) guess = `<div class="tn-guess">依時刻推算，可能已過 ${escHtml(passedName)}</div>`;
+                if (guessIdx >= 0) guess = `<div class="tn-guess">依時刻推算，可能已過 <b>${escHtml(t.stops[guessIdx].name)}</b></div>`;
             }
-
             const lastPassed = L ? t.stops.map(s => s.passed).lastIndexOf(true) : -1;
             // 綠線插在哪：已離站 → 那站之後；進站中 → 下一個還沒到的站之前；在站上／最後經過 → 那站本身亮綠點
             const hereAfter = L && !L.ended && (st === 2 || st === 0) ? lastPassed : null;
@@ -2013,11 +2015,12 @@ ${logs}`;
             if (foldCount >= 2) html += `<button class="tn-fold${trainShowPassed ? ' open' : ''}" onclick="trainShowPassed=!trainShowPassed;renderTrain(trainLastData)">${trainShowPassed ? '收起已經過的站' : `顯示 ${foldCount} 個已經過的站`}${CHEV}</button>`;
             t.stops.forEach((s, i) => {
                 if (foldCount >= 2 && !trainShowPassed && i < foldCount) return;
-                const cls = ['tn-stop', s.passed ? 'passed' : '', i === dotIdx ? 'last' : '', s.est ? 'est' : ''].filter(Boolean).join(' ');
+                const cls = ['tn-stop', s.passed ? 'passed' : '', !s.passed && i <= guessIdx ? 'guessed' : '', i === dotIdx ? 'last' : '', s.est ? 'est' : ''].filter(Boolean).join(' ');
                 const time = s.est ? `<span class="tn-t">${formatTime(s.est)}<span class="o">原定 ${formatTime(s.sch)}</span></span>`
                                    : `<span class="tn-t">${formatTime(s.sch)}</span>`;
                 html += `<div class="${cls}"><span>${escHtml(s.name)}</span>${time}</div>`;
                 if (i === hereAfter) html += `<div class="tn-here">${posPlain}</div>`;
+                if (i === guessIdx) html += `<div class="tn-here guess">推算：可能已過 ${escHtml(s.name)}</div>`;
             });
             box.innerHTML = `
                 <div class="row tn-head ${late ? 'late' : ''}" style="--tc:${escHtml(t.color)}">
