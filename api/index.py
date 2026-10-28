@@ -739,7 +739,7 @@ class handler(BaseHTTPRequestHandler):
     def probe_train_endpoints(self, out, no, now_aware, get_headers):
         """檢查「查車次」用的端點：各回幾號、回傳資料長怎樣，以及誤點資料有沒有最後經過站。"""
         date_str = now_aware.strftime('%Y-%m-%d')
-        probes = []
+        probes, lists = [], {}
         # 誤點資料放最前面（最需要看範例），整天時刻表已確認可用就不打了；間隔拉長避免 429
         for url in (f"{API_BASE_V2}/LiveTrainDelay", f"{API_BASE_V3}/TrainLiveBoard",
                     f"{API_BASE_V3}/GeneralTrainTimetable/TrainNo/{no}"):
@@ -753,6 +753,10 @@ class handler(BaseHTTPRequestHandler):
                     lst = (d.get('TrainTimetables') or d.get('LiveTrainDelay') or d.get('TrainLiveBoards') or []) if isinstance(d, dict) else d
                     row["top_keys"] = sorted(d.keys()) if isinstance(d, dict) else "list"
                     row["count"] = len(lst) if isinstance(lst, list) else None
+                    if "Live" in url and isinstance(lst, list):
+                        lists["board" if "TrainLiveBoard" in url else "delay"] = lst
+                    if isinstance(d, dict) and d.get('SrcUpdateTime'):
+                        row["feed_src_time"] = d.get('SrcUpdateTime')
                     if isinstance(lst, list) and lst:
                         row["sample_keys"] = sorted(lst[0].keys())
                         if "Live" in url:
@@ -769,6 +773,30 @@ class handler(BaseHTTPRequestHandler):
                 row["error"] = str(e)
             probes.append(row)
         out["train_probe"] = {"train_no": no, "endpoints": probes}
+        if lists.get("delay") and lists.get("board"):
+            out["live_compare"] = self.compare_live(lists["delay"], lists["board"])
+
+    @staticmethod
+    def compare_live(delay_list, board_list):
+        """同一批車並排比較 LiveTrainDelay 和 TrainLiveBoard：站、誤點、時間，看哪份比較即時。"""
+        hm = lambda v: str(v or '')[11:19]
+        d = {str(t.get('TrainNo')): t for t in delay_list}
+        b = {str(t.get('TrainNo')): t for t in board_list}
+        common = sorted(set(d) & set(b))
+        same, diff, board_newer, delay_newer = 0, [], 0, 0
+        for no in common:
+            x, y = d[no], b[no]
+            if str(x.get('StationID')) == str(y.get('StationID')) and x.get('DelayTime') == y.get('DelayTime'):
+                same += 1
+                continue
+            tx, ty = str(x.get('SrcUpdateTime') or ''), str(y.get('UpdateTime') or '')
+            if ty > tx: board_newer += 1
+            elif tx > ty: delay_newer += 1
+            diff.append(f"{no}｜誤點資料：{_text(x.get('StationName'))} 晚{x.get('DelayTime')} {hm(tx)}"
+                        f"｜即時位置：{_text(y.get('StationName'))} 狀態{y.get('TrainStationStatus')} 晚{y.get('DelayTime')} {hm(ty)}")
+        return {"common_trains": len(common), "only_in_delay": len(set(d) - set(b)), "only_in_board": len(set(b) - set(d)),
+                "same": same, "different": len(diff), "board_newer": board_newer, "delay_newer": delay_newer,
+                "different_examples": diff[:10]}
 
     def station_check(self):
         """開發者用：拿 TDX 官方車站資料，跟 stations.py 的站碼逐站比對。"""
