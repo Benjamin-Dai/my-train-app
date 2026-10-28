@@ -56,7 +56,7 @@ ALERT_FAIL_TTL = 120            # 抓不到時，2 分鐘內不再重試
 
 TOKEN_KEY = "tdx_token"
 DELAY_KEY = "v3_tra_delay_data"
-POS_KEY = "v3_tra_last_station"   # 每班車最後經過的站（跟誤點同時抓、同樣 75 秒）
+POS_KEY = "v4_tra_last_station"   # 每班車最後經過的站 [站碼, 站名]（跟誤點同時抓、同樣 75 秒）
 TRAIN_NO_RE = re.compile(r"^\d{1,5}$")
 
 # 不在啟動時 ping：連線會在第一次下指令時才建立，省掉冷啟動多一趟來回
@@ -139,14 +139,19 @@ def train_type_style(raw_type):
     return raw_type, "#ffffff"
 
 
-def build_train_detail(item, date_str, delay, last_id, now_aware):
+def build_train_detail(item, date_str, delay, last_pos, now_aware):
     """單一班次：整理停靠站清單。
     位置只用 TDX 給的「最後經過的站」，不推算在站上或兩站之間。
     已經過（含最後經過那站）的站顯示原定時間；還沒到的站顯示原定時間加上目前誤點（預估）。"""
     info = item.get('TrainInfo', {})
     stop_times = item.get('StopTimes', [])
     display_type, color = train_type_style(info.get('TrainTypeName', {}).get('Zh_tw', ''))
-    last_idx = next((i for i, st in enumerate(stop_times) if st.get('StationID') == last_id), None) if last_id else None
+    last_id, last_name = (list(last_pos) + [None, None])[:2] if isinstance(last_pos, (list, tuple)) else (last_pos, None)
+    last_idx = None
+    for i, st in enumerate(stop_times):
+        if (last_id and str(st.get('StationID')) == str(last_id)) or \
+           (last_name and norm_station(_text(st.get('StationName'))) == norm_station(last_name)):
+            last_idx = i
 
     stops = []
     base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=TW_TZ)
@@ -164,7 +169,8 @@ def build_train_detail(item, date_str, delay, last_id, now_aware):
         stops.append({
             "name": _text(st.get('StationName')),
             "sch": sch.strftime("%H:%M"),
-            "est": (sch + timedelta(minutes=delay)).strftime("%H:%M") if (delay and not passed) else None,
+            # 不知道車在哪時不顯示預估（分不出哪些站已經過了）
+            "est": (sch + timedelta(minutes=delay)).strftime("%H:%M") if (delay and last_idx is not None and not passed) else None,
             "passed": passed,
         })
 
@@ -182,15 +188,20 @@ def route_key(start_id, end_id, date_str):
     return f"v3_route_{start_id}_{end_id}_{date_str}"
 
 
-def train_timetable_urls(no, date_str, is_today):
-    """查單一車次時刻表的候選端點（依序試）。前面的寫法回 404 已確認不存在，所以不再列。
-    整天時刻表最大（要自己挑車次），放最後。"""
-    urls = []
-    if is_today:
-        urls.append(f"{API_BASE_V3}/DailyTrainTimetable/TrainNo/{no}")
-    urls.append(f"{API_BASE_V3}/GeneralTrainTimetable/TrainNo/{no}")
-    urls.append(f"{API_BASE_V3}/DailyTrainTimetable/TrainDate/{date_str}")
-    return urls
+def train_timetable_urls(no, date_str):
+    """查單一車次時刻表的端點（依序試）。2026/10/28 用後台確認：
+    GeneralTrainTimetable/TrainNo 可用；DailyTrainTimetable/TrainNo 系列都是 404。
+    通用時刻表沒有的（加班車等）才抓整天時刻表自己挑，資料量大，放最後。"""
+    return [f"{API_BASE_V3}/GeneralTrainTimetable/TrainNo/{no}",
+            f"{API_BASE_V3}/DailyTrainTimetable/TrainDate/{date_str}"]
+
+
+class TdxBusy(Exception):
+    """TDX 回 429（免費帳號頻率上限），重試後還是一樣。"""
+
+
+def norm_station(name):
+    return str(name or '').replace('台', '臺').strip()
 
 
 def pick_train(data, no):
@@ -204,8 +215,8 @@ def pick_train(data, no):
     return None
 
 
-def train_key(no, date_str):
-    return f"v4_train_{no}_{date_str}"   # v3 時期的「沒有這班車」錯誤快取不要沿用
+def train_key(no):
+    return f"v5_train_{no}"   # 通用時刻表不分日期；舊版的錯誤快取不要沿用
 
 
 def tdx_get(url, headers):
@@ -294,7 +305,8 @@ class handler(BaseHTTPRequestHandler):
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
             redis_set(DELAY_KEY, json.dumps(new_delays), 75)
-            last_pos = {t.get('TrainNo'): str(t.get('StationID', '')) for t in d_list if t.get('StationID')}
+            last_pos = {t.get('TrainNo'): [str(t.get('StationID') or ''), _text(t.get('StationName'))]
+                        for t in d_list if t.get('StationID') or t.get('StationName')}
             redis_set(POS_KEY, json.dumps(last_pos), 75)
             self.last_pos = last_pos
             return (new_delays, status_str)
@@ -346,28 +358,29 @@ class handler(BaseHTTPRequestHandler):
         else:
             raise Exception(f"Timetable Error: {res.status_code}")
 
-    def get_train_timetable(self, no, date_str, cached_raw, get_headers, is_today=True):
-        """單一車次當天的時刻表（含所有停靠站）。回傳那一班的資料，沒有這班車就回 None。
-        依序試幾個端點；全部失敗要丟錯誤（不能當成「沒有這班車」，也不快取）。"""
+    def get_train_timetable(self, no, date_str, cached_raw, get_headers):
+        """單一車次的時刻表（含所有停靠站）。回傳那一班的資料，沒有這班車就回 None。
+        429 就直接停（不要再打下一個端點讓情況更糟）；其他失敗也要丟錯誤，不能當成「沒有這班車」。"""
         if cached_raw is not None:
             try:
                 return json.loads(cached_raw)
             except Exception:
                 pass
         errors, day_list_ok = [], False
-        for url in train_timetable_urls(no, date_str, is_today):
+        for url in train_timetable_urls(no, date_str):
             res = tdx_get(url, get_headers())
+            if res.status_code == 429:
+                raise TdxBusy()
             if res.status_code != 200:
                 errors.append(f"{res.status_code} {url.split('/Rail/TRA/')[-1]}")
                 continue
             item = pick_train(res.json(), no)
             if item is not None:
-                redis_set(train_key(no, date_str), json.dumps(item), ROUTE_CACHE_TTL)
+                redis_set(train_key(no), json.dumps(item), ROUTE_CACHE_TTL)
                 return item
-            errors.append(f"empty {url.split('/Rail/TRA/')[-1]}")
             day_list_ok = "/TrainDate/" in url   # 整天時刻表有回來但沒這班 = 確定今天沒有
         if day_list_ok:
-            redis_set(train_key(no, date_str), "null", 300)
+            redis_set(train_key(no), "null", 300)
             return None
         raise Exception("Train Timetable Error: " + "; ".join(errors))
 
@@ -377,11 +390,9 @@ class handler(BaseHTTPRequestHandler):
         if not TRAIN_NO_RE.match(no): return self.send_json(400, {"error": "Bad Train No"})
 
         now_aware = datetime.now(timezone.utc).astimezone(TW_TZ)
-        dates = [now_aware.strftime('%Y-%m-%d')]
-        if now_aware.hour < 4:   # 凌晨還在跑的是前一天的班次
-            dates.insert(0, (now_aware - timedelta(days=1)).strftime('%Y-%m-%d'))
+        today_str = now_aware.strftime('%Y-%m-%d')
 
-        keys = [TOKEN_KEY, DELAY_KEY, POS_KEY] + [train_key(no, d) for d in dates]
+        keys = [TOKEN_KEY, DELAY_KEY, POS_KEY, train_key(no)]
         cached, query_count = redis_mget_and_count(keys, f"rl:query:{self.client_ip()}", QUERY_RATE_WINDOW)
         if query_count > QUERY_RATE_MAX:
             return self.send_json(429, {"error": "Too Many Requests"})
@@ -395,12 +406,13 @@ class handler(BaseHTTPRequestHandler):
             return {'authorization': f'Bearer {token_box["token"]}'}
 
         try:
-            item, date_str = None, dates[-1]
-            for d in dates:
-                item = self.get_train_timetable(no, d, cached.get(train_key(no, d)), get_headers, is_today=(d == dates[-1]))
-                if item:
-                    date_str = d
-                    break
+            item = self.get_train_timetable(no, today_str, cached.get(train_key(no)), get_headers)
+            date_str = today_str
+            if item and now_aware.hour < 4:
+                # 凌晨查到晚上發車的班次：是昨天開出、還在跑的那一班
+                first = next((st.get('DepartureTime') for st in item.get('StopTimes', []) if st.get('DepartureTime')), '')
+                if first >= "12:00":
+                    date_str = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
 
             delays, last_pos, delay_failed = {}, {}, False
             try:
@@ -423,6 +435,8 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
             self.end_headers()
             self.wfile.write(json.dumps(out, ensure_ascii=False).encode())
+        except TdxBusy:
+            self.send_json(503, {"error": "Busy"})
         except Exception as e:
             self.send_error_response(str(e))
 
@@ -680,20 +694,22 @@ class handler(BaseHTTPRequestHandler):
         """檢查「查車次」用的端點：各回幾號、回傳資料長怎樣，以及誤點資料有沒有最後經過站。"""
         date_str = now_aware.strftime('%Y-%m-%d')
         probes = []
-        for url in train_timetable_urls(no, date_str, True) + [f"{API_BASE_V2}/LiveTrainDelay"]:
-            time.sleep(1.2)   # 免費帳號有頻率上限，慢一點避免檢查工具自己撞 429
+        # 誤點資料放最前面（最需要看範例），整天時刻表已確認可用就不打了；間隔拉長避免 429
+        for url in (f"{API_BASE_V2}/LiveTrainDelay", f"{API_BASE_V3}/TrainLiveBoard",
+                    f"{API_BASE_V3}/GeneralTrainTimetable/TrainNo/{no}"):
+            time.sleep(2)
             row = {"url": url.split('/Rail/TRA/')[-1]}
             try:
                 res = tdx_get(url, get_headers())
                 row["status"] = res.status_code
                 if res.status_code == 200:
                     d = res.json()
-                    lst = (d.get('TrainTimetables') or d.get('LiveTrainDelay') or []) if isinstance(d, dict) else d
+                    lst = (d.get('TrainTimetables') or d.get('LiveTrainDelay') or d.get('TrainLiveBoards') or []) if isinstance(d, dict) else d
                     row["top_keys"] = sorted(d.keys()) if isinstance(d, dict) else "list"
                     row["count"] = len(lst) if isinstance(lst, list) else None
                     if isinstance(lst, list) and lst:
                         row["sample_keys"] = sorted(lst[0].keys())
-                        if "LiveTrainDelay" in url:
+                        if "Live" in url:
                             row["sample"] = lst[0]
             except Exception as e:
                 row["error"] = str(e)

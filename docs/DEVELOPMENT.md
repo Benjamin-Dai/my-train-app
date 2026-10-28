@@ -77,8 +77,11 @@
 - 位置**只用 TDX 給的「最後經過的站」**，不用時間推算「在站上／兩站之間」（誤點只在經過車站時更新，推算會誤導趕車的人）。
 - 還沒到的站顯示「原定時間＋目前誤點」，標明是預估。
 - 班次列表點卡片 → 直接開啟這個畫面並查詢（原本是跳到外部網站 railway.chienwen.net，已取代）。
-- `LiveTrainDelay` 同時存誤點（`DELAY_KEY`）和最後經過站（`POS_KEY`），都是 75 秒；單一車次時刻表（`DailyTrainTimetable/TrainNo/`）快取 2 小時。
-- **還沒驗證**：`LiveTrainDelay` 的 `StationID` 欄位、車次時刻表端點，需用實際資料確認。
+- `LiveTrainDelay` 同時存誤點（`DELAY_KEY`）和最後經過站（`POS_KEY`），都是 75 秒。
+- 車次時刻表用 `GeneralTrainTimetable/TrainNo/{車次}`（2026/10/28 確認可用；`DailyTrainTimetable/TrainNo/…` 系列都是 404），沒有才抓整天時刻表 `DailyTrainTimetable/TrainDate/{日期}` 自己挑。快取 2 小時。
+- TDX 回 429 就直接停、顯示「資料來源太忙」，不要再打下一個端點。
+- 不知道車在哪時，停靠站不顯示預估時間。
+- **還沒驗證**：`LiveTrainDelay` 最後經過站的欄位名稱（後台「檢查 TDX」的 `train_probe` 會列出範例）。
 
 ### 站碼
 - `stations.py` 曾經有兩段整段錯位（手打時漏站，後面全部差一號）：

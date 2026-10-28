@@ -1921,6 +1921,7 @@ ${logs}`;
             try {
                 const res = await fetch('/api/index?train=' + encodeURIComponent(no));
                 if (res.status === 429) { box.innerHTML = '<div class="tn-msg">查太多次了，稍後再試</div>'; return; }
+                if (res.status === 503) { box.innerHTML = '<div class="tn-msg">資料來源太忙，過一分鐘再試</div>'; return; }
                 const data = await res.json();
                 if (!res.ok || data.error) throw new Error(data.error || res.status);
                 trainLastNo = no;

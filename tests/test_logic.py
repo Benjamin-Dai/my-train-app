@@ -177,10 +177,19 @@ class TrainDetailTests(unittest.TestCase):
         self.assertEqual(d["stops"][2]["sch"], "00:20")
 
     def test_no_position_data(self):
-        d = index.build_train_detail(detail_item(), "2026-10-28", 0, None, NOW)
+        d = index.build_train_detail(detail_item(), "2026-10-28", 13, None, NOW)
         self.assertIsNone(d["last"])
         self.assertFalse(any(s["passed"] for s in d["stops"]))
+        # 不知道車在哪就不顯示預估時間（不然已經過的站也會被加上誤點）
         self.assertTrue(all(s["est"] is None for s in d["stops"]))
+
+    def test_position_as_id_and_name(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["1020", "板橋"], NOW)
+        self.assertEqual(d["last"]["name"], "板橋")
+
+    def test_position_matched_by_name_when_id_missing(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["", "台北"], NOW)
+        self.assertEqual(d["last"]["name"], "臺北")
 
     def test_unknown_last_station_is_not_guessed(self):
         d = index.build_train_detail(detail_item(), "2026-10-28", 3, "9999", NOW)
@@ -220,17 +229,17 @@ class TrainTimetableFetchTests(unittest.TestCase):
         finally:
             index.tdx_get, index.redis_set = orig, orig_set
 
-    def test_falls_back_to_next_endpoint(self):
+    def test_general_timetable_first(self):
         item = detail_item()
-        item["TrainInfo"]["TrainNo"] = "123"
-        got, calls = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [item]}) if "General" in u else self.Res(404))
+        got, calls = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [item]}))
         self.assertEqual(got, item)
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 1)
+        self.assertIn("GeneralTrainTimetable/TrainNo/123", calls[0])
 
     def test_picks_the_right_train_from_day_list(self):
         a, b = detail_item(), detail_item()
-        a["TrainInfo"]["TrainNo"], b["TrainInfo"]["TrainNo"] = "999", "123"
-        got, _ = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [a, b]}) if "TrainDate" in u else self.Res(404))
+        a["TrainInfo"]["TrainNo"] = "999"
+        got, _ = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [a, b]}) if "TrainDate" in u else self.Res(200, {"TrainTimetables": []}))
         self.assertEqual(got["TrainInfo"]["TrainNo"], "123")
 
     def test_day_list_without_train_means_no_such_train(self):
@@ -241,9 +250,14 @@ class TrainTimetableFetchTests(unittest.TestCase):
         with self.assertRaises(Exception):
             self.fetch(lambda u: self.Res(404))
 
-    def test_urls_skip_today_only_endpoint_for_other_days(self):
-        self.assertEqual(len(index.train_timetable_urls("1", "2026-10-27", False)), 2)
-        self.assertEqual(len(index.train_timetable_urls("1", "2026-10-28", True)), 3)
+    def test_rate_limited_stops_immediately(self):
+        calls = []
+        with self.assertRaises(index.TdxBusy):
+            def resp(u):
+                calls.append(u)
+                return self.Res(429)
+            self.fetch(resp)
+        self.assertEqual(len(calls), 1)
 
 
 if __name__ == '__main__':
