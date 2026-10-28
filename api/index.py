@@ -56,7 +56,7 @@ ALERT_FAIL_TTL = 120            # 抓不到時，2 分鐘內不再重試
 
 TOKEN_KEY = "tdx_token"
 DELAY_KEY = "v3_tra_delay_data"
-LIVE_KEY = "v1_tra_liveboard"     # 查車次用：TrainLiveBoard 整理成 {車次: [站碼, 站名, 車站狀態, 誤點]}，75 秒
+LIVE_KEY = "v2_tra_liveboard"     # 查車次用：TrainLiveBoard 整理成 {車次: [站碼, 站名, 車站狀態, 誤點, 資料時間]}，75 秒
 POS_KEY = "v4_tra_last_station"   # 每班車最後經過的站 [站碼, 站名]（跟誤點同時抓、同樣 75 秒）
 TRAIN_NO_RE = re.compile(r"^\d{1,5}$")
 
@@ -341,7 +341,7 @@ class handler(BaseHTTPRequestHandler):
         d = res.json()
         lst = d.get('TrainLiveBoards', []) if isinstance(d, dict) else d
         board = {str(t.get('TrainNo')): [str(t.get('StationID') or ''), _text(t.get('StationName')),
-                                         t.get('TrainStationStatus'), t.get('DelayTime', 0)]
+                                         t.get('TrainStationStatus'), t.get('DelayTime', 0), t.get('UpdateTime') or '']
                  for t in lst if t.get('TrainNo')}
         redis_set(LIVE_KEY, json.dumps(board, ensure_ascii=False), 75)
         return board
@@ -448,11 +448,13 @@ class handler(BaseHTTPRequestHandler):
                     date_str = (now_aware - timedelta(days=1)).strftime('%Y-%m-%d')
 
             # 位置和誤點優先用 TrainLiveBoard（有「在站上／已離站」狀態）；抓不到才退回 LiveTrainDelay
-            delay, pos, running, delay_failed = 0, None, False, False
+            delay, pos, running, delay_failed, data_time = 0, None, False, False, None
             try:
                 board = self.get_liveboard(cached.get(LIVE_KEY), get_headers)
                 if no in board:
-                    sid, sname, status, d = board[no]
+                    sid, sname, status, d = board[no][:4]
+                    upd = board[no][4] if len(board[no]) > 4 else ''
+                    data_time = upd[11:16] if len(upd) >= 16 else None   # TDX 這筆資料的時間（HH:MM）
                     delay, pos, running = int(d or 0), [sid, sname, status], True
             except Exception:
                 try:
@@ -469,10 +471,11 @@ class handler(BaseHTTPRequestHandler):
             if item:
                 out["train"] = build_train_detail(item, date_str, delay, pos, now_aware)
                 out["train"]["running"] = running
+                out["train"]["data_time"] = data_time
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
+            self.send_header('Cache-Control', 'public, max-age=15, s-maxage=15')   # 位置變化快，CDN 只留 15 秒
             self.end_headers()
             self.wfile.write(json.dumps(out, ensure_ascii=False).encode())
         except TdxBusy:

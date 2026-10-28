@@ -268,7 +268,11 @@
         /* 查車次 */
         .tn-row { display: flex; gap: 10px; align-items: flex-end; }
         .tn-row .field { font-size: 30px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
-        .tn-row .btn { width: 96px; flex: none; }
+        .tn-row .btn { width: 112px; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+        .tn-row .btn .cd { font-weight: 500; color: var(--dim); font-variant-numeric: tabular-nums; }
+        .tn-fold { display: flex; align-items: center; gap: 4px; width: 100%; padding: 12px 0 12px 16px; font-size: 13px; color: #b0b0b4; border-bottom: 1px solid var(--line); }
+        .tn-fold svg { transition: transform .2s; }
+        .tn-fold.open svg { transform: rotate(180deg); }
         .tn-msg { padding: 28px 0; color: var(--sub); font-size: 14px; }
         .tn-head { margin-top: 18px; }
         .tn-head.row { padding-top: 14px; padding-bottom: 14px; }
@@ -1891,7 +1895,7 @@ ${logs}`;
             setTimeout(() => { if (!coachKey && !modalOpen() && !coachSeen(LS_COACH_LIST)) startCoach(LS_COACH_LIST); }, 700);
         }
         // ---------- 查車次 ----------
-        let trainLastNo = '', trainCooldown = 0;
+        let trainLastNo = '', trainCooldown = 0, trainShowPassed = false, trainLastData = null;
         function escHtml(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         function trainInputChanged() {
             const el = document.getElementById('trainNo');
@@ -1902,7 +1906,9 @@ ${logs}`;
             const btn = document.getElementById('btnTrain');
             const no = document.getElementById('trainNo').value;
             const left = Math.ceil((trainCooldown - Date.now()) / 1000);
-            btn.textContent = left > 0 ? left + '' : (no && no === trainLastNo ? '更新' : '查詢');
+            const isUpdate = no && no === trainLastNo;
+            btn.innerHTML = isUpdate ? ICON_REFRESH + '更新' + (left > 0 ? ` <span class="cd">${left}</span>` : '')
+                                     : (left > 0 ? `查詢 <span class="cd">${left}</span>` : '查詢');
             btn.disabled = !no || left > 0;
         }
         function openTrainDetail(no) {
@@ -1926,14 +1932,16 @@ ${logs}`;
                 if (res.status === 503) { box.innerHTML = '<div class="tn-msg">資料來源太忙，過一分鐘再試</div>'; return; }
                 const data = await res.json();
                 if (!res.ok || data.error) throw new Error(data.error || res.status);
+                if (no !== trainLastNo) trainShowPassed = false;
                 trainLastNo = no;
-                renderTrain(data, no);
+                renderTrain(data);
             } catch (e) {
                 box.innerHTML = '<div class="tn-msg">查詢失敗，稍後再試</div>';
             }
             updateTrainBtn();
         }
-        function renderTrain(data, no) {
+        function renderTrain(data) {
+            trainLastData = data;
             const box = document.getElementById('trainResult');
             const t = data.train;
             if (!t) { box.innerHTML = '<div class="tn-msg">今天沒有這班車</div>'; return; }
@@ -1956,7 +1964,12 @@ ${logs}`;
             const dotIdx = L && hereAfter === null ? lastPassed : -1;
             let html = '';
             if (hereAfter === -1) html += `<div class="tn-here">${posPlain}</div>`;
+            // 已經過的站太多時收起來，只留最後一站，不用一直往下滑
+            const foldCount = Math.max(0, lastPassed);   // 0..lastPassed-1 收起
+            const CHEV = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5l3 3 3-3"/></svg>';
+            if (foldCount >= 2) html += `<button class="tn-fold${trainShowPassed ? ' open' : ''}" onclick="trainShowPassed=!trainShowPassed;renderTrain(trainLastData)">${trainShowPassed ? '收起已經過的站' : `顯示 ${foldCount} 個已經過的站`}${CHEV}</button>`;
             t.stops.forEach((s, i) => {
+                if (foldCount >= 2 && !trainShowPassed && i < foldCount) return;
                 const cls = ['tn-stop', s.passed ? 'passed' : '', i === dotIdx ? 'last' : '', s.est ? 'est' : ''].filter(Boolean).join(' ');
                 const time = s.est ? `<span class="tn-t">${formatTime(s.est)}<span class="o">原定 ${formatTime(s.sch)}</span></span>`
                                    : `<span class="tn-t">${formatTime(s.sch)}</span>`;
@@ -1969,7 +1982,7 @@ ${logs}`;
                     <div class="r-time"><span class="r-dep">${escHtml(t.no)}</span></div>
                     <div class="r-side">${late ? '晚 ' + t.delay + ' 分' : ''}</div>
                 </div>
-                <div class="tn-pos">${pos} · ${escHtml(data.update_time)} 更新</div>
+                <div class="tn-pos">${pos} · ${t.data_time ? escHtml(t.data_time) + ' 的資料' : escHtml(data.update_time) + ' 更新'}</div>
                 ${html}
                 <div class="tn-note">${late ? '還沒到的站是預估時間，誤點會隨時變動' : '誤點會隨時變動'}</div>`;
         }
