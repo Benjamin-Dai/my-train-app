@@ -1185,6 +1185,8 @@ document.addEventListener('touchend', (e) => {
 
 const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
 const MAX_HIST = 3; const MAX_FAV = 6;
+// 多存幾筆：顯示時會跳過已收藏的路線，才補得滿 3 格
+const HIST_KEEP = MAX_HIST + MAX_FAV;
 const btnStar = document.getElementById('btnStar');
 const quickArea = document.getElementById('quickRouteArea');
 
@@ -1206,7 +1208,7 @@ function addToHistory() {
     const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
     let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
     hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
-    hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop();
+    hist.unshift(cur); hist = hist.slice(0, HIST_KEEP);
     localStorage.setItem(LS_HIST, JSON.stringify(hist));
     renderQuickRoutes();
 }
@@ -1231,7 +1233,7 @@ function renderQuickRoutes() {
     const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
     const chip = (r, cls) => `<button class="chip ${cls}" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}–${r.end}</button>`;
     let html = favs.map(r => chip(r, 'fav')).join('');
-    hist.forEach(r => { if (!isFavorite(r.start, r.end)) html += chip(r, 'hist'); });
+    html += hist.filter(r => !isFavorite(r.start, r.end)).slice(0, MAX_HIST).map(r => chip(r, 'hist')).join('');
     quickArea.innerHTML = html;
 
     const elRow = document.getElementById('rowQuickRoute');
