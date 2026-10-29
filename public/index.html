@@ -151,6 +151,7 @@
         .row { position: relative; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; padding: 20px 0 20px 16px; border-bottom: 1px solid var(--line); }
         .row::before { content: ""; position: absolute; left: 0; top: 20px; bottom: 20px; width: 3px; border-radius: 2px; background: var(--tc); }
         .row.departed::before { background: #444; }
+        .row { cursor: pointer; }
         .row:active { background: #0b0b0c; }
         .r-time { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .r-dep { font-size: 33px; font-weight: 600; letter-spacing: -.01em; line-height: 1.1; display: flex; align-items: baseline; }
@@ -263,6 +264,41 @@
         .btn-quiet { display: block; width: 100%; padding: 12px 0; font-size: 14px; color: var(--sub); text-align: center; }
         .btn-danger { color: var(--alert); }
         .form-gap { height: 14px; }
+
+        /* 查車次 */
+        .tn-row { display: flex; gap: 10px; align-items: flex-end; }
+        .tn-row .field { font-size: 30px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+        .tn-row .btn { width: 112px; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+        .tn-row .btn .cd { font-weight: 500; color: var(--dim); font-variant-numeric: tabular-nums; }
+        .tn-fold { display: flex; align-items: center; justify-content: flex-end; gap: 4px; width: 100%; padding: 12px 0; font-size: 12px; color: #b0b0b4; border-bottom: 1px solid var(--line); }
+        .tn-fold svg { transition: transform .2s; }
+        .tn-fold.open svg { transform: rotate(180deg); }
+        .tn-auto { display: none; margin-top: 10px; }
+        #pageTrain.direct .tn-row { display: none; }
+        #pageTrain.direct .tn-auto { margin-top: 0; }
+        .tn-auto.on { display: flex; }
+        .tn-auto .bar { flex: 1; height: 2px; background: var(--line); overflow: hidden; }
+        .tn-auto .fill { height: 100%; width: 0; background: var(--accent); }
+        .tn-msg { padding: 28px 0; color: var(--sub); font-size: 14px; }
+        .tn-head { margin-top: 18px; }
+        .tn-head.row { padding-top: 14px; padding-bottom: 14px; }
+        .tn-head.row::before { top: 14px; bottom: 14px; }
+        .tn-pos { padding: 12px 0 2px; font-size: 13px; color: var(--sub); }
+        .tn-pos b { color: #fff; font-weight: 600; }
+        .tn-stop { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 0 12px 16px; border-bottom: 1px solid var(--line); position: relative; font-size: 16px; }
+        .tn-stop::before { content: ""; position: absolute; left: 1px; top: 50%; width: 7px; height: 7px; margin-top: -3px; border-radius: 50%; background: #fff; }
+        .tn-stop.passed { color: var(--dim); }
+        .tn-stop.passed::before { background: #444; }
+        .tn-stop.last { color: #fff; }
+        .tn-stop.last::before { background: var(--accent); box-shadow: 0 0 0 3px rgba(77,127,94,.25); }
+        .tn-t { text-align: right; font-variant-numeric: tabular-nums; font-size: 17px; }
+        .tn-t .o { display: block; font-size: 12px; color: #6a6a6e; }
+        .tn-stop.est .tn-t:not(.o) { color: var(--late); }
+        .tn-here { position: relative; padding: 9px 0 9px 16px; font-size: 13px; color: var(--accent); border-bottom: 1px solid var(--line); }
+        .tn-here::before { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--accent); }
+        .tn-here.guess::before { background: none; border-left: 3px dashed var(--accent); width: 0; }
+        .tn-stop.guessed { color: #8a8a8e; }
+        .tn-stop.guessed::before { background: #6a6a6e; }
         .hint-ok { color: var(--accent); font-size: 12px; text-align: center; margin-top: 8px; opacity: 0; transition: opacity 1s; }
         .section-label { font-size: 12px; color: var(--sub); letter-spacing: .1em; margin: 22px 0 8px; }
 
@@ -430,6 +466,7 @@
             <div class="menu-close"><button class="icon-btn" onclick="closeModal()" aria-label="關閉"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button></div>
             <div class="menu-list">
                 <button class="menu-item" onclick="replayCoach()">教學</button>
+                <button class="menu-item" onclick="document.getElementById('pageTrain').classList.remove('direct'); goToPage('Train')">車次</button>
                 <button class="menu-item" onclick="toggleTimeFormat()">時間<span id="btnTimeFormat" class="val"></span></button>
                 <button class="menu-item" onclick="goToPage('Report')">回報</button>
                 <button class="menu-item" onclick="goToPage('Author')">關於</button>
@@ -456,6 +493,19 @@
                 <div class="form-gap"></div>
                 <button class="btn" onclick="manualUploadReport()">送出</button>
                 <div id="autoUploadHint" hidden></div>
+            </div>
+        </div>
+
+        <div id="pageTrain" class="modal-page sheet-bottom" onclick="event.stopPropagation()">
+            <div class="sheet-handle" onclick="closeModal()"></div>
+            <div class="modal-content-inner">
+                <div class="modal-header-row"><div class="modal-title">車次</div><button class="back-btn" onclick="closeModal()">關閉</button></div>
+                <div class="tn-row">
+                    <input id="trainNo" class="field" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="車次" autocomplete="off" oninput="trainInputChanged()" onkeydown="if(event.key==='Enter')searchTrain()">
+                    <button id="btnTrain" class="btn" onclick="searchTrain()">查詢</button>
+                </div>
+                <div id="trainAuto" class="tn-auto"><div class="bar"><div class="fill"></div></div></div>
+                <div id="trainResult"></div>
             </div>
         </div>
 
@@ -1524,14 +1574,13 @@ ${logs}`;
                 const led = isArriving ? '<div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>' : '';
                 const typeColor = t.color && t.color.toLowerCase() !== '#ffffff' ? t.color : '#ddd';
                 const side = isDeparted ? '已發車' : (isLate ? `晚 ${t.delay} 分<span class="o">原定 ${formatTime(t.sch_dep)}</span>` : '');
-                const url = `https://railway.chienwen.net/taiwan/train/TRA-${encodeURIComponent(t.no)}/live`;
 
-                html += `<a class="${cls.join(' ')}" style="--tc:${typeColor}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="markRowTapped()">
+                html += `<div class="${cls.join(' ')}" style="--tc:${typeColor}" role="button" data-no="${escHtml(t.no)}" ${activeId} onclick="markRowTapped(); openTrainDetail(this.dataset.no)">
                     ${led}
                     <div class="r-time"><span class="r-dep">${formatTime(t.act_dep)}</span><span class="r-arr">${formatTime(t.act_arr)}</span></div>
                     <div class="r-meta"><span class="r-type" style="color:${typeColor}">${t.type}</span><span>${t.no}</span></div>
                     <div class="r-side">${side}</div>
-                </a>`;
+                </div>`;
                 shown++;
             });
 
@@ -1618,6 +1667,7 @@ ${logs}`;
             document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
             document.getElementById('page'+id).classList.add('active');
             if(id==='Report'){ uploadReport(); }
+            if(id==='Train' && trainAutoStale){ trainAutoStale = false; searchTrain(true, true); }
         }
 
         // [Advanced] 1:1 Interactive Swipe Gestures
@@ -1821,7 +1871,7 @@ ${logs}`;
                      { type: '區間車', color: '#0076B2', no: '3175', dep: '16:08', arr: '16:58', late: 5, orig: '16:03' }],
               text: '<span class="late">黃色</span>是誤點的車，顯示的時間<b>已經加上誤點</b>。' },
             { demo: [{ type: '區間快', color: '#0076B2', no: '3179', dep: '16:12', arr: '17:02', led: true, tap: true }],
-              text: '<b>綠燈閃爍</b>代表 10 分鐘內發車。<b>點班次</b>可以看列車現在在哪。' }
+              text: '<b>綠燈閃爍</b>代表 10 分鐘內發車。<b>點班次</b>可以看車在哪裡。' }
         ];
 
         function startCoach(key) {
@@ -1854,6 +1904,162 @@ ${logs}`;
             if (!document.querySelector('#cardList .row')) return;
             setTimeout(() => { if (!coachKey && !modalOpen() && !coachSeen(LS_COACH_LIST)) startCoach(LS_COACH_LIST); }, 700);
         }
+        // ---------- 查車次 ----------
+        let trainLastNo = '', trainCooldown = 0, trainShowPassed = false, trainLastData = null;
+        function escHtml(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function trainInputChanged() {
+            const el = document.getElementById('trainNo');
+            el.value = el.value.replace(/\D/g, '').slice(0, 5);
+            document.getElementById('trainAuto').style.visibility = el.value === trainLastNo ? '' : 'hidden';
+            updateTrainBtn();
+        }
+        function updateTrainBtn() {
+            const btn = document.getElementById('btnTrain');
+            const no = document.getElementById('trainNo').value;
+            const left = Math.ceil((trainCooldown - Date.now()) / 1000);
+            const isUpdate = no && no === trainLastNo;
+            btn.innerHTML = isUpdate ? ICON_REFRESH + '更新' + (left > 0 ? ` <span class="cd">${left}</span>` : '')
+                                     : (left > 0 ? `查詢 <span class="cd">${left}</span>` : '查詢');
+            btn.disabled = !no || left > 0;
+        }
+        function openTrainDetail(no) {
+            // 從班次列表點進來：直接開啟並查詢，不受按鈕冷卻限制（後端另有每分鐘上限）
+            document.getElementById('trainNo').value = no;
+            document.getElementById('trainResult').innerHTML = '';
+            trainAutoStale = false;
+            document.getElementById('pageTrain').classList.add('direct');   // 點卡片進來：不需要搜尋列
+            openSheet('Train');
+            searchTrain(true);
+        }
+        // 車次頁面開著、畫面在前景時每 60 秒自動更新一次。
+        // 後端把誤點／位置共用快取 75 秒，自動更新不會多打 TDX；TDX 本身約 1 分鐘更新一次，再快也沒用。
+        const TRAIN_AUTO_MS = 60000;
+        let trainAutoTimer = null;
+        function trainPageOpen() {
+            const pg = document.getElementById('pageTrain');
+            return pg.classList.contains('active') && document.getElementById('aboutModal').style.display === 'flex';
+        }
+        // 自動更新進度條：60 秒內慢慢填滿，滿了就更新（不加文字）
+        let trainAutoStale = false;
+        function showTrainAuto(state) {
+            const box = document.getElementById('trainAuto');
+            const fill = box.querySelector('.fill');
+            box.classList.toggle('on', state !== 'off');
+            box.style.visibility = '';
+            if (state === 'loading') {
+                fill.style.transition = 'none'; fill.style.width = '100%';
+            } else if (state === 'wait') {
+                fill.style.transition = 'none'; fill.style.width = '0';
+                void fill.offsetWidth;   // 先歸零再開始填
+                fill.style.transition = `width ${TRAIN_AUTO_MS}ms linear`; fill.style.width = '100%';
+            }
+        }
+        function scheduleTrainAuto() {
+            clearTimeout(trainAutoTimer);
+            showTrainAuto('wait');
+            trainAutoTimer = setTimeout(() => {
+                if (!trainPageOpen() || !trainLastNo) { trainAutoStale = !!trainLastNo; return; }   // 關掉就停，重新打開再補抓
+                if (document.visibilityState !== 'visible') return;       // 切到背景就停，回來再接上
+                if (document.getElementById('trainNo').value !== trainLastNo) { scheduleTrainAuto(); return; }
+                searchTrain(true, true);
+            }, TRAIN_AUTO_MS);
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && trainPageOpen() && trainLastNo) searchTrain(true, true);
+        });
+        async function searchTrain(force, silent) {
+            const no = document.getElementById('trainNo').value;
+            const box = document.getElementById('trainResult');
+            if (!no || (force !== true && Date.now() < trainCooldown)) return;
+            clearTimeout(trainAutoTimer);
+            if (trainLastNo === no) showTrainAuto('loading');
+            if (!silent) {
+                trainCooldown = Date.now() + 10000;
+                const timer = setInterval(() => { updateTrainBtn(); if (Date.now() >= trainCooldown) clearInterval(timer); }, 500);
+                updateTrainBtn();
+                box.innerHTML = '<div class="tn-msg">查詢中</div>';
+            }
+            try {
+                const res = await fetch('/api/index?train=' + encodeURIComponent(no));
+                if (res.status === 429 || res.status === 503) {
+                    // 自動更新失敗就保留畫面上的資料，下一輪再試
+                    if (!silent) box.innerHTML = `<div class="tn-msg">${res.status === 429 ? '查太多次了，稍後再試' : '資料來源太忙，過一分鐘再試'}</div>`;
+                } else {
+                    const data = await res.json();
+                    if (!res.ok || data.error) throw new Error(data.error || res.status);
+                    if (no !== trainLastNo) trainShowPassed = false;
+                    trainLastNo = no;
+                    renderTrain(data);
+                }
+            } catch (e) {
+                if (!silent) box.innerHTML = '<div class="tn-msg">查詢失敗，稍後再試</div>';
+            }
+            updateTrainBtn();
+            if (trainLastNo === no) scheduleTrainAuto(); else showTrainAuto('off');
+        }
+        function renderTrain(data) {
+            trainLastData = data;
+            const box = document.getElementById('trainResult');
+            const t = data.train;
+            if (!t) { box.innerHTML = '<div class="tn-msg">今天沒有這班車</div>'; return; }
+            const late = t.delay > 0;
+            // 位置文字：後端目前固定給狀態 2（已離站，TDX 實測都是 2）；沒有狀態只能說「最後經過」
+            const L = t.last, st = L ? L.status : null;
+            let pos;
+            if (data.delay_failed) pos = '誤點資料暫時抓不到';
+            else if (!L) pos = t.running ? '還沒有位置資料' : '還沒有即時資料';
+            else if (L.via) pos = `經過 <b>${escHtml(L.name)}</b>（不停靠）`;
+            else if (L.ended) pos = `已到終點 <b>${escHtml(L.name)}</b>`;
+            else if (st === 1) pos = `目前在 <b>${escHtml(L.name)}</b>`;
+            else if (st === 2 && L.next) pos = `<b>${escHtml(L.name)}～${escHtml(L.next)}</b> 之間`;
+            else if (st === 0) pos = `即將到 <b>${escHtml(L.name)}</b>`;
+            else pos = `最後經過 <b>${escHtml(L.name)}</b>`;
+            const when = t.data_time ? escHtml(t.data_time) : '';
+            // 列表上的位置標記：一行寫完「哪兩站之間 · 時間」，上方不再重複
+            const posPlain = L && L.via_name ? `${escHtml(L.name)}～${escHtml(L.next)} 之間 · ${when} 過${escHtml(L.via_name)}`
+                                             : pos.replace(/<[^>]+>/g, '') + (when ? ` · ${when}` : '');
+            // TDX 只在經過有回報的車站時更新；超過下一站預估時間還沒新回報時，另外標一行「推算」
+            let guessIdx = -1;
+            if (L && !L.ended && !L.via && !data.delay_failed) {
+                // 用台灣時間比（時刻表是台灣時間）
+                const tw = new Date(Date.now() + 8 * 3600000);
+                const nowMin = tw.getUTCHours() * 60 + tw.getUTCMinutes();
+                const toMin = hm => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
+                t.stops.forEach((s, i) => {
+                    if (s.passed) return;
+                    const diff = nowMin - toMin(s.est || s.sch);
+                    if (diff >= 1 && diff < 12 * 60) guessIdx = i;   // 已超過預估時間
+                });
+            }
+            const lastPassed = L && !L.via ? t.stops.map(s => s.passed).lastIndexOf(true) : -1;
+            // 綠線插在哪：已離站 → 那站之後；進站中 → 下一個還沒到的站之前；在站上／最後經過 → 那站本身亮綠點
+            const hereAfter = L && !L.via && !L.ended && (st === 2 || st === 0) ? lastPassed : null;
+            const dotIdx = L && !L.via && hereAfter === null ? lastPassed : -1;
+            let html = '';
+            if (hereAfter === -1) html += `<div class="tn-here">${posPlain}</div>`;
+            // 已經過的站太多時收起來，只留最後一站，不用一直往下滑
+            const foldCount = Math.max(0, lastPassed);   // 0..lastPassed-1 收起
+            const CHEV = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5l3 3 3-3"/></svg>';
+            if (foldCount >= 2) html += `<button class="tn-fold${trainShowPassed ? ' open' : ''}" onclick="trainShowPassed=!trainShowPassed;renderTrain(trainLastData)">${trainShowPassed ? '收起已經過的站' : `顯示 ${foldCount} 個已經過的站`}${CHEV}</button>`;
+            t.stops.forEach((s, i) => {
+                if (foldCount >= 2 && !trainShowPassed && i < foldCount) return;
+                const cls = ['tn-stop', s.passed ? 'passed' : '', !s.passed && i <= guessIdx ? 'guessed' : '', i === dotIdx ? 'last' : '', s.est ? 'est' : ''].filter(Boolean).join(' ');
+                const time = s.est ? `<span class="tn-t">${formatTime(s.est)}<span class="o">原定 ${formatTime(s.sch)}</span></span>`
+                                   : `<span class="tn-t">${formatTime(s.sch)}</span>`;
+                html += `<div class="${cls}"><span>${escHtml(s.name)}</span>${time}</div>`;
+                if (i === hereAfter) html += `<div class="tn-here">${posPlain}</div>`;
+                if (i === guessIdx) html += `<div class="tn-here guess">推算：可能已過 ${escHtml(s.name)}</div>`;
+            });
+            box.innerHTML = `
+                <div class="row tn-head ${late ? 'late' : ''}" style="--tc:${escHtml(t.color)}">
+                    <div class="r-meta"><span class="r-type" style="color:${escHtml(t.color)}">${escHtml(t.type)}</span><span>${escHtml(t.origin)} → ${escHtml(t.dest)}</span></div>
+                    <div class="r-time"><span class="r-dep">${escHtml(t.no)}</span></div>
+                    <div class="r-side">${late ? '晚 ' + t.delay + ' 分' : ''}</div>
+                </div>
+                ${hereAfter === null ? `<div class="tn-pos">${pos}${when ? ' · ' + when : ''}</div>` : ''}
+                ${html}`;
+        }
+
         function replayCoach() {
             const wasOpen = modalOpen();
             if (wasOpen) closeModal();

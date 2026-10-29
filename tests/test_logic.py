@@ -152,5 +152,150 @@ class RouteKeyTests(unittest.TestCase):
         self.assertNotEqual(k, index.route_key("1000", "1210", "2026-10-29"))
 
 
+def stop(sid, name, dep=None, arr=None):
+    d = {"StationID": sid, "StationName": {"Zh_tw": name}}
+    if dep: d["DepartureTime"] = dep
+    if arr: d["ArrivalTime"] = arr
+    return d
+
+
+def detail_item():
+    return {
+        "TrainInfo": {"TrainNo": "123", "TrainTypeName": {"Zh_tw": "自強(3000)"},
+                      "StartingStationName": {"Zh_tw": "臺北"}, "EndingStationName": {"Zh_tw": "新竹"}},
+        "StopTimes": [stop("1000", "臺北", dep="23:30"), stop("1020", "板橋", dep="23:45"), stop("1210", "新竹", arr="00:20")],
+    }
+
+
+class TrainDetailTests(unittest.TestCase):
+    def test_last_station_marks_passed_and_estimates_rest(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, "1020", NOW)
+        self.assertEqual([s["passed"] for s in d["stops"]], [True, True, False])
+        self.assertEqual(d["last"], {"name": "板橋", "idx": 1, "status": None, "next": "新竹", "ended": False})
+        self.assertIsNone(d["stops"][1]["est"])      # 已經過的站不加誤點
+        self.assertEqual(d["stops"][2]["est"], "00:25")  # 過午夜也正確
+        self.assertEqual(d["stops"][2]["sch"], "00:20")
+
+    def test_no_position_data(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 13, None, NOW)
+        self.assertIsNone(d["last"])
+        self.assertFalse(any(s["passed"] for s in d["stops"]))
+        # 不知道車在哪就不顯示預估時間（不然已經過的站也會被加上誤點）
+        self.assertTrue(all(s["est"] is None for s in d["stops"]))
+
+    def test_status_at_station(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["1020", "板橋", 1], NOW)
+        self.assertEqual([s["passed"] for s in d["stops"]], [True, True, False])
+        self.assertEqual(d["last"]["status"], 1)
+
+    def test_status_approaching_station_is_not_passed(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["1020", "板橋", 0], NOW)
+        self.assertEqual([s["passed"] for s in d["stops"]], [True, False, False])
+        self.assertEqual(d["stops"][1]["est"], "23:50")   # 還沒到的站要有預估
+
+    def test_status_departed_shows_next(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, ["1020", "板橋", 2], NOW)
+        self.assertEqual(d["last"]["next"], "新竹")
+
+    def test_approaching_final_stop_is_not_ended(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, ["1210", "新竹", 0], NOW)
+        self.assertFalse(d["last"]["ended"])
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, ["1210", "新竹", 1], NOW)
+        self.assertTrue(d["last"]["ended"])
+
+    def test_position_as_id_and_name(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["1020", "板橋"], NOW)
+        self.assertEqual(d["last"]["name"], "板橋")
+
+    def test_position_matched_by_name_when_id_missing(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 5, ["", "台北"], NOW)
+        self.assertEqual(d["last"]["name"], "臺北")
+
+    def test_unknown_last_station_is_not_guessed(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 3, "9999", NOW)
+        self.assertIsNone(d["last"])
+
+    def test_non_stop_station_reported_as_via(self):
+        # 自強號經過不停靠的九曲堂：只用文字，不標已經過哪些站
+        d = index.build_train_detail(detail_item(), "2026-10-28", 3, ["5000", "九曲堂", 2], NOW)
+        self.assertEqual(d["last"]["name"], "九曲堂")
+        self.assertTrue(d["last"]["via"])
+        self.assertFalse(any(s["passed"] for s in d["stops"]))
+
+    def test_non_stop_station_placed_by_report_time(self):
+        # 23:50 經過不停靠站、誤點 3 分：板橋（23:45+3）已開過，新竹還沒到 → 標在板橋～新竹之間
+        d = index.build_train_detail(detail_item(), "2026-10-28", 3, ["5000", "九曲堂", 2], NOW,
+                                     "2026-10-28T23:50:00+08:00")
+        self.assertEqual(d["last"]["idx"], 1)
+        self.assertEqual(d["last"]["next"], "新竹")
+        self.assertEqual(d["last"]["via_name"], "九曲堂")
+        self.assertEqual([s["passed"] for s in d["stops"]], [True, True, False])
+        self.assertEqual(d["stops"][2]["est"], "00:23")
+
+    def test_ended(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, "1210", NOW)
+        self.assertTrue(d["last"]["ended"])
+
+    def test_header_fields(self):
+        d = index.build_train_detail(detail_item(), "2026-10-28", 0, None, NOW)
+        self.assertEqual((d["type"], d["origin"], d["dest"]), ("自強3000", "臺北", "新竹"))
+
+    def test_train_no_validation(self):
+        self.assertTrue(index.TRAIN_NO_RE.match("123"))
+        for bad in ("", "12a", "123456", "1 2", "../x"):
+            self.assertFalse(index.TRAIN_NO_RE.match(bad), bad)
+
+
+class TrainTimetableFetchTests(unittest.TestCase):
+    class Res:
+        def __init__(self, code, data=None):
+            self.status_code, self._d, self.headers = code, data, {}
+        def json(self):
+            return self._d
+
+    def fetch(self, responses):
+        calls = []
+        def fake(url, headers):
+            calls.append(url)
+            return responses(url)
+        orig, orig_set = index.tdx_get, index.redis_set
+        index.tdx_get, index.redis_set = fake, lambda *a, **k: None
+        try:
+            ctx = types.SimpleNamespace()
+            return index.handler.get_train_timetable(ctx, "123", "2026-10-28", None, lambda: {}), calls
+        finally:
+            index.tdx_get, index.redis_set = orig, orig_set
+
+    def test_general_timetable_first(self):
+        item = detail_item()
+        got, calls = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [item]}))
+        self.assertEqual(got, item)
+        self.assertEqual(len(calls), 1)
+        self.assertIn("GeneralTrainTimetable/TrainNo/123", calls[0])
+
+    def test_picks_the_right_train_from_day_list(self):
+        a, b = detail_item(), detail_item()
+        a["TrainInfo"]["TrainNo"] = "999"
+        got, _ = self.fetch(lambda u: self.Res(200, {"TrainTimetables": [a, b]}) if "TrainDate" in u else self.Res(200, {"TrainTimetables": []}))
+        self.assertEqual(got["TrainInfo"]["TrainNo"], "123")
+
+    def test_day_list_without_train_means_no_such_train(self):
+        got, _ = self.fetch(lambda u: self.Res(200, {"TrainTimetables": []}))
+        self.assertIsNone(got)
+
+    def test_all_failing_is_an_error_not_no_such_train(self):
+        with self.assertRaises(Exception):
+            self.fetch(lambda u: self.Res(404))
+
+    def test_rate_limited_stops_immediately(self):
+        calls = []
+        with self.assertRaises(index.TdxBusy):
+            def resp(u):
+                calls.append(u)
+                return self.Res(429)
+            self.fetch(resp)
+        self.assertEqual(len(calls), 1)
+
+
 if __name__ == '__main__':
     unittest.main()
