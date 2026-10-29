@@ -75,7 +75,7 @@ function handleInstall() {
     openSheet('IOS');
 }
 async function shareApp() {
-    const data = { title: 'TRAIN LIVE', text: '台鐵時刻表，直接算好誤點後的實際時間', url: window.location.href };
+    const data = { url: window.location.href };
     if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
 }
 
