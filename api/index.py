@@ -51,11 +51,12 @@ QUERY_RATE_WINDOW = 60
 RATE_LIMIT_WAIT = 0.8           # TDX 回 429（太頻繁）時，等這麼久再重試一次
 
 ALERT_KEY = "tra_alert_v1"
-ALERT_CACHE_TTL = 300           # 營運通阻公告快取 5 分鐘
-ALERT_FAIL_TTL = 120            # 抓不到時，2 分鐘內不再重試
+ALERT_CACHE_TTL = 600           # 營運通阻公告快取 10 分鐘（TDX 公告平常很少變）
+ALERT_FAIL_TTL = 300            # 抓不到時，5 分鐘內不再重試
 
 TOKEN_KEY = "tdx_token"
 DELAY_KEY = "v3_tra_delay_data"
+DELAY_CACHE_TTL = 120           # 誤點快取 2 分鐘（列車經過報點站才會更新，更短只是多打 TDX）
 
 # 不在啟動時 ping：連線會在第一次下指令時才建立，省掉冷啟動多一趟來回
 redis_client = None
@@ -214,7 +215,7 @@ class handler(BaseHTTPRequestHandler):
             d_data = res.json()
             d_list = d_data.get('LiveTrainDelay', []) if isinstance(d_data, dict) else d_data
             new_delays = {t.get('TrainNo'): t.get('DelayTime', 0) for t in d_list}
-            redis_set(DELAY_KEY, json.dumps(new_delays), 75)
+            redis_set(DELAY_KEY, json.dumps(new_delays), DELAY_CACHE_TTL)
             return (new_delays, status_str)
         else:
             raise Exception(f"Delay Error: {res.status_code}")
