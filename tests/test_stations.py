@@ -11,8 +11,8 @@ from stations import STATION_MAP
 
 
 def load_station_data():
-    """從 public/index.html 取出 STATION_DATA（縣市 → 車站清單）。"""
-    with open(os.path.join(ROOT, 'public', 'index.html'), encoding='utf-8') as f:
+    """從 public/stations.js 取出 STATION_DATA（縣市 → 車站清單）。"""
+    with open(os.path.join(ROOT, 'public', 'stations.js'), encoding='utf-8') as f:
         html = f.read()
     m = re.search(r"const STATION_DATA\s*=\s*\{(.*?)\n\s*\};", html, re.S)
     assert m, "找不到 STATION_DATA"

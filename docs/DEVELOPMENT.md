@@ -12,7 +12,10 @@
 
 ```
 手機瀏覽器 ──> Vercel（香港 hkg1）
-                ├─ public/index.html   前端（單一檔案，HTML + CSS + JS）
+                ├─ public/index.html   前端畫面（HTML）
+                ├─ public/style.css    樣式
+                ├─ public/stations.js  縣市 → 車站清單
+                ├─ public/app.js       前端程式
                 ├─ public/sw.js        Service worker（離線開啟網頁）
                 └─ api/index.py        後端 API（Python serverless）
                       ├─> TDX 運輸資料流通服務（台灣）  時刻表、誤點、營運通阻、車站
@@ -23,8 +26,11 @@
 |---|---|
 | `api/index.py` | 查詢 API、使用者回報、開發者後台（god mode）API |
 | `api/stations.py` | 站名 → TDX 站碼（`STATION_MAP`） |
-| `public/index.html` | 整個前端，包含縣市 → 車站清單（`STATION_DATA`） |
-| `public/sw.js` | 把網頁、字型、圖示存在手機裡 |
+| `public/index.html` | 前端畫面（HTML），依序載入下面三個檔案 |
+| `public/style.css` | 所有樣式 |
+| `public/stations.js` | 縣市 → 車站清單（`STATION_DATA`） |
+| `public/app.js` | 前端程式（查詢、列表、選單、教學、後台） |
+| `public/sw.js` | 把網頁、字型、圖示存在手機裡；HTML／CSS／JS 一律先抓最新的，避免新舊版混用 |
 | `public/fonts/` | Barlow Semi Condensed（只含英數符號，各約 36 KB） |
 | `vercel.json` | `/api/*` 轉到 `api/index.py`；`regions: ["hkg1"]` |
 
@@ -80,7 +86,7 @@
 - 2026/10/27 已全部依官方站碼修正，並補上新馬、平鎮；「侯硐」改為官方寫法「猴硐」（舊設定會自動轉換）。
 - 用後台「**檢查站碼**」可以直接跟 TDX 官方車站資料比對。官方有但程式沒有的這幾個不用加：
   南方小站 5998、潮州基地 5999（車輛基地）、臺北-環島 1001（環島列車）、枋野 5170（號誌站）。
-- 新增車站時，`api/stations.py` 和 `public/index.html` 的 `STATION_DATA` **兩邊都要加**。
+- 新增車站時，`api/stations.py` 和 `public/stations.js` 的 `STATION_DATA` **兩邊都要加**。
 
 ### 開發者後台（god mode）
 - 進入：連點左上角「TRAIN LIVE」5 下 → 輸入密碼。
@@ -159,6 +165,7 @@ Vercel 預覽網址可能需要登入 Vercel 才看得到；要給朋友看的�
 | #13 | 自動測試 |
 | #15 | 刪掉沒在用的 weather-icon/ |
 | #17 | 省 TDX 額度：誤點快取 2 分鐘、營運公告快取 10 分鐘 |
+| #18 | 前端拆成 index.html／style.css／stations.js／app.js（內容不變） |
 
 ---
 

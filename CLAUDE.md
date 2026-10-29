@@ -1,6 +1,6 @@
 # TRAIN LIVE
 
-台鐵即時時刻表（Vercel：Python API + 單一 HTML 前端，資料來源 TDX，快取用 Upstash Redis）。
+台鐵即時時刻表（Vercel：Python API + 靜態前端，資料來源 TDX，快取用 Upstash Redis）。
 完整架構、設計決定、已知限制與改版紀錄見 `docs/DEVELOPMENT.md`，改東西前先讀。
 
 ## 溝通
@@ -21,5 +21,5 @@
 - 文字越短越好（選單、教學、首頁）。
 
 ## 站碼
-- `api/stations.py` 和 `public/index.html` 的 `STATION_DATA` 要同步。
+- `api/stations.py` 和 `public/stations.js` 的 `STATION_DATA` 要同步。
 - 改站碼後用後台「檢查站碼」對照 TDX 官方資料。
