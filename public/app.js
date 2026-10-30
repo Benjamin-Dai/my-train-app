@@ -1008,7 +1008,7 @@ function renderCards(data) {
 function renderAlerts(alerts) {
     const bar = document.getElementById('alertBar');
     if (!alerts.length) { bar.hidden = true; return; }
-    const title = alerts[0].title + (alerts.length > 1 ? `（還有 ${alerts.length - 1} 則）` : '');
+    const title = alerts.length > 1 ? `營運公告（${alerts.length} 則）` : alerts[0].title;
     document.getElementById('alertTitle').textContent = title;
     const body = document.getElementById('alertBody');
     body.innerHTML = '';
@@ -1019,8 +1019,6 @@ function renderAlerts(alerts) {
         if (a.url) { const l = document.createElement('a'); l.href = a.url; l.target = '_blank'; l.rel = 'noopener'; l.textContent = '台鐵公告'; item.appendChild(l); }
         body.appendChild(item);
     });
-    const key = alerts.map(a => a.title).join('|');
-    if (bar.dataset.key !== key) { bar.classList.remove('open'); bar.dataset.key = key; }
     bar.hidden = false;
 }
 

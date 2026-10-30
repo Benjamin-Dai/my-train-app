@@ -111,10 +111,7 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .alert-bar[hidden] { display: none; }
 .alert-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; text-align: left; color: var(--late); font-size: 14px; font-weight: 600; }
 .alert-head span { flex: 1; min-width: 0; }
-.alert-head svg { flex-shrink: 0; transition: transform .2s; }
-.alert-bar.open .alert-head svg { transform: rotate(180deg); }
-.alert-body { display: none; padding: 0 12px 12px; font-size: 13px; line-height: 1.7; color: #d8d2b8; }
-.alert-bar.open .alert-body { display: block; }
+.alert-body { padding: 0 12px 12px; font-size: 13px; line-height: 1.7; color: #d8d2b8; }
 .alert-item + .alert-item { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(230,184,0,.2); }
 .alert-item b { color: var(--late); display: block; }
 .alert-item a { display: inline; color: var(--late); text-decoration: underline; }
