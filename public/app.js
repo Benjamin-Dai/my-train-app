@@ -616,6 +616,7 @@ function showSavedRoute(reason) {
     const d = getSavedRoute();
     if (!d) return false;
     renderCards(d.payload);
+    list.style.opacity = "1";
     showingSaved = true;
     lastFetchedPair = { start: startStation.value, end: endStation.value };
     statusMsg.innerText = `${reason}，顯示 ${savedTimeLabel(d)} 的資料`;
@@ -920,7 +921,7 @@ function renderCards(data) {
     const trains = data.trains || [];
     const originalCount = (data.stats && data.stats.original_count) ? data.stats.original_count : 0;
     elTools.style.display = (trains.length > 0 || originalCount > 0) ? 'flex' : 'none';
-    list.style.opacity = "1";
+    // 不在這裡設 opacity：15 秒重畫也會跑這裡，換站後變暗的舊班次會被點亮
     renderAlerts(data.alerts || []);
     const susp = (data.stats && data.stats.suspended) || 0;
     document.getElementById('suspNote').innerText = susp > 0 ? `　·　${susp} 班停駛未顯示` : '';
