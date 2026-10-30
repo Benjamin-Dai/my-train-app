@@ -1319,8 +1319,8 @@ function demoRow({ type, color, no, dep, arr, late, orig, led, tap }) {
     return `<div class="row${late ? ' late' : ''}${tap ? ' tap' : ''}" style="--tc:${color}">
                 ${led ? '<div class="led"><div class="led-dot top"></div><div class="led-dot bottom"></div></div>' : ''}
                 <div class="r-meta"><span class="r-type" style="color:${color}">${type}</span><span>${no}</span></div>
-                <div class="r-time"><span class="r-dep">${dep}</span><span class="r-arr">${arr}</span></div>
-                <div class="r-side">${late ? `晚 ${late} 分<span class="o">原定 ${orig}</span>` : ''}</div>
+                <div class="r-time"><span class="r-dep">${formatTime(dep)}</span><span class="r-arr">${formatTime(arr)}</span></div>
+                <div class="r-side">${late ? `晚 ${late} 分<span class="o">原定 ${formatTime(orig)}</span>` : ''}</div>
             </div>`;
 }
 const COACH_STEPS = [

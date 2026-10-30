@@ -161,8 +161,8 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .r-side .o { display: block; margin-top: 4px; font-size: 12px; color: #6a6a6e; }
 /* 12 小時制：原定時間不重複寫上午／下午，不然 320 寬的手機會被擠出畫面 */
 .r-side .o .ampm { display: none; }
-/* 320 寬的小手機：12 小時制＋誤點時還差幾 px，發車時間稍微縮小 */
-@media (max-width: 359px) { .r-dep { font-size: 30px; } }
+/* 320 寬的小手機（或有捲軸的 320 視窗）：12 小時制＋誤點時會差十幾 px，發車時間縮小、間距收一點 */
+@media (max-width: 359px) { .r-dep { font-size: 28px; } .r-time { gap: 7px; } .row { column-gap: 8px; } }
 .row.late .r-dep, .row.late .r-arr, .row.late .r-side { color: var(--late); }
 .row.departed { opacity: .35; }
 .row.departed .r-type { color: inherit !important; }
@@ -195,6 +195,8 @@ body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px var(--accent); }
     display: none; align-items: center; gap: 14px; z-index: 900; cursor: pointer; white-space: nowrap;
     box-shadow: 0 6px 24px rgba(0,0,0,.8);
 }
+/* 窄螢幕上提示會壓到右下的回到頂部，往上移到按鈕上方 */
+@media (max-width: 374px) { .resume-pill { bottom: calc(76px + env(safe-area-inset-bottom)); } }
 .resume-pill .pill-close { color: #777; font-size: 18px; line-height: 1; padding-left: 12px; border-left: 1px solid #ccc; }
 .back-to-top {
     position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 20px; width: 40px; height: 40px;
