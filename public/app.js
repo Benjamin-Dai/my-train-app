@@ -64,7 +64,7 @@ function openSheet(id) {
     modal.style.display = 'flex';
     document.body.classList.add('noscroll');
     setTimeout(() => modal.classList.add('active'), 10);
-    history.pushState({modal: true}, '', '');
+    history.pushState({ modal: true, depth: histDepth() + 1 }, '', '');
     goToPage(id);
 }
 
@@ -408,8 +408,8 @@ function init() {
         window.location.reload();
     }
     
-    // 重新整理時瀏覽器會留著上一頁的狀態，清掉才不會按返回又回到首頁
-    if (history.state && history.state.view) history.replaceState(null, '', '');
+    // 重新整理時瀏覽器會留著原本那一筆紀錄：退回最底下那筆（首頁），不然首頁左右滑會滑出另一個一樣的首頁
+    if (histDepth() > 0) history.go(-histDepth()); else history.replaceState({ depth: 0 }, '', '');
     updateStationDisplay();
     renderFavs();
     updateActionButton();
@@ -1060,8 +1060,17 @@ function closeModal(){
     history.back();
 }
 
+// 每筆自己加的瀏覽紀錄都記著第幾層，首頁是 0
+function histDepth() { return (history.state && history.state.depth) || 0; }
 window.addEventListener('popstate', () => {
     const modal = document.getElementById('aboutModal');
+    const st = history.state || {};
+    // iOS 往左滑（下一頁）會走到已經關掉的紀錄：選單那筆直接退回；時刻表那筆就重新打開剛剛那條路線（不自動查詢）
+    if (st.modal && modal.style.display !== 'flex') { history.back(); return; }
+    if (st.view && isHome()) {
+        if (lastRoute) { const r = lastRoute; loadRoute(r.start, r.end, null, true); } else history.back();
+        return;
+    }
     // 在時刻表按返回（或往右滑）回到首頁，而不是離開網站
     if (!isHome() && !(history.state && history.state.view)) goHome();
     if (modal.style.display === 'flex') {
@@ -1254,7 +1263,8 @@ function playHomeEnter(pair, fromNames) {
 }
 // 進時刻表：多一筆瀏覽紀錄，讓返回鍵可以回首頁
 // beforeShow：切畫面前先換站名；favRow：從首頁哪一行收藏點進來（動畫從那裡開始）
-function showTimetable(beforeShow, favRow) {
+// inPlace：已經在時刻表那筆紀錄上（往下一頁滑回來），不要再多加一筆
+function showTimetable(beforeShow, favRow, inPlace) {
     if (!isHome()) { if (beforeShow) beforeShow(); return; }
     hideUndo(); closeFavSwipe();
     window.scrollTo(0, 0);
@@ -1263,7 +1273,7 @@ function showTimetable(beforeShow, favRow) {
     if (beforeShow) beforeShow();
     document.body.classList.remove('home');
     homeEditing = false;
-    history.pushState({ view: 'timetable' }, '', '');
+    if (!inPlace) history.pushState({ view: 'timetable', depth: histDepth() + 1 }, '', '');
     playTimetableEnter(fromStops, fromNames);
 }
 function leaveTimetable() {
@@ -1273,6 +1283,7 @@ function goHome() {
     if (isHome()) return;
     window.scrollTo(0, 0);
     const pair = getCurrentPair(), fromNames = stnB().map(rectOf);
+    if (pair.start && pair.end) lastRoute = pair;
     document.body.classList.add('home');
     if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
     if (autoResumeTimer) { clearTimeout(autoResumeTimer); autoResumeTimer = null; }
@@ -1291,6 +1302,7 @@ function goHome() {
     if (skipHomeEnter) skipHomeEnter = false; else playHomeEnter(pair, fromNames);
 }
 let skipHomeEnter = false;
+let lastRoute = null;
 
 // ---------- 從螢幕左邊往右滑回首頁，滑的時候首頁會跟著滑進來 ----------
 // iOS Safari、Android 手勢導航會自己接走邊緣手勢（那時這段不會動），主要給加到主畫面的 App 用
@@ -1360,7 +1372,7 @@ function addCurrentFavorite() {
     favs.push(cur); saveFavs(favs); logSystem("Fav: Added");
     renderFavs(); showToast('已加入收藏');
 }
-function loadRoute(s, e, fromEl) {
+function loadRoute(s, e, fromEl, inPlace) {
     const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
     if (!sR || !eR) return;
     setFavPanel(false);
@@ -1368,8 +1380,9 @@ function loadRoute(s, e, fromEl) {
     // 在時刻表的收藏欄換路線：站名淡入
     if (!isHome() && !reduceMotion()) document.querySelector('.route-stops').animate([{ opacity: .2 }, { opacity: 1 }], { duration: 220 });
     // 先換好站名再切畫面，動畫才會從首頁的收藏位置接到時刻表上的站名
-    showTimetable(() => { setMenu('start', sR, s); setMenu('end', eR, e); }, fromEl && fromEl.closest('.home-fav'));
-    markAsChanged(); doSearch();
+    showTimetable(() => { setMenu('start', sR, s); setMenu('end', eR, e); }, fromEl && fromEl.closest('.home-fav'), inPlace);
+    markAsChanged();
+    if (!inPlace) doSearch();
 }
 
 function setFavPanel(open) {
