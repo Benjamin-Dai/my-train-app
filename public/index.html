@@ -104,6 +104,7 @@
         </div>
 
         <div id="homeFavs" class="home-favs"></div>
+        <div id="homeRecent" class="home-recent"></div>
         <div id="cardList"></div>
     </div>
 
@@ -118,6 +119,7 @@
             <div class="menu-list">
                 <button class="menu-item" onclick="replayCoach()">教學</button>
                 <button class="menu-item" onclick="toggleTimeFormat()">時間<span class="seg"><span id="fmt24" onclick="event.stopPropagation(); setTimeFormat(true)">24 小時</span><span id="fmt12" onclick="event.stopPropagation(); setTimeFormat(false)">12 小時</span></span></button>
+                <button class="menu-item" onclick="toggleRecent()">搜尋紀錄<span id="menuRecentSw" class="rec-sw"></span></button>
                 <button class="menu-item" onclick="goToPage('Report')">回報</button>
                 <button class="menu-item" onclick="goToPage('Author')">關於</button>
                 <button class="menu-item" onclick="shareApp()">分享</button>

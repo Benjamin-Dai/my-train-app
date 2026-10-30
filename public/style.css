@@ -111,6 +111,26 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .home-favs.editing .del { display: block; }
 .home-favs.editing .go { pointer-events: none; }
 .home-fav.dragging { z-index: 2; background: var(--panel); outline: 1px solid var(--line-strong); }
+/* 首頁的最近搜尋（已收藏的不列），最多 3 筆；關掉後只剩一個很淡的開關 */
+.home-recent { margin-top: 28px; }
+.home-recent-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.home-recent-head > span { font-size: 12px; color: var(--dim); letter-spacing: .1em; }
+.recent-acts { display: flex; align-items: center; gap: 12px; }
+.recent-acts button { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--sub); padding: 4px 0; }
+.recent-acts i { width: 1px; height: 12px; background: var(--line-strong); }
+.recent-row { display: flex; align-items: center; height: 54px; border-bottom: 1px solid var(--line); }
+.recent-row:first-of-type { border-top: 1px solid var(--line); }
+.recent-row .go { flex: 1; display: flex; align-items: center; gap: 10px; height: 100%; font-size: 18px; font-weight: 500; color: var(--sub); text-align: left; white-space: nowrap; }
+.recent-row .go:active { opacity: .6; }
+.rec-sw { position: relative; display: inline-block; width: 30px; height: 16px; border-radius: var(--radius); background: var(--accent); flex-shrink: 0; transition: background .15s; }
+.rec-sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; border-radius: 2px; background: #fff; transition: right .15s; }
+.rec-sw.off { background: var(--line-strong); }
+.rec-sw.off::after { right: 16px; }
+.home-recent.off { display: flex; justify-content: flex-end; margin-top: 22px; }
+.home-recent.off button { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--line-strong); padding: 4px 0; }
+.home-recent.off .rec-sw { width: 24px; height: 13px; background: var(--line); }
+.home-recent.off .rec-sw::after { top: 2px; width: 9px; height: 9px; right: 13px; background: var(--dim); }
+body:not(.home) #homeRecent { display: none; }
 .home-favs-empty { padding: 40px 0; text-align: center; font-size: 13px; color: var(--dim); }
 .swap:active { color: var(--text); }
 
