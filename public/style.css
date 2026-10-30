@@ -212,7 +212,7 @@ body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px var(--accent); }
     position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 16px); width: calc(100% - 32px); max-width: 420px;
     display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 0 16px; height: 48px;
     background: #eee; color: #000; border-radius: var(--radius); font-size: 14px; font-weight: 600; white-space: nowrap;
-    box-shadow: 0 6px 24px rgba(0,0,0,.8); z-index: 950; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+    box-shadow: 0 6px 24px rgba(0,0,0,.8); z-index: 950; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; touch-action: none;
 }
 .undo-bar.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 .undo-bar span { overflow: hidden; text-overflow: ellipsis; }

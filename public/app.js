@@ -517,6 +517,8 @@ function markAsChanged() {
 
     if(!startStation.value||!endStation.value) return;
     isNextDayLoaded = false;
+    // 首頁不套快取：不然 1 分鐘內再選同一條路線，按鈕會在首頁變成冷卻中的「更新」按不下去
+    if (isHome()) { updateActionButton(); return; }
     
     attemptLoadCache(false);
     renderFavs();
@@ -1325,7 +1327,7 @@ function renderFavs() {
 // ---------- 首頁編輯：拖曳排序、刪除 ----------
 let homeEditing = false;
 function toggleHomeEdit() { homeEditing = !homeEditing; renderFavs(); }
-// 刪除不跳確認視窗：直接刪，下面出現「復原」4 秒
+// 刪除不跳確認視窗：直接刪，下面出現「復原」6 秒，往旁邊或往下滑可以關掉
 let undoFav = null;
 function deleteFavorite(i) {
     const favs = getFavs(); const [r] = favs.splice(i, 1); if (!r) return;
@@ -1335,7 +1337,7 @@ function deleteFavorite(i) {
     document.getElementById('undoText').innerHTML = `已刪除　${routeText(r)}`;
     const bar = document.getElementById('undoBar'); bar.classList.add('show');
     clearTimeout(deleteFavorite.t);
-    deleteFavorite.t = setTimeout(hideUndo, 4000);
+    deleteFavorite.t = setTimeout(hideUndo, 6000);
 }
 function undoDelete() {
     if (!undoFav) return;
@@ -1343,9 +1345,44 @@ function undoDelete() {
     if (!favs.some(f => f.start === undoFav.r.start && f.end === undoFav.r.end)) { favs.splice(undoFav.i, 0, undoFav.r); saveFavs(favs); }
     logSystem("Fav: Undo"); hideUndo(); renderFavs();
 }
-function hideUndo() { undoFav = null; clearTimeout(deleteFavorite.t); document.getElementById('undoBar').classList.remove('show'); }
+function hideUndo() {
+    undoFav = null; clearTimeout(deleteFavorite.t);
+    const bar = document.getElementById('undoBar');
+    bar.classList.remove('show'); bar.style.transform = ''; bar.style.opacity = ''; bar.style.transition = '';
+}
+// 復原通知可以滑掉
+const undoBar = document.getElementById('undoBar');
+let undoDrag = null;
+undoBar.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    undoDrag = { x0: e.clientX, y0: e.clientY, dx: 0, dy: 0 };
+    undoBar.setPointerCapture(e.pointerId); undoBar.style.transition = 'none';
+    clearTimeout(deleteFavorite.t);
+});
+undoBar.addEventListener('pointermove', (e) => {
+    if (!undoDrag) return;
+    undoDrag.dx = e.clientX - undoDrag.x0; undoDrag.dy = Math.max(0, e.clientY - undoDrag.y0);
+    const d = Math.max(Math.abs(undoDrag.dx), undoDrag.dy);
+    undoBar.style.transform = `translate(calc(-50% + ${undoDrag.dx}px), ${undoDrag.dy}px)`;
+    undoBar.style.opacity = String(Math.max(0.2, 1 - d / 200));
+});
+function endUndoDrag() {
+    if (!undoDrag) return;
+    const { dx, dy } = undoDrag; undoDrag = null;
+    undoBar.style.transition = '';
+    if (Math.abs(dx) > 70 || dy > 40) {
+        undoBar.style.transform = Math.abs(dx) > 70 ? `translate(calc(-50% + ${dx > 0 ? '' : '-'}100vw), 0)` : 'translate(-50%, 120%)';
+        undoBar.style.opacity = '0';
+        setTimeout(hideUndo, 200);
+    } else {
+        undoBar.style.transform = ''; undoBar.style.opacity = '';
+        deleteFavorite.t = setTimeout(hideUndo, 6000);
+    }
+}
+undoBar.addEventListener('pointerup', endUndoDrag);
+undoBar.addEventListener('pointercancel', endUndoDrag);
 
-// 收藏往左滑：露出紅色「刪除」，滑超過一半直接刪
+// 收藏往左滑：露出紅色「刪除」，要再按一下才刪
 const SWIPE_W = 80;
 let favSwipe = null, favOpen = null, favSwipedAt = 0;
 function closeFavSwipe() {
@@ -1367,7 +1404,9 @@ homeFavs.addEventListener('pointermove', (e) => {
         favSwipe.on = true; favSwipe.inner.setPointerCapture(e.pointerId);
         favSwipe.inner.style.transition = 'none';
     }
-    favSwipe.dx = Math.min(0, favSwipe.base + dx);
+    // 拉超過刪除按鈕的寬度後變得很難拉，提示到底了
+    const x = Math.min(0, favSwipe.base + dx);
+    favSwipe.dx = x < -SWIPE_W ? -SWIPE_W + (x + SWIPE_W) / 4 : x;
     favSwipe.inner.style.transform = `translateX(${favSwipe.dx}px)`;
 });
 function endFavSwipe() {
@@ -1376,7 +1415,6 @@ function endFavSwipe() {
     if (!on) return;
     inner.style.transition = '';
     favSwipedAt = Date.now();
-    if (dx < -inner.offsetWidth / 2) { inner.style.transform = `translateX(-100%)`; setTimeout(() => deleteFavorite(+inner.parentNode.dataset.i), 180); favOpen = null; return; }
     if (dx < -SWIPE_W / 2) { inner.style.transform = `translateX(${-SWIPE_W}px)`; favOpen = inner; }
     else { inner.style.transform = ''; if (favOpen === inner) favOpen = null; }
 }
