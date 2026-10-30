@@ -67,11 +67,11 @@ body.home .fav-btn, body.home #favPanel, body.home #rowTools, body.home #alertBa
 body:not(.home) #homeFavs { display: none; }
 body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .stn:active b { opacity: .6; }
-/* 交換鍵緊貼站名右邊；收藏按鈕靠右上 */
+/* 交換鍵緊貼站名右邊；收藏按鈕靠右、跟交換鍵一樣置中 */
 .swap { width: 40px; height: 40px; display: grid; place-items: center; color: var(--sub); margin-left: 4px; }
 
 /* 收藏：站名右邊的按鈕，點開列出收藏路線 */
-.fav-btn { justify-self: end; align-self: start; margin-top: 6px; display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--sub); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 5px 9px; }
+.fav-btn { justify-self: end; align-self: center; display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--sub); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 5px 9px; }
 .fav-btn svg { transition: transform .2s; }
 .fav-btn.open { color: var(--text); border-color: var(--accent); }
 .fav-btn.open svg { transform: rotate(180deg); }
