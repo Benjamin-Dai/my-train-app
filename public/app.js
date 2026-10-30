@@ -312,11 +312,13 @@ function getUiLockedUntil(){return parseInt(localStorage.getItem(LS_UI_LOCK)||"0
 function setUiLockedUntil(v){localStorage.setItem(LS_UI_LOCK,v);}
 
 function updateToggleBtns() {
-    document.getElementById('btnTimeFormat').innerText = is24Hour ? '24 小時' : '12 小時';
+    document.getElementById('fmt24').classList.toggle('on', is24Hour);
+    document.getElementById('fmt12').classList.toggle('on', !is24Hour);
     // 「顯示已發車」的文字在 renderCards 依班次數更新
 }
 
-function toggleTimeFormat() { is24Hour=!is24Hour; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
+function toggleTimeFormat() { setTimeFormat(!is24Hour); }
+function setTimeFormat(v) { if (v === is24Hour) return; is24Hour=v; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
 function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
 
 function formatTime(t) {
@@ -1236,6 +1238,7 @@ function setFavPanel(open) {
 function toggleFavPanel() { setFavPanel(favPanel.hidden); }
 
 function renderFavs() {
+    favDelArmed = null;
     const favs = getFavs();
     const cur = getCurrentPair();
     const hasRoute = !!(cur.start && cur.end);
@@ -1263,7 +1266,18 @@ function renderFavs() {
 // ---------- 首頁編輯：拖曳排序、刪除 ----------
 let homeEditing = false;
 function toggleHomeEdit() { homeEditing = !homeEditing; renderFavs(); }
+// 刪除要按兩下：第一下變「確定刪除」，3 秒內再按一次才刪
+let favDelArmed = null;
 function deleteFavorite(i) {
+    if (favDelArmed !== i) {
+        renderFavs(); favDelArmed = i;
+        const b = homeFavs.querySelector(`.home-fav[data-i="${i}"] .del`);
+        if (b) { b.classList.add('arm'); b.innerText = '確定刪除'; }
+        clearTimeout(deleteFavorite.t);
+        deleteFavorite.t = setTimeout(() => { if (favDelArmed === i) { favDelArmed = null; renderFavs(); } }, 3000);
+        return;
+    }
+    favDelArmed = null; clearTimeout(deleteFavorite.t);
     const favs = getFavs(); favs.splice(i, 1); saveFavs(favs);
     logSystem("Fav: Removed"); renderFavs();
 }

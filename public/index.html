@@ -115,7 +115,7 @@
             <div class="menu-close"><button class="icon-btn" onclick="closeModal()" aria-label="關閉"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button></div>
             <div class="menu-list">
                 <button class="menu-item" onclick="replayCoach()">教學</button>
-                <button class="menu-item" onclick="toggleTimeFormat()">時間<span id="btnTimeFormat" class="val"></span></button>
+                <button class="menu-item" onclick="toggleTimeFormat()">時間<span class="seg"><span id="fmt24" onclick="event.stopPropagation(); setTimeFormat(true)">24 小時</span><span id="fmt12" onclick="event.stopPropagation(); setTimeFormat(false)">12 小時</span></span></button>
                 <button class="menu-item" onclick="goToPage('Report')">回報</button>
                 <button class="menu-item" onclick="goToPage('Author')">關於</button>
                 <button class="menu-item" onclick="shareApp()">分享</button>

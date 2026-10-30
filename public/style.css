@@ -96,6 +96,7 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .home-fav .go:active { opacity: .6; }
 .home-fav .handle { width: 36px; height: 100%; display: none; place-items: center start; color: var(--dim); touch-action: none; cursor: grab; }
 .home-fav .del { display: none; font-size: 13px; color: var(--alert); padding: 10px 0 10px 12px; }
+.home-fav .del.arm { font-weight: 600; color: #000; background: var(--alert); border-radius: var(--radius); padding: 6px 10px; }
 .home-favs.editing .handle { display: grid; }
 .home-favs.editing .del { display: block; }
 .home-favs.editing .go { pointer-events: none; }
@@ -246,6 +247,10 @@ body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px var(--accent); }
 .menu-item { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 17px 24px; font-size: 16px; border-bottom: 1px solid var(--line); text-align: left; }
 .menu-item:active { background: #18181b; }
 .menu-item .val { color: var(--sub); font-size: 14px; }
+/* 時間：兩個選項都列出來，目前的綠框，看得出來可以切換 */
+.menu-item .seg { display: flex; gap: 6px; }
+.menu-item .seg span { padding: 5px 10px; font-size: 13px; color: var(--dim); border: 1px solid var(--line-strong); border-radius: var(--radius); }
+.menu-item .seg span.on { color: var(--accent); border-color: var(--accent); font-weight: 600; }
 .menu-close { display: flex; justify-content: flex-end; padding: 10px 12px 2px; }
 
 /* 表單 */
