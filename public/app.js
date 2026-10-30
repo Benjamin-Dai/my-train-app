@@ -55,13 +55,16 @@ const isInApp = /Line|Instagram|FBAN|FBAV/i.test(navigator.userAgent);
 if (!isInStandaloneMode) { btnInstall.style.display = 'flex'; }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 
+const SHEET_NO_HISTORY = isIos && !isInStandaloneMode;
 // 打開彈出視窗並切到指定頁面
-function openSheet(id) {
+// reopen：往下一頁滑回已關掉的視窗，紀錄已經在了，不要再加一筆
+function openSheet(id, reopen) {
     const modal = document.getElementById('aboutModal');
     modal.style.display = 'flex';
     document.body.classList.add('noscroll');
     setTimeout(() => modal.classList.add('active'), 10);
-    history.pushState({modal: true}, '', '');
+    // iOS Safari 的左右滑是同一串紀錄：存了紀錄，關掉後往左滑（下一頁）又會滑出這個視窗，所以 iOS 不存
+    if (!reopen && !SHEET_NO_HISTORY) history.pushState({ modal: true, page: id, pick: pickerType, depth: histDepth() + 1 }, '', '');
     goToPage(id);
 }
 
@@ -319,7 +322,12 @@ function updateToggleBtns() {
 
 function toggleTimeFormat() { setTimeFormat(!is24Hour); }
 function setTimeFormat(v) { if (v === is24Hour) return; is24Hour=v; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
-function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
+function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); playListEnter(); scrollToFirstActive();}
+// 列表淡入只在查到新資料或展開／收起時播一次，每秒重畫時不要重播
+function playListEnter() {
+    list.classList.remove('enter'); void list.offsetWidth; list.classList.add('enter');
+    clearTimeout(playListEnter.t); playListEnter.t = setTimeout(() => list.classList.remove('enter'), 700);
+}
 
 function formatTime(t) {
     if(!t) return "";
@@ -396,8 +404,8 @@ function init() {
         window.location.reload();
     }
     
-    // 重新整理時瀏覽器會留著上一頁的狀態，清掉才不會按返回又回到首頁
-    if (history.state && history.state.view) history.replaceState(null, '', '');
+    // 重新整理時瀏覽器會留著原本那一筆紀錄：退回最底下那筆（首頁），不然首頁左右滑會滑出另一個一樣的首頁
+    if (histDepth() > 0) history.go(-histDepth()); else history.replaceState({ depth: 0 }, '', '');
     updateStationDisplay();
     renderFavs();
     updateActionButton();
@@ -428,7 +436,7 @@ function updateStationDisplay() {
 
 // ---------- 選站畫面 ----------
 let pickerType = 'start'; let pickerRegion = '';
-function openStationPicker(type) {
+function openStationPicker(type, reopen) {
     pickerType = type;
     const sSel = type === 'start' ? startStation : endStation;
     const rSel = type === 'start' ? startRegion : endRegion;
@@ -438,7 +446,7 @@ function openStationPicker(type) {
     document.getElementById('pickerSearch').value = '';
     renderPickerRegions();
     renderPickerStations();
-    openSheet('Station');
+    openSheet('Station', reopen);
     setTimeout(() => {
         const on = document.querySelector('#pickerStations .on');
         if (on) on.scrollIntoView({ block: 'center' });
@@ -506,7 +514,11 @@ function pickStation(station, region) {
 function swapStations() {
     if(!startStation.value||!endStation.value) return; logSystem("Action: Swap");
     const sR=startRegion.value; const sS=startStation.value;
+    // 兩個站名交叉換位置
+    const parts = ['b', 'span'].map(t => [document.querySelector('#startPick ' + t), document.querySelector('#endPick ' + t)]);
+    const before = parts.map(p => p.map(rectOf));
     setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
+    if (!reduceMotion()) parts.forEach((p, j) => { flipFrom(p[0], before[j][1], null, 260); flipFrom(p[1], before[j][0], null, 260); });
     markAsChanged();
 }
 
@@ -810,7 +822,7 @@ async function fetchData(mode) {
         const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
         
         localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
-        renderCards(json);
+        renderCards(json); playListEnter();
 
         logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
 
@@ -1041,29 +1053,46 @@ function closeModal(){
         el.style.transform = '';
         el.style.transition = '';
     });
-    history.back();
+    if (history.state && history.state.modal) history.back(); else hideModal();
+}
+function hideModal() {
+    const modal = document.getElementById('aboutModal');
+    if (modal.style.display !== 'flex') return;
+    modal.classList.remove('active');
+    document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.classList.remove('noscroll');
+    }, 300);
 }
 
+// 每筆自己加的瀏覽紀錄都記著第幾層，首頁是 0
+function histDepth() { return (history.state && history.state.depth) || 0; }
 window.addEventListener('popstate', () => {
     const modal = document.getElementById('aboutModal');
+    const st = history.state || {};
+    // iOS 往左滑（下一頁）會走到已經關掉的紀錄，Safari 先秀那頁的截圖：
+    // 把那頁真的打開，畫面才會跟截圖一樣（不然截圖會一直卡在畫面上）；回報、後台不重開，直接退回
+    if (st.modal && modal.style.display !== 'flex') {
+        if (st.page === 'Station') openStationPicker(st.pick || 'start', true);
+        else if (['Menu', 'Author', 'IOS'].includes(st.page)) openSheet(st.page, true);
+        else history.back();
+        return;
+    }
+    // 時刻表那筆就重新打開剛剛那條路線（不自動查詢）
+    if (st.view && isHome()) {
+        if (lastRoute) { const r = lastRoute; loadRoute(r.start, r.end, null, true); } else history.back();
+        return;
+    }
     // 在時刻表按返回（或往右滑）回到首頁，而不是離開網站
     if (!isHome() && !(history.state && history.state.view)) goHome();
-    if (modal.style.display === 'flex') {
-        modal.classList.remove('active');
-        
-        // Close active pages inside
-        document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
-
-        setTimeout(() => {
-            modal.style.display = 'none';
-            document.body.classList.remove('noscroll');
-        }, 300);
-    }
+    hideModal();
 });
 
 function goToPage(id){
     document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
     document.getElementById('page'+id).classList.add('active');
+    if (history.state && history.state.modal) history.replaceState({ ...history.state, page: id }, '', '');
     if(id==='Report'){ uploadReport(); }
 }
 
@@ -1072,6 +1101,7 @@ let dragModal = null;
 let dragStartY = 0;
 let dragStartX = 0;
 let isDragging = false;
+let dragFromList = false;
 
 // Helper to find parent modal
 function getParentModal(el) {
@@ -1096,6 +1126,15 @@ document.addEventListener('touchstart', (e) => {
                               e.target.closest('.report-list') || 
                               e.target.tagName === 'TEXTAREA';
 
+        // 選站清單已經在最上面時再往下拉 → 整個視窗跟著往下，拉夠就關掉；往上滑還是捲清單
+        const pickCol = e.target.closest('.picker-col');
+        if (pickCol && pickCol.scrollTop <= 0) {
+            dragModal = modal; dragFromList = true;
+            dragStartY = e.touches[0].clientY;
+            isDragging = true;
+            dragModal.style.transition = 'none';
+            return;
+        }
         if (isInnerScroll) return; 
 
         if (isHandle || isAtTop) {
@@ -1123,6 +1162,11 @@ document.addEventListener('touchmove', (e) => {
         const currentY = e.touches[0].clientY;
         const deltaY = currentY - dragStartY;
 
+        if (dragFromList && deltaY < 0 && !dragModal.style.transform) {
+            // 往上滑：交給清單捲動
+            dragModal.style.transition = ''; isDragging = false; dragModal = null; dragFromList = false;
+            return;
+        }
         if (deltaY > 0) { // Only allow dragging down
             // Prevent background scroll only if we are actually dragging the window
             if (e.cancelable) e.preventDefault(); 
@@ -1168,6 +1212,7 @@ document.addEventListener('touchend', (e) => {
 
     isDragging = false;
     dragModal = null;
+    dragFromList = false;
 });
 
 const LS_FAV = "tl_favorites";
@@ -1182,20 +1227,83 @@ function clearStations() {
     startRegion.value = ''; endRegion.value = '';
     startStation.innerHTML = endStation.innerHTML = `<option value=""></option>`;
 }
+// ---------- 過場動畫：短、安靜；系統設定「減少動態效果」時全部不播 ----------
+const EASE = 'cubic-bezier(.2,.7,.2,1)';
+function reduceMotion() { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+const rectOf = el => el ? el.getBoundingClientRect() : null;
+// FLIP：元素已經在新位置，從舊位置 from 平移（必要時縮放）過去。fit = 'width' / 'height' 決定縮放比例，不給就只平移
+function flipFrom(el, from, fit, dur) {
+    if (!el || !from || !el.animate) return;
+    const to = el.getBoundingClientRect();
+    if (!to.width || !from.width) return;
+    const k = fit ? from[fit] / to[fit] : 1;
+    el.animate([
+        { transformOrigin: '0 0', transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${k})` },
+        { transformOrigin: '0 0', transform: 'none' }
+    ], { duration: dur || 320, easing: EASE });
+}
+// 換頁：其他東西從旁邊滑一點點進來（dir 1 從右、-1 從左）
+function slideIn(els, dir) {
+    els.forEach(el => el && el.animate && el.animate([
+        { opacity: 0, transform: `translateX(${dir * 16}px)` }, { opacity: 1, transform: 'none' }
+    ], { duration: 260, delay: 40, easing: EASE, fill: 'backwards' }));
+}
+function restartClass(el, cls, ms) {
+    el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+    clearTimeout(el['_t' + cls]); el['_t' + cls] = setTimeout(() => el.classList.remove(cls), ms);
+}
+const stnB = () => [document.querySelector('#startPick b'), document.querySelector('#endPick b')];
+// 收藏路線那一行裡的起站、迄站文字
+const favNames = row => row ? [...row.querySelectorAll('.go .rt')] : [];
+const homeFavRow = (s, e) => [...homeFavs.querySelectorAll('.home-fav')].find(r => {
+    const n = r.querySelectorAll('.go .rt'); return n.length === 2 && n[0].textContent === s && n[1].textContent === e;
+});
+// 首頁 → 時刻表：按收藏進來時兩個站名從那一行平移放大到上方；按查詢進來時整組站名從中間移到左上
+function playTimetableEnter(fromStops, fromNames) {
+    if (reduceMotion()) return;
+    if (fromNames && fromNames.length === 2) {
+        stnB().forEach((b, k) => flipFrom(b, fromNames[k], 'width', 340));
+        // 飛上去時要蓋在查詢按鈕那一塊上面；圓點、線條晚一點淡入
+        restartClass(document.querySelector('.route'), 'dots-in', 500);
+    } else {
+        flipFrom(document.querySelector('.route-stops'), fromStops, 'height');
+    }
+    slideIn([document.querySelector('.swap'), document.querySelector('.fav-group'), btnAction, list], 1);
+}
+// 時刻表 → 首頁：首頁從左邊滑回來；這條路線有收藏的話，站名縮回那一行
+function playHomeEnter(pair, fromNames) {
+    if (reduceMotion()) return;
+    slideIn([document.querySelector('.route'), homeFavs], -1);
+    const row = homeFavRow(pair.start, pair.end); if (!row) return;
+    // 那一行平常會切掉超出的部分（往左滑刪除用），飛進去的時候先打開
+    row.style.overflow = 'visible'; setTimeout(() => { row.style.overflow = ''; }, 360);
+    favNames(row).forEach((n, k) => flipFrom(n, fromNames[k], 'width', 340));
+    const arrow = row.querySelector('.go .route-arrow');
+    if (arrow) arrow.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: 140, fill: 'backwards' });
+}
 // 進時刻表：多一筆瀏覽紀錄，讓返回鍵可以回首頁
-function showTimetable() {
-    if (!isHome()) return;
+// beforeShow：切畫面前先換站名；favRow：從首頁哪一行收藏點進來（動畫從那裡開始）
+// inPlace：已經在時刻表那筆紀錄上（往下一頁滑回來），不要再多加一筆
+function showTimetable(beforeShow, favRow, inPlace) {
+    if (!isHome()) { if (beforeShow) beforeShow(); return; }
     hideUndo(); closeFavSwipe();
+    window.scrollTo(0, 0);
+    const fromStops = rectOf(document.querySelector('.route-stops'));
+    const fromNames = favNames(favRow).map(rectOf);
+    if (beforeShow) beforeShow();
     document.body.classList.remove('home');
     homeEditing = false;
-    history.pushState({ view: 'timetable' }, '', '');
-    window.scrollTo(0, 0);
+    if (!inPlace) history.pushState({ view: 'timetable', depth: histDepth() + 1 }, '', '');
+    playTimetableEnter(fromStops, fromNames);
 }
 function leaveTimetable() {
     if (history.state && history.state.view) history.back(); else goHome();
 }
 function goHome() {
     if (isHome()) return;
+    window.scrollTo(0, 0);
+    const pair = getCurrentPair(), fromNames = stnB().map(rectOf);
+    if (pair.start && pair.end) lastRoute = pair;
     document.body.classList.add('home');
     if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
     if (autoResumeTimer) { clearTimeout(autoResumeTimer); autoResumeTimer = null; }
@@ -1210,7 +1318,11 @@ function goHome() {
     setFavPanel(false);
     updateStationDisplay(); renderFavs(); updateActionButton();
     window.scrollTo(0, 0);
+    // 從左邊緣滑回來時首頁已經跟著手指滑進來了，不用再播一次
+    if (skipHomeEnter) skipHomeEnter = false; else playHomeEnter(pair, fromNames);
 }
+let skipHomeEnter = false;
+let lastRoute = null;
 
 // ---------- 從螢幕左邊往右滑回首頁，滑的時候首頁會跟著滑進來 ----------
 // iOS Safari、Android 手勢導航會自己接走邊緣手勢（那時這段不會動），主要給加到主畫面的 App 用
@@ -1254,7 +1366,7 @@ function endEdgeSwipe(cancel) {
     peek.style.transition = 'transform .2s ease-out';
     if (!cancel && (dx > innerWidth * 0.35 || fast)) {
         peek.style.transform = 'translateX(0)';
-        setTimeout(() => { leaveTimetable(); setTimeout(() => peek.remove(), 250); }, 200);
+        setTimeout(() => { skipHomeEnter = true; leaveTimetable(); setTimeout(() => peek.remove(), 250); }, 200);
     } else {
         peek.style.transform = `translateX(-100%)`;
         setTimeout(() => peek.remove(), 220);
@@ -1268,7 +1380,7 @@ function getFavs() { try { return JSON.parse(localStorage.getItem(LS_FAV) || "[]
 function saveFavs(favs) { localStorage.setItem(LS_FAV, JSON.stringify(favs)); }
 function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
 function isFavorite(s, e) { return getFavs().some(f => f.start === s && f.end === e); }
-const routeText = r => `${r.start}<span class="route-arrow">→</span>${r.end}`;
+const routeText = r => `<span class="rt">${r.start}</span><span class="route-arrow">→</span><span class="rt">${r.end}</span>`;
 
 function addCurrentFavorite() {
     const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
@@ -1280,14 +1392,17 @@ function addCurrentFavorite() {
     favs.push(cur); saveFavs(favs); logSystem("Fav: Added");
     renderFavs(); showToast('已加入收藏');
 }
-function loadRoute(s, e) {
+function loadRoute(s, e, fromEl, inPlace) {
     const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
     if (!sR || !eR) return;
     setFavPanel(false);
     if (s === startStation.value && e === endStation.value && !isHome()) return;
-    showTimetable();
-    setMenu('start', sR, s); setMenu('end', eR, e);
-    markAsChanged(); doSearch();
+    // 在時刻表的收藏欄換路線：站名淡入
+    if (!isHome() && !reduceMotion()) document.querySelector('.route-stops').animate([{ opacity: .2 }, { opacity: 1 }], { duration: 220 });
+    // 先換好站名再切畫面，動畫才會從首頁的收藏位置接到時刻表上的站名
+    showTimetable(() => { setMenu('start', sR, s); setMenu('end', eR, e); }, fromEl && fromEl.closest('.home-fav'), inPlace);
+    markAsChanged();
+    if (!inPlace) doSearch();
 }
 
 function setFavPanel(open) {
@@ -1327,7 +1442,7 @@ function renderFavs() {
             <button class="swipe-del" onclick="deleteFavorite(${i})" tabindex="-1">刪除</button>
             <div class="fav-inner">
             <span class="handle" aria-label="拖曳排序"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h10M3 8h10M3 11h10"/></svg></span>
-            <button class="go" onclick="loadRoute('${r.start}','${r.end}')">${routeText(r)}</button>
+            <button class="go" onclick="loadRoute('${r.start}','${r.end}', this)">${routeText(r)}</button>
             <button class="del" onclick="deleteFavorite(${i})">刪除</button>
             </div>
         </div>`).join('');
@@ -1338,7 +1453,16 @@ let homeEditing = false;
 function toggleHomeEdit() { homeEditing = !homeEditing; renderFavs(); }
 // 刪除不跳確認視窗：直接刪，下面出現「復原」6 秒，往旁邊或往下滑可以關掉
 let undoFav = null;
-function deleteFavorite(i) {
+function deleteFavorite(i, collapsed) {
+    // 首頁那一行先收起來再刪
+    const row = homeFavs.querySelector(`.home-fav[data-i="${i}"]`);
+    if (!collapsed && row && isHome() && row.animate && !reduceMotion()) {
+        if (row.dataset.removing) return;
+        row.dataset.removing = '1';
+        row.animate([{ height: row.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0 }],
+            { duration: 200, easing: 'ease-in', fill: 'forwards' }).onfinish = () => deleteFavorite(i, true);
+        return;
+    }
     const favs = getFavs(); const [r] = favs.splice(i, 1); if (!r) return;
     saveFavs(favs);
     logSystem("Fav: Removed"); renderFavs();
@@ -1352,7 +1476,10 @@ function undoDelete() {
     if (!undoFav) return;
     const favs = getFavs();
     if (!favs.some(f => f.start === undoFav.r.start && f.end === undoFav.r.end)) { favs.splice(undoFav.i, 0, undoFav.r); saveFavs(favs); }
+    const i = undoFav.i;
     logSystem("Fav: Undo"); hideUndo(); renderFavs();
+    const row = homeFavs.querySelector(`.home-fav[data-i="${i}"]`);
+    if (row && row.animate && !reduceMotion()) row.animate([{ height: '0px', opacity: 0 }, { height: row.offsetHeight + 'px', opacity: 1 }], { duration: 220, easing: EASE });
 }
 function hideUndo() {
     undoFav = null; clearTimeout(deleteFavorite.t);
