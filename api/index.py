@@ -262,6 +262,9 @@ class handler(BaseHTTPRequestHandler):
             raw_list = res.json().get('TrainTimetables', [])
             redis_set(route_key(start_id, end_id, date_str), json.dumps(raw_list), ROUTE_CACHE_TTL)
             return (raw_list, status_str)
+        elif res.status_code == 429:
+            # 重試後 TDX 還是嫌太頻繁：回給前端「查詢的人太多」，不要當成連線錯誤
+            raise Exception("TDX Busy")
         else:
             raise Exception(f"Timetable Error: {res.status_code}")
 
@@ -676,7 +679,18 @@ class handler(BaseHTTPRequestHandler):
                 "diagnostics": { "route_status": diag_route_status, "delay_status": delay_status }
             }).encode())
         except Exception as e:
+            if str(e) == "TDX Busy":
+                return self.send_busy_response()
             self.send_error_response(str(e))
+
+    def send_busy_response(self):
+        self.send_response(503)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Retry-After', '30')
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": "TDX Busy"}).encode())
 
     def send_error_response(self, msg):
         self.send_response(500)
