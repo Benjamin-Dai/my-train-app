@@ -58,6 +58,7 @@ const isInApp = /Line|Instagram|FBAN|FBAV/i.test(navigator.userAgent);
 if (!isInStandaloneMode) { btnInstall.style.display = 'flex'; }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 
+const SHEET_NO_HISTORY = isIos && !isInStandaloneMode;
 // 打開彈出視窗並切到指定頁面
 // reopen：往下一頁滑回已關掉的視窗，紀錄已經在了，不要再加一筆
 function openSheet(id, reopen) {
@@ -65,7 +66,8 @@ function openSheet(id, reopen) {
     modal.style.display = 'flex';
     document.body.classList.add('noscroll');
     setTimeout(() => modal.classList.add('active'), 10);
-    if (!reopen) history.pushState({ modal: true, page: id, pick: pickerType, depth: histDepth() + 1 }, '', '');
+    // iOS Safari 的左右滑是同一串紀錄：存了紀錄，關掉後往左滑（下一頁）又會滑出這個視窗，所以 iOS 不存
+    if (!reopen && !SHEET_NO_HISTORY) history.pushState({ modal: true, page: id, pick: pickerType, depth: histDepth() + 1 }, '', '');
     goToPage(id);
 }
 
@@ -1058,7 +1060,17 @@ function closeModal(){
         el.style.transform = '';
         el.style.transition = '';
     });
-    history.back();
+    if (history.state && history.state.modal) history.back(); else hideModal();
+}
+function hideModal() {
+    const modal = document.getElementById('aboutModal');
+    if (modal.style.display !== 'flex') return;
+    modal.classList.remove('active');
+    document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.classList.remove('noscroll');
+    }, 300);
 }
 
 // 每筆自己加的瀏覽紀錄都記著第幾層，首頁是 0
@@ -1081,17 +1093,7 @@ window.addEventListener('popstate', () => {
     }
     // 在時刻表按返回（或往右滑）回到首頁，而不是離開網站
     if (!isHome() && !(history.state && history.state.view)) goHome();
-    if (modal.style.display === 'flex') {
-        modal.classList.remove('active');
-        
-        // Close active pages inside
-        document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
-
-        setTimeout(() => {
-            modal.style.display = 'none';
-            document.body.classList.remove('noscroll');
-        }, 300);
-    }
+    hideModal();
 });
 
 function goToPage(id){
