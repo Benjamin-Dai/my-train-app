@@ -62,10 +62,16 @@ function openSheet(id, reopen) {
     const modal = document.getElementById('aboutModal');
     modal.style.display = 'flex';
     document.body.classList.add('noscroll');
+    setBackgroundInert(true);
     setTimeout(() => modal.classList.add('active'), 10);
     // iOS Safari 的左右滑是同一串紀錄：存了紀錄，關掉後往左滑（下一頁）又會滑出這個視窗，所以 iOS 不存
     if (!reopen && !SHEET_NO_HISTORY) history.pushState({ modal: true, page: id, pick: pickerType, depth: histDepth() + 1 }, '', '');
     goToPage(id);
+}
+
+// 視窗開著時，螢幕閱讀器不要讀到後面的畫面
+function setBackgroundInert(on) {
+    document.querySelectorAll('.container, #btnBackToTop').forEach(el => { el.inert = on; });
 }
 
 function handleInstall() {
@@ -437,6 +443,7 @@ function updateStationDisplay() {
         el.classList.toggle('empty', !has);
         el.querySelector('b').innerText = has ? sSel.value : '';
         el.querySelector('span').innerText = has ? rSel.value : '';
+        el.setAttribute('aria-label', `${type === 'start' ? '出發站' : '抵達站'} ${has ? sSel.value : '未選'}`);
     });
     document.body.classList.toggle('nostation', !(startStation.value && endStation.value));
     fitRouteNames();
@@ -503,12 +510,12 @@ function renderPickerStations() {
         const b = document.createElement('button');
         const cls = [];
         if (MAJOR_STATIONS.has(s)) cls.push('major');
-        if (s === current) cls.push('on');
+        if (s === current) { cls.push('on'); b.setAttribute('aria-current', 'true'); }
         b.className = cls.join(' ');
         const name = document.createElement('span'); name.innerText = s;
         b.appendChild(name);
         if (s === current) {
-            b.insertAdjacentHTML('beforeend', '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>');
+            b.insertAdjacentHTML('beforeend', '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>');
         } else if (showRegion) {
             const sm = document.createElement('small'); sm.innerText = r; b.appendChild(sm);
         }
@@ -1091,6 +1098,7 @@ function hideModal() {
     if (modal.style.display !== 'flex') return;
     modal.classList.remove('active');
     document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
+    setBackgroundInert(false);
     setTimeout(() => {
         modal.style.display = 'none';
         document.body.classList.remove('noscroll');
@@ -1414,6 +1422,7 @@ const routeText = r => `<span class="rt">${r.start}</span><span class="route-arr
 
 function addCurrentFavorite() {
     const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
+    if (cur.start === cur.end) { showToast('起訖站不能相同'); return; }
     const favs = getFavs();
     // 已收藏再按一次就取消（下面會出現「復原」）
     const i = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
@@ -1447,7 +1456,7 @@ function renderFavs() {
     renderRecent();
     const favs = getFavs();
     const cur = getCurrentPair();
-    const hasRoute = !!(cur.start && cur.end);
+    const hasRoute = !!(cur.start && cur.end) && cur.start !== cur.end;
 
     // 時刻表的收藏欄：目前路線綠字，還沒收藏就多一行「＋ 收藏這條路線」
     let html = favs.map(r => {
@@ -1470,11 +1479,11 @@ function renderFavs() {
     if (!favs.length) { homeFavs.innerHTML = `<div class="home-favs-empty">目前無收藏路線</div>`; return; }
     homeFavs.innerHTML = `<div class="home-favs-head"><span>收藏</span><button class="${homeEditing ? 'done' : ''}" onclick="toggleHomeEdit()">${homeEditing ? '完成' : '編輯'}</button></div>` +
         favs.map((r, i) => `<div class="home-fav" data-i="${i}">
-            <button class="swipe-del" onclick="deleteFavorite(${i})" tabindex="-1">刪除</button>
+            <button class="swipe-del" onclick="deleteFavorite(${i})" tabindex="-1" aria-hidden="true">刪除</button>
             <div class="fav-inner">
-            <span class="handle" aria-label="拖曳排序"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h10M3 8h10M3 11h10"/></svg></span>
+            <span class="handle" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h10M3 8h10M3 11h10"/></svg></span>
             <button class="go" onclick="loadRoute('${r.start}','${r.end}', this)">${routeText(r)}</button>
-            <button class="del" onclick="deleteFavorite(${i})">刪除</button>
+            <button class="del" onclick="deleteFavorite(${i})" aria-label="刪除 ${r.start} 到 ${r.end}">刪除</button>
             </div>
         </div>`).join('');
 }
@@ -1535,7 +1544,7 @@ function deleteFavorite(i, collapsed) {
     logSystem("Fav: Removed"); renderFavs();
     undoFav = { i, r };
     document.getElementById('undoText').innerHTML = `已刪除　${routeText(r)}`;
-    const bar = document.getElementById('undoBar'); bar.classList.add('show');
+    const bar = document.getElementById('undoBar'); bar.classList.add('show'); bar.inert = false; bar.removeAttribute('aria-hidden');
     clearTimeout(deleteFavorite.t);
     deleteFavorite.t = setTimeout(hideUndo, 6000);
 }
@@ -1552,6 +1561,7 @@ function hideUndo() {
     undoFav = null; clearTimeout(deleteFavorite.t);
     const bar = document.getElementById('undoBar');
     bar.classList.remove('show'); bar.style.transform = ''; bar.style.opacity = ''; bar.style.transition = '';
+    bar.inert = true; bar.setAttribute('aria-hidden', 'true');
 }
 // 復原通知可以滑掉
 const undoBar = document.getElementById('undoBar');

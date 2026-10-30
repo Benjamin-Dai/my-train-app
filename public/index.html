@@ -37,7 +37,7 @@
 
     <div id="toastMsg" class="toast-msg"></div>
 
-    <div id="undoBar" class="undo-bar"><span id="undoText"></span><button onclick="undoDelete()">復原</button></div>
+    <div id="undoBar" class="undo-bar" role="status" aria-hidden="true" inert><span id="undoText"></span><button onclick="undoDelete()">復原</button></div>
 
     <div id="coach" class="coach" role="dialog" aria-modal="true" aria-label="使用教學">
         <div id="coachTip" class="coach-tip">
@@ -112,7 +112,7 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>
     </button>
 
-    <div id="aboutModal" class="modal-overlay" onclick="closeModal()">
+    <div id="aboutModal" class="modal-overlay" role="dialog" aria-modal="true" onclick="closeModal()">
 
         <div id="pageMenu" class="modal-page sheet-right" onclick="event.stopPropagation()">
             <div class="menu-close"><button class="icon-btn" onclick="closeModal()" aria-label="關閉"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button></div>
