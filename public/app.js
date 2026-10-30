@@ -1108,6 +1108,7 @@ let dragModal = null;
 let dragStartY = 0;
 let dragStartX = 0;
 let isDragging = false;
+let dragFromList = false;
 
 // Helper to find parent modal
 function getParentModal(el) {
@@ -1132,6 +1133,15 @@ document.addEventListener('touchstart', (e) => {
                               e.target.closest('.report-list') || 
                               e.target.tagName === 'TEXTAREA';
 
+        // 選站清單已經在最上面時再往下拉 → 整個視窗跟著往下，拉夠就關掉；往上滑還是捲清單
+        const pickCol = e.target.closest('.picker-col');
+        if (pickCol && pickCol.scrollTop <= 0) {
+            dragModal = modal; dragFromList = true;
+            dragStartY = e.touches[0].clientY;
+            isDragging = true;
+            dragModal.style.transition = 'none';
+            return;
+        }
         if (isInnerScroll) return; 
 
         if (isHandle || isAtTop) {
@@ -1159,6 +1169,11 @@ document.addEventListener('touchmove', (e) => {
         const currentY = e.touches[0].clientY;
         const deltaY = currentY - dragStartY;
 
+        if (dragFromList && deltaY < 0 && !dragModal.style.transform) {
+            // 往上滑：交給清單捲動
+            dragModal.style.transition = ''; isDragging = false; dragModal = null; dragFromList = false;
+            return;
+        }
         if (deltaY > 0) { // Only allow dragging down
             // Prevent background scroll only if we are actually dragging the window
             if (e.cancelable) e.preventDefault(); 
@@ -1204,6 +1219,7 @@ document.addEventListener('touchend', (e) => {
 
     isDragging = false;
     dragModal = null;
+    dragFromList = false;
 });
 
 const LS_FAV = "tl_favorites";
