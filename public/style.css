@@ -277,7 +277,7 @@ body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px var(--accent); }
 
 /* 側邊選單 */
 .menu-list { padding: 8px 0; }
-.menu-item { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 17px 24px; font-size: 16px; border-bottom: 1px solid var(--line); text-align: left; }
+.menu-item { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 60px; padding: 0 24px; font-size: 16px; border-bottom: 1px solid var(--line); text-align: left; }
 .menu-item:active { background: #18181b; }
 .menu-item .val { color: var(--sub); font-size: 14px; }
 /* 時間：兩個選項都列出來，目前的綠框，看得出來可以切換 */
