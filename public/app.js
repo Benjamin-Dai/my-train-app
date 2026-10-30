@@ -672,6 +672,7 @@ function doSearch() {
         setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit: Search Limit"); return;
     }
     cnt++; setSearchCount(cnt); 
+    addRecent(sS, eS);
     const spaces = "            "; 
     logSystem(`Action: Search(${cnt}/${MAX_SEARCH_PER_MIN})\n${spaces}${sS} -> ${eS}`); 
     fetchData("search");
@@ -1333,7 +1334,7 @@ function buildBackPeek() {
     p.className = 'back-peek';
     p.innerHTML = `<div class="container">${document.querySelector('.topbar').outerHTML}
         <div class="route"><div class="route-stops"><div class="stn from empty"><b data-ph="出發"></b></div><div class="stn to empty"><b data-ph="抵達"></b></div></div></div>
-        <div class="home-favs">${homeFavs.innerHTML}</div></div>`;
+        <div class="home-favs">${homeFavs.innerHTML}</div><div class="${homeRecent.className}">${homeRecent.innerHTML}</div></div>`;
     p.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
     p.querySelectorAll('[onclick]').forEach(el => el.removeAttribute('onclick'));
     document.body.appendChild(p);
@@ -1400,7 +1401,7 @@ function loadRoute(s, e, fromEl, inPlace) {
     // 在時刻表的收藏欄換路線：站名淡入
     if (!isHome() && !reduceMotion()) document.querySelector('.route-stops').animate([{ opacity: .2 }, { opacity: 1 }], { duration: 220 });
     // 先換好站名再切畫面，動畫才會從首頁的收藏位置接到時刻表上的站名
-    showTimetable(() => { setMenu('start', sR, s); setMenu('end', eR, e); }, fromEl && fromEl.closest('.home-fav'), inPlace);
+    showTimetable(() => { setMenu('start', sR, s); setMenu('end', eR, e); }, fromEl && fromEl.closest('.home-fav, .recent-row'), inPlace);
     markAsChanged();
     if (!inPlace) doSearch();
 }
@@ -1414,6 +1415,7 @@ function toggleFavPanel() { setFavPanel(favPanel.hidden); }
 
 function renderFavs() {
     favOpen = null;
+    renderRecent();
     const favs = getFavs();
     const cur = getCurrentPair();
     const hasRoute = !!(cur.start && cur.end);
@@ -1446,6 +1448,42 @@ function renderFavs() {
             <button class="del" onclick="deleteFavorite(${i})">刪除</button>
             </div>
         </div>`).join('');
+}
+
+// ---------- 最近搜尋：最多顯示 3 筆，已收藏的不列；可以關掉（關掉時連舊紀錄一起刪） ----------
+const LS_RECENT = "tl_recent"; const LS_RECENT_OFF = "tl_recent_off";
+const homeRecent = document.getElementById('homeRecent');
+function recentOn() { try { return localStorage.getItem(LS_RECENT_OFF) !== '1'; } catch (e) { return true; } }
+function getRecent() { try { return JSON.parse(localStorage.getItem(LS_RECENT) || "[]"); } catch (e) { return []; } }
+function addRecent(s, e) {
+    if (!recentOn() || isFavorite(s, e)) return;
+    const list = getRecent().filter(r => !(r.start === s && r.end === e));
+    list.unshift({ start: s, end: e });
+    try { localStorage.setItem(LS_RECENT, JSON.stringify(list.slice(0, 6))); } catch (err) {}
+    renderRecent();
+}
+function clearRecent() {
+    try { localStorage.removeItem(LS_RECENT); } catch (e) {}
+    logSystem("Recent: Cleared"); renderRecent();
+}
+function toggleRecent() {
+    const on = !recentOn();
+    try {
+        if (on) localStorage.removeItem(LS_RECENT_OFF);
+        else { localStorage.setItem(LS_RECENT_OFF, '1'); localStorage.removeItem(LS_RECENT); }
+    } catch (e) {}
+    logSystem(`Recent: ${on ? 'On' : 'Off'}`); renderRecent();
+}
+function renderRecent() {
+    const on = recentOn();
+    document.getElementById('menuRecentSw').classList.toggle('off', !on);
+    homeRecent.classList.toggle('off', !on);
+    if (!on) { homeRecent.innerHTML = `<button onclick="toggleRecent()" aria-label="開啟搜尋紀錄">搜尋紀錄<span class="rec-sw off"></span></button>`; return; }
+    const rows = getRecent().filter(r => !isFavorite(r.start, r.end) && STATION_INDEX[r.start] && STATION_INDEX[r.end]).slice(0, 3);
+    homeRecent.innerHTML = `<div class="home-recent-head"><span>最近</span><div class="recent-acts">` +
+        (rows.length ? `<button onclick="clearRecent()">清除</button><i></i>` : '') +
+        `<button onclick="toggleRecent()" aria-label="關閉搜尋紀錄">記錄<span class="rec-sw"></span></button></div></div>` +
+        rows.map(r => `<div class="recent-row"><button class="go" onclick="loadRoute('${r.start}','${r.end}', this)">${routeText(r)}</button></div>`).join('');
 }
 
 // ---------- 首頁編輯：拖曳排序、刪除 ----------
