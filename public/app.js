@@ -25,6 +25,9 @@ const MAJOR_STATIONS = new Set(["基隆","七堵","南港","松山","臺北","�
 const MAX_SEARCH_PER_MIN=3;
 let lastFetchedPair={start:"",end:""};
 let is24Hour = localStorage.getItem(LS_IS_24H) !== 'false';
+const LS_MOTION = "tl_pref_motion";
+let motionOn = localStorage.getItem(LS_MOTION) !== 'off';
+document.body.classList.toggle('no-motion', !motionOn);
 let isShowAll = false;
 let lastDiagnostics = { route_source: "--", route_quota: "--", delay_source: "--", delay_quota: "--" };
 let systemLogs=[]; let requestHistory=[];
@@ -314,11 +317,15 @@ function setUiLockedUntil(v){localStorage.setItem(LS_UI_LOCK,v);}
 function updateToggleBtns() {
     document.getElementById('fmt24').classList.toggle('on', is24Hour);
     document.getElementById('fmt12').classList.toggle('on', !is24Hour);
+    document.getElementById('motionOn').classList.toggle('on', motionOn);
+    document.getElementById('motionOff').classList.toggle('on', !motionOn);
     // 「顯示已發車」的文字在 renderCards 依班次數更新
 }
 
 function toggleTimeFormat() { setTimeFormat(!is24Hour); }
 function setTimeFormat(v) { if (v === is24Hour) return; is24Hour=v; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
+// 選單「動畫」開關：關掉時跟系統「減少動態效果」一樣，過場都不播
+function setMotion(v) { motionOn = v; localStorage.setItem(LS_MOTION, v ? 'on' : 'off'); document.body.classList.toggle('no-motion', !v); updateToggleBtns(); }
 function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); playListEnter(); scrollToFirstActive();}
 // 列表淡入只在查到新資料或展開／收起時播一次，每秒重畫時不要重播
 function playListEnter() {
@@ -1193,7 +1200,7 @@ function clearStations() {
 }
 // ---------- 過場動畫：短、安靜；系統設定「減少動態效果」時全部不播 ----------
 const EASE = 'cubic-bezier(.2,.7,.2,1)';
-function reduceMotion() { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+function reduceMotion() { return !motionOn || !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
 const rectOf = el => el ? el.getBoundingClientRect() : null;
 // FLIP：元素已經在新位置，從舊位置 from 平移（必要時縮放）過去。fit = 'width' / 'height' 決定縮放比例，不給就只平移
 function flipFrom(el, from, fit, dur) {

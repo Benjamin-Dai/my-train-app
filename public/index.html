@@ -118,6 +118,7 @@
             <div class="menu-list">
                 <button class="menu-item" onclick="replayCoach()">教學</button>
                 <button class="menu-item" onclick="toggleTimeFormat()">時間<span class="seg"><span id="fmt24" onclick="event.stopPropagation(); setTimeFormat(true)">24 小時</span><span id="fmt12" onclick="event.stopPropagation(); setTimeFormat(false)">12 小時</span></span></button>
+                <button class="menu-item" onclick="setMotion(!motionOn)">動畫<span class="seg"><span id="motionOn" onclick="event.stopPropagation(); setMotion(true)">開</span><span id="motionOff" onclick="event.stopPropagation(); setMotion(false)">關</span></span></button>
                 <button class="menu-item" onclick="goToPage('Report')">回報</button>
                 <button class="menu-item" onclick="goToPage('Author')">關於</button>
                 <button class="menu-item" onclick="shareApp()">分享</button>
