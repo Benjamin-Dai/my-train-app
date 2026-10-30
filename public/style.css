@@ -90,6 +90,7 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .fav-panel button.cur { color: var(--accent); }
 .fav-panel button.add { color: var(--accent); font-size: 15px; }
 .route-arrow { color: var(--accent); font-size: .8em; }
+.rt { display: inline-block; }
 
 /* 首頁的收藏清單 */
 .home-favs { margin-top: 34px; }
@@ -373,8 +374,11 @@ textarea.field { resize: none; border: 1px solid var(--line-strong); padding: 10
     #cardList.enter .row:nth-child(4) { animation-delay: .09s; }
     #cardList.enter .row:nth-child(5) { animation-delay: .12s; }
     #cardList.enter .row:nth-child(n+6) { animation-delay: .15s; }
-    /* 回首頁：收藏清單淡入；收藏選單往下展開 */
-    body.home #homeFavs { animation: fadeUp .3s ease-out both; }
+    @keyframes fadeIn { from { opacity: 0; } }
+    /* 從收藏點進時刻表：站名飛上去時，圓點、線條、縣市晚一點淡入 */
+    .route.dots-in .stn b { position: relative; z-index: 101; }
+    .route.dots-in .stn::before, .route.dots-in .stn.from::after, .route.dots-in .stn span { animation: fadeIn .25s .15s both; }
+    /* 收藏選單往下展開 */
     .fav-panel:not([hidden]) { animation: fadeDown .18s ease-out; }
     /* 按下去稍微縮一點 */
     .action-btn, .fav-group, .swap, .menu-item .seg span { transition: transform .1s; }

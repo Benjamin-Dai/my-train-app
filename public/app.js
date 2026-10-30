@@ -511,7 +511,11 @@ function pickStation(station, region) {
 function swapStations() {
     if(!startStation.value||!endStation.value) return; logSystem("Action: Swap");
     const sR=startRegion.value; const sS=startStation.value;
+    // 兩個站名交叉換位置
+    const parts = ['b', 'span'].map(t => [document.querySelector('#startPick ' + t), document.querySelector('#endPick ' + t)]);
+    const before = parts.map(p => p.map(rectOf));
     setMenu('start',endRegion.value,endStation.value); setMenu('end',sR,sS);
+    if (!reduceMotion()) parts.forEach((p, j) => { flipFrom(p[0], before[j][1], null, 260); flipFrom(p[1], before[j][0], null, 260); });
     markAsChanged();
 }
 
@@ -1187,34 +1191,73 @@ function clearStations() {
     startRegion.value = ''; endRegion.value = '';
     startStation.innerHTML = endStation.innerHTML = `<option value=""></option>`;
 }
-// 首頁和時刻表切換時，站名從原本的位置平移、縮放到新位置（FLIP）
-function animateRoute(change) {
-    const el = document.querySelector('.route-stops');
-    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const a = el.getBoundingClientRect();
-    change();
-    if (reduce || !a.height) return;
-    const b = el.getBoundingClientRect();
-    if (!b.height) return;
-    el.style.transition = 'none';
-    el.style.transformOrigin = '0 0';
-    el.style.transform = `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.height / b.height})`;
-    el.getBoundingClientRect();
-    el.style.transition = 'transform .32s cubic-bezier(.2,.7,.2,1)';
-    el.style.transform = '';
-    setTimeout(() => { el.style.transition = ''; el.style.transformOrigin = ''; }, 360);
+// ---------- 過場動畫：短、安靜；系統設定「減少動態效果」時全部不播 ----------
+const EASE = 'cubic-bezier(.2,.7,.2,1)';
+function reduceMotion() { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+const rectOf = el => el ? el.getBoundingClientRect() : null;
+// FLIP：元素已經在新位置，從舊位置 from 平移（必要時縮放）過去。fit = 'width' / 'height' 決定縮放比例，不給就只平移
+function flipFrom(el, from, fit, dur) {
+    if (!el || !from || !el.animate) return;
+    const to = el.getBoundingClientRect();
+    if (!to.width || !from.width) return;
+    const k = fit ? from[fit] / to[fit] : 1;
+    el.animate([
+        { transformOrigin: '0 0', transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${k})` },
+        { transformOrigin: '0 0', transform: 'none' }
+    ], { duration: dur || 320, easing: EASE });
+}
+// 換頁：其他東西從旁邊滑一點點進來（dir 1 從右、-1 從左）
+function slideIn(els, dir) {
+    els.forEach(el => el && el.animate && el.animate([
+        { opacity: 0, transform: `translateX(${dir * 16}px)` }, { opacity: 1, transform: 'none' }
+    ], { duration: 260, delay: 40, easing: EASE, fill: 'backwards' }));
+}
+function restartClass(el, cls, ms) {
+    el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+    clearTimeout(el['_t' + cls]); el['_t' + cls] = setTimeout(() => el.classList.remove(cls), ms);
+}
+const stnB = () => [document.querySelector('#startPick b'), document.querySelector('#endPick b')];
+// 收藏路線那一行裡的起站、迄站文字
+const favNames = row => row ? [...row.querySelectorAll('.go .rt')] : [];
+const homeFavRow = (s, e) => [...homeFavs.querySelectorAll('.home-fav')].find(r => {
+    const n = r.querySelectorAll('.go .rt'); return n.length === 2 && n[0].textContent === s && n[1].textContent === e;
+});
+// 首頁 → 時刻表：按收藏進來時兩個站名從那一行平移放大到上方；按查詢進來時整組站名從中間移到左上
+function playTimetableEnter(fromStops, fromNames) {
+    if (reduceMotion()) return;
+    if (fromNames && fromNames.length === 2) {
+        stnB().forEach((b, k) => flipFrom(b, fromNames[k], 'width', 340));
+        // 飛上去時要蓋在查詢按鈕那一塊上面；圓點、線條晚一點淡入
+        restartClass(document.querySelector('.route'), 'dots-in', 500);
+    } else {
+        flipFrom(document.querySelector('.route-stops'), fromStops, 'height');
+    }
+    slideIn([document.querySelector('.swap'), document.querySelector('.fav-group'), btnAction, list], 1);
+}
+// 時刻表 → 首頁：首頁從左邊滑回來；這條路線有收藏的話，站名縮回那一行
+function playHomeEnter(pair, fromNames) {
+    if (reduceMotion()) return;
+    slideIn([document.querySelector('.route'), homeFavs], -1);
+    const row = homeFavRow(pair.start, pair.end); if (!row) return;
+    // 那一行平常會切掉超出的部分（往左滑刪除用），飛進去的時候先打開
+    row.style.overflow = 'visible'; setTimeout(() => { row.style.overflow = ''; }, 360);
+    favNames(row).forEach((n, k) => flipFrom(n, fromNames[k], 'width', 340));
+    const arrow = row.querySelector('.go .route-arrow');
+    if (arrow) arrow.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: 140, fill: 'backwards' });
 }
 // 進時刻表：多一筆瀏覽紀錄，讓返回鍵可以回首頁
-function showTimetable(beforeShow) {
+// beforeShow：切畫面前先換站名；favRow：從首頁哪一行收藏點進來（動畫從那裡開始）
+function showTimetable(beforeShow, favRow) {
     if (!isHome()) { if (beforeShow) beforeShow(); return; }
     hideUndo(); closeFavSwipe();
     window.scrollTo(0, 0);
-    animateRoute(() => {
-        if (beforeShow) beforeShow();
-        document.body.classList.remove('home');
-    });
+    const fromStops = rectOf(document.querySelector('.route-stops'));
+    const fromNames = favNames(favRow).map(rectOf);
+    if (beforeShow) beforeShow();
+    document.body.classList.remove('home');
     homeEditing = false;
     history.pushState({ view: 'timetable' }, '', '');
+    playTimetableEnter(fromStops, fromNames);
 }
 function leaveTimetable() {
     if (history.state && history.state.view) history.back(); else goHome();
@@ -1222,7 +1265,8 @@ function leaveTimetable() {
 function goHome() {
     if (isHome()) return;
     window.scrollTo(0, 0);
-    animateRoute(() => { document.body.classList.add('home'); clearStations(); updateStationDisplay(); });
+    const pair = getCurrentPair(), fromNames = stnB().map(rectOf);
+    document.body.classList.add('home');
     if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
     if (autoResumeTimer) { clearTimeout(autoResumeTimer); autoResumeTimer = null; }
     closeResumePill();
@@ -1236,7 +1280,10 @@ function goHome() {
     setFavPanel(false);
     updateStationDisplay(); renderFavs(); updateActionButton();
     window.scrollTo(0, 0);
+    // 從左邊緣滑回來時首頁已經跟著手指滑進來了，不用再播一次
+    if (skipHomeEnter) skipHomeEnter = false; else playHomeEnter(pair, fromNames);
 }
+let skipHomeEnter = false;
 
 // ---------- 從螢幕左邊往右滑回首頁，滑的時候首頁會跟著滑進來 ----------
 // iOS Safari、Android 手勢導航會自己接走邊緣手勢（那時這段不會動），主要給加到主畫面的 App 用
@@ -1280,7 +1327,7 @@ function endEdgeSwipe(cancel) {
     peek.style.transition = 'transform .2s ease-out';
     if (!cancel && (dx > innerWidth * 0.35 || fast)) {
         peek.style.transform = 'translateX(0)';
-        setTimeout(() => { leaveTimetable(); setTimeout(() => peek.remove(), 250); }, 200);
+        setTimeout(() => { skipHomeEnter = true; leaveTimetable(); setTimeout(() => peek.remove(), 250); }, 200);
     } else {
         peek.style.transform = `translateX(-100%)`;
         setTimeout(() => peek.remove(), 220);
@@ -1294,7 +1341,7 @@ function getFavs() { try { return JSON.parse(localStorage.getItem(LS_FAV) || "[]
 function saveFavs(favs) { localStorage.setItem(LS_FAV, JSON.stringify(favs)); }
 function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
 function isFavorite(s, e) { return getFavs().some(f => f.start === s && f.end === e); }
-const routeText = r => `${r.start}<span class="route-arrow">→</span>${r.end}`;
+const routeText = r => `<span class="rt">${r.start}</span><span class="route-arrow">→</span><span class="rt">${r.end}</span>`;
 
 function addCurrentFavorite() {
     const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
@@ -1306,13 +1353,15 @@ function addCurrentFavorite() {
     favs.push(cur); saveFavs(favs); logSystem("Fav: Added");
     renderFavs(); showToast('已加入收藏');
 }
-function loadRoute(s, e) {
+function loadRoute(s, e, fromEl) {
     const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
     if (!sR || !eR) return;
     setFavPanel(false);
     if (s === startStation.value && e === endStation.value && !isHome()) return;
+    // 在時刻表的收藏欄換路線：站名淡入
+    if (!isHome() && !reduceMotion()) document.querySelector('.route-stops').animate([{ opacity: .2 }, { opacity: 1 }], { duration: 220 });
     // 先換好站名再切畫面，動畫才會從首頁的收藏位置接到時刻表上的站名
-    showTimetable(() => { setMenu('start', sR, s); setMenu('end', eR, e); });
+    showTimetable(() => { setMenu('start', sR, s); setMenu('end', eR, e); }, fromEl && fromEl.closest('.home-fav'));
     markAsChanged(); doSearch();
 }
 
@@ -1353,7 +1402,7 @@ function renderFavs() {
             <button class="swipe-del" onclick="deleteFavorite(${i})" tabindex="-1">刪除</button>
             <div class="fav-inner">
             <span class="handle" aria-label="拖曳排序"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h10M3 8h10M3 11h10"/></svg></span>
-            <button class="go" onclick="loadRoute('${r.start}','${r.end}')">${routeText(r)}</button>
+            <button class="go" onclick="loadRoute('${r.start}','${r.end}', this)">${routeText(r)}</button>
             <button class="del" onclick="deleteFavorite(${i})">刪除</button>
             </div>
         </div>`).join('');
@@ -1364,7 +1413,16 @@ let homeEditing = false;
 function toggleHomeEdit() { homeEditing = !homeEditing; renderFavs(); }
 // 刪除不跳確認視窗：直接刪，下面出現「復原」6 秒，往旁邊或往下滑可以關掉
 let undoFav = null;
-function deleteFavorite(i) {
+function deleteFavorite(i, collapsed) {
+    // 首頁那一行先收起來再刪
+    const row = homeFavs.querySelector(`.home-fav[data-i="${i}"]`);
+    if (!collapsed && row && isHome() && row.animate && !reduceMotion()) {
+        if (row.dataset.removing) return;
+        row.dataset.removing = '1';
+        row.animate([{ height: row.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0 }],
+            { duration: 200, easing: 'ease-in', fill: 'forwards' }).onfinish = () => deleteFavorite(i, true);
+        return;
+    }
     const favs = getFavs(); const [r] = favs.splice(i, 1); if (!r) return;
     saveFavs(favs);
     logSystem("Fav: Removed"); renderFavs();
@@ -1378,7 +1436,10 @@ function undoDelete() {
     if (!undoFav) return;
     const favs = getFavs();
     if (!favs.some(f => f.start === undoFav.r.start && f.end === undoFav.r.end)) { favs.splice(undoFav.i, 0, undoFav.r); saveFavs(favs); }
+    const i = undoFav.i;
     logSystem("Fav: Undo"); hideUndo(); renderFavs();
+    const row = homeFavs.querySelector(`.home-fav[data-i="${i}"]`);
+    if (row && row.animate && !reduceMotion()) row.animate([{ height: '0px', opacity: 0 }, { height: row.offsetHeight + 'px', opacity: 1 }], { duration: 220, easing: EASE });
 }
 function hideUndo() {
     undoFav = null; clearTimeout(deleteFavorite.t);
