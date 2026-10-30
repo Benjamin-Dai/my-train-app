@@ -1273,7 +1273,9 @@ const routeText = r => `${r.start}<span class="route-arrow">→</span>${r.end}`;
 function addCurrentFavorite() {
     const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
     const favs = getFavs();
-    if (favs.some(f => f.start === cur.start && f.end === cur.end)) { showToast('已經收藏了'); return; }
+    // 已收藏再按一次就取消（下面會出現「復原」）
+    const i = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
+    if (i >= 0) { deleteFavorite(i); return; }
     if (favs.length >= MAX_FAV) { showToast(`收藏最多 ${MAX_FAV} 條`); return; }
     favs.push(cur); saveFavs(favs); logSystem("Fav: Added");
     renderFavs(); showToast('已加入收藏');
@@ -1311,7 +1313,7 @@ function renderFavs() {
     const saved = hasRoute && isFavorite(cur.start, cur.end);
     const btnAdd = document.getElementById('btnFavAdd');
     btnAdd.classList.toggle('on', saved);
-    btnAdd.setAttribute('aria-label', saved ? '已收藏' : '收藏這條路線');
+    btnAdd.setAttribute('aria-label', saved ? '取消收藏' : '收藏這條路線');
     btnAdd.innerHTML = saved
         ? '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5l3 3 6-7"/></svg>'
         : '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg>';
