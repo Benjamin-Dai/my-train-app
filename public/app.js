@@ -635,6 +635,7 @@ function showSavedRoute(reason) {
     if (!d) return false;
     renderCards(d.payload);
     list.style.opacity = "1";
+    setUpdateText(`${savedTimeLabel(d)} 更新`);
     showingSaved = true;
     lastFetchedPair = { start: startStation.value, end: endStation.value };
     statusMsg.innerText = `${reason}，顯示 ${savedTimeLabel(d)} 的資料`;
@@ -740,8 +741,7 @@ function handleLoadNextDay() {
     fetchData("load_next_day");
 }
 
-async function uploadReportInternal(desc, isAuto) {
-    const statusHint = document.getElementById('autoUploadHint');
+async function uploadReportInternal(desc) {
     const now = Date.now();
     const rpm = requestHistory.filter(t => now - t < 60000).length;
     
@@ -765,25 +765,20 @@ async function uploadReportInternal(desc, isAuto) {
         const json = await res.json();
         
         if (json.status === 'ok') {
-            if (isAuto) {
-                statusHint.style.opacity = '1';
-                setTimeout(() => { statusHint.style.opacity = '0'; }, 3000);
-            } else {
-                showToast("已送出，謝謝回報");
-                document.getElementById('userDesc').value = ""; 
-            }
+            showToast("已送出，謝謝回報");
+            document.getElementById('userDesc').value = "";
         } else {
-            if (!isAuto) showToast(json.error === 'Too Many Reports' ? '回報太頻繁，請稍後再試' : '送出失敗，請稍後再試');
+            showToast(json.error === 'Too Many Reports' ? '回報太頻繁，請稍後再試' : '送出失敗，請稍後再試');
         }
     } catch (e) {
-        if (!isAuto) showToast('送出失敗，請檢查網路');
+        showToast('送出失敗，請檢查網路');
     }
 }
 
 
 function manualUploadReport() {
     const desc = document.getElementById('userDesc').value;
-    uploadReportInternal(desc, false);
+    uploadReportInternal(desc);
 }
 
 function parseDiagnostics(diag, isCdn) {
@@ -892,7 +887,7 @@ async function fetchData(mode) {
         console.error(err); logSystem("API Error: " + err.message);
         const offline = navigator.onLine === false || err instanceof TypeError;
         // 沒有存檔可顯示時，清掉舊路線的資料，不然 15 秒重畫會把上一條路線的班次畫回來
-        const showMessage = html => { currentTrainData = null; showingSaved = false; document.getElementById('rowTools').style.display = 'none'; list.style.opacity = "1"; list.innerHTML = html; };
+        const showMessage = html => { currentTrainData = null; showingSaved = false; setUpdateText(''); document.getElementById('rowTools').style.display = 'none'; list.style.opacity = "1"; list.innerHTML = html; };
         if (err.message === 'Too Many Requests') {
             // 後端次數限制：不自動重試，等使用者自己再按
             statusMsg.innerText = "查詢太頻繁，請稍等一分鐘"; statusMsg.className = "status-left alert";
