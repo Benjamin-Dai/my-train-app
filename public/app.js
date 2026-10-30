@@ -955,7 +955,11 @@ function renderCards(data) {
         const isLate = !isTomorrow && delayOk && t.delay > 0;
         if (isArriving) anyArriving = true;
         let activeId = '';
-        if (!isDeparted && !foundFirstActive) { activeId = 'id="firstActive"'; foundFirstActive = true; }
+        if (!isDeparted && !foundFirstActive) {
+            activeId = 'id="firstActive"'; foundFirstActive = true;
+            // 展開後畫面停在這裡，收起按鈕放在已發車和還沒發車中間，不用往上滑找
+            if (isShowAll && hiddenCount > 0) html += `<button class="fold-departed" onclick="toggleShowAll()">收起已發車${CHEVRON}</button>`;
+        }
 
         const cls = ['row'];
         if (isDeparted) cls.push('departed');
@@ -1179,6 +1183,7 @@ function clearStations() {
 // 進時刻表：多一筆瀏覽紀錄，讓返回鍵可以回首頁
 function showTimetable() {
     if (!isHome()) return;
+    hideUndo(); closeFavSwipe();
     document.body.classList.remove('home');
     homeEditing = false;
     history.pushState({ view: 'timetable' }, '', '');
@@ -1204,6 +1209,57 @@ function goHome() {
     updateStationDisplay(); renderFavs(); updateActionButton();
     window.scrollTo(0, 0);
 }
+
+// ---------- 從螢幕左邊往右滑回首頁，滑的時候首頁會跟著滑進來 ----------
+// iOS Safari、Android 手勢導航會自己接走邊緣手勢（那時這段不會動），主要給加到主畫面的 App 用
+const EDGE_W = 24;
+let edgeSwipe = null;
+function buildBackPeek() {
+    const p = document.createElement('div');
+    p.className = 'back-peek';
+    p.innerHTML = `<div class="container">${document.querySelector('.topbar').outerHTML}
+        <div class="route"><div class="route-stops"><div class="stn from empty"><b data-ph="出發"></b></div><div class="stn to empty"><b data-ph="抵達"></b></div></div></div>
+        <div class="home-favs">${homeFavs.innerHTML}</div></div>`;
+    p.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+    p.querySelectorAll('[onclick]').forEach(el => el.removeAttribute('onclick'));
+    document.body.appendChild(p);
+    return p;
+}
+document.addEventListener('touchstart', (e) => {
+    if (isHome() || e.touches.length !== 1 || modalOpen() || coachKey) return;
+    const t = e.touches[0];
+    if (t.clientX > EDGE_W) return;
+    edgeSwipe = { x0: t.clientX, y0: t.clientY, t0: Date.now(), dx: 0, peek: null };
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+    if (!edgeSwipe) return;
+    const t = e.touches[0];
+    const dx = t.clientX - edgeSwipe.x0, dy = t.clientY - edgeSwipe.y0;
+    if (!edgeSwipe.peek) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) > dx) { edgeSwipe = null; return; }
+        if (dx < 10) return;
+        edgeSwipe.peek = buildBackPeek();
+    }
+    e.preventDefault();
+    edgeSwipe.dx = Math.max(0, dx);
+    edgeSwipe.peek.style.transform = `translateX(${edgeSwipe.dx - innerWidth}px)`;
+}, { passive: false });
+function endEdgeSwipe(cancel) {
+    if (!edgeSwipe) return;
+    const { peek, dx, t0 } = edgeSwipe; edgeSwipe = null;
+    if (!peek) return;
+    const fast = dx > 40 && dx / (Date.now() - t0) > 0.5;
+    peek.style.transition = 'transform .2s ease-out';
+    if (!cancel && (dx > innerWidth * 0.35 || fast)) {
+        peek.style.transform = 'translateX(0)';
+        setTimeout(() => { leaveTimetable(); setTimeout(() => peek.remove(), 250); }, 200);
+    } else {
+        peek.style.transform = `translateX(-100%)`;
+        setTimeout(() => peek.remove(), 220);
+    }
+}
+document.addEventListener('touchend', () => endEdgeSwipe(false));
+document.addEventListener('touchcancel', () => endEdgeSwipe(true));
 
 // ---------- 收藏路線 ----------
 function getFavs() { try { return JSON.parse(localStorage.getItem(LS_FAV) || "[]"); } catch (e) { return []; } }
@@ -1238,7 +1294,7 @@ function setFavPanel(open) {
 function toggleFavPanel() { setFavPanel(favPanel.hidden); }
 
 function renderFavs() {
-    favDelArmed = null;
+    favOpen = null;
     const favs = getFavs();
     const cur = getCurrentPair();
     const hasRoute = !!(cur.start && cur.end);
@@ -1257,30 +1313,84 @@ function renderFavs() {
     if (!favs.length) { homeFavs.innerHTML = `<div class="home-favs-empty">目前無收藏路線</div>`; return; }
     homeFavs.innerHTML = `<div class="home-favs-head"><span>收藏</span><button class="${homeEditing ? 'done' : ''}" onclick="toggleHomeEdit()">${homeEditing ? '完成' : '編輯'}</button></div>` +
         favs.map((r, i) => `<div class="home-fav" data-i="${i}">
+            <button class="swipe-del" onclick="deleteFavorite(${i})" tabindex="-1">刪除</button>
+            <div class="fav-inner">
             <span class="handle" aria-label="拖曳排序"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h10M3 8h10M3 11h10"/></svg></span>
             <button class="go" onclick="loadRoute('${r.start}','${r.end}')">${routeText(r)}</button>
             <button class="del" onclick="deleteFavorite(${i})">刪除</button>
+            </div>
         </div>`).join('');
 }
 
 // ---------- 首頁編輯：拖曳排序、刪除 ----------
 let homeEditing = false;
 function toggleHomeEdit() { homeEditing = !homeEditing; renderFavs(); }
-// 刪除要按兩下：第一下變「確定刪除」，3 秒內再按一次才刪
-let favDelArmed = null;
+// 刪除不跳確認視窗：直接刪，下面出現「復原」4 秒
+let undoFav = null;
 function deleteFavorite(i) {
-    if (favDelArmed !== i) {
-        renderFavs(); favDelArmed = i;
-        const b = homeFavs.querySelector(`.home-fav[data-i="${i}"] .del`);
-        if (b) { b.classList.add('arm'); b.innerText = '確定刪除'; }
-        clearTimeout(deleteFavorite.t);
-        deleteFavorite.t = setTimeout(() => { if (favDelArmed === i) { favDelArmed = null; renderFavs(); } }, 3000);
-        return;
-    }
-    favDelArmed = null; clearTimeout(deleteFavorite.t);
-    const favs = getFavs(); favs.splice(i, 1); saveFavs(favs);
+    const favs = getFavs(); const [r] = favs.splice(i, 1); if (!r) return;
+    saveFavs(favs);
     logSystem("Fav: Removed"); renderFavs();
+    undoFav = { i, r };
+    document.getElementById('undoText').innerHTML = `已刪除　${routeText(r)}`;
+    const bar = document.getElementById('undoBar'); bar.classList.add('show');
+    clearTimeout(deleteFavorite.t);
+    deleteFavorite.t = setTimeout(hideUndo, 4000);
 }
+function undoDelete() {
+    if (!undoFav) return;
+    const favs = getFavs();
+    if (!favs.some(f => f.start === undoFav.r.start && f.end === undoFav.r.end)) { favs.splice(undoFav.i, 0, undoFav.r); saveFavs(favs); }
+    logSystem("Fav: Undo"); hideUndo(); renderFavs();
+}
+function hideUndo() { undoFav = null; clearTimeout(deleteFavorite.t); document.getElementById('undoBar').classList.remove('show'); }
+
+// 收藏往左滑：露出紅色「刪除」，滑超過一半直接刪
+const SWIPE_W = 80;
+let favSwipe = null, favOpen = null, favSwipedAt = 0;
+function closeFavSwipe() {
+    if (!favOpen) return;
+    favOpen.style.transform = ''; favOpen = null;
+}
+homeFavs.addEventListener('pointerdown', (e) => {
+    if (homeEditing || e.target.closest('.swipe-del')) return;
+    const inner = e.target.closest('.fav-inner'); if (!inner) return;
+    if (favOpen && favOpen !== inner) closeFavSwipe();
+    favSwipe = { inner, x0: e.clientX, y0: e.clientY, base: favOpen === inner ? -SWIPE_W : 0, dx: 0, on: false, id: e.pointerId };
+});
+homeFavs.addEventListener('pointermove', (e) => {
+    if (!favSwipe || e.pointerId !== favSwipe.id) return;
+    const dx = e.clientX - favSwipe.x0, dy = e.clientY - favSwipe.y0;
+    if (!favSwipe.on) {
+        if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) { favSwipe = null; return; }
+        if (Math.abs(dx) < 8) return;
+        favSwipe.on = true; favSwipe.inner.setPointerCapture(e.pointerId);
+        favSwipe.inner.style.transition = 'none';
+    }
+    favSwipe.dx = Math.min(0, favSwipe.base + dx);
+    favSwipe.inner.style.transform = `translateX(${favSwipe.dx}px)`;
+});
+function endFavSwipe() {
+    if (!favSwipe) return;
+    const { inner, dx, on } = favSwipe; favSwipe = null;
+    if (!on) return;
+    inner.style.transition = '';
+    favSwipedAt = Date.now();
+    if (dx < -inner.offsetWidth / 2) { inner.style.transform = `translateX(-100%)`; setTimeout(() => deleteFavorite(+inner.parentNode.dataset.i), 180); favOpen = null; return; }
+    if (dx < -SWIPE_W / 2) { inner.style.transform = `translateX(${-SWIPE_W}px)`; favOpen = inner; }
+    else { inner.style.transform = ''; if (favOpen === inner) favOpen = null; }
+}
+homeFavs.addEventListener('pointerup', endFavSwipe);
+// 剛滑完放開會多一次 click；已經滑開的那列，點一下是收回去，不是進時刻表
+homeFavs.addEventListener('click', (e) => {
+    const inner = e.target.closest('.fav-inner'); if (!inner) return;
+    if (Date.now() - favSwipedAt < 400 || inner === favOpen) {
+        e.stopPropagation(); e.preventDefault();
+        if (inner === favOpen && Date.now() - favSwipedAt >= 400) closeFavSwipe();
+    }
+}, true);
+homeFavs.addEventListener('pointercancel', endFavSwipe);
+document.addEventListener('pointerdown', (e) => { if (favOpen && !e.target.closest('.home-fav')) closeFavSwipe(); });
 
 let favDrag = null;
 homeFavs.addEventListener('pointerdown', (e) => {

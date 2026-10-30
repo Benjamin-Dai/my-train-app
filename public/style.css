@@ -90,13 +90,15 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .home-favs-head span { font-size: 12px; color: var(--dim); letter-spacing: .1em; }
 .home-favs-head button { font-size: 13px; color: var(--sub); padding: 4px 0 4px 12px; }
 .home-favs-head button.done { color: var(--accent); font-weight: 600; }
-.home-fav { position: relative; display: flex; align-items: center; height: 58px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.home-fav { position: relative; height: 58px; border-bottom: 1px solid var(--line); background: var(--bg); overflow: hidden; }
+.fav-inner { position: relative; z-index: 1; display: flex; align-items: center; height: 100%; background: var(--bg); touch-action: pan-y; transition: transform .2s ease-out; }
+.swipe-del { position: absolute; top: 0; right: 0; bottom: 0; width: 80px; background: var(--alert); color: #000; font-size: 14px; font-weight: 600; }
+.home-favs.editing .swipe-del { display: none; }
 .home-fav:first-of-type { border-top: 1px solid var(--line); }
 .home-fav .go { flex: 1; display: flex; align-items: center; gap: 10px; height: 100%; font-size: 20px; font-weight: 600; text-align: left; min-width: 0; white-space: nowrap; }
 .home-fav .go:active { opacity: .6; }
 .home-fav .handle { width: 36px; height: 100%; display: none; place-items: center start; color: var(--dim); touch-action: none; cursor: grab; }
 .home-fav .del { display: none; font-size: 13px; color: var(--alert); padding: 10px 0 10px 12px; }
-.home-fav .del.arm { font-weight: 600; color: #000; background: var(--alert); border-radius: var(--radius); padding: 6px 10px; }
 .home-favs.editing .handle { display: grid; }
 .home-favs.editing .del { display: block; }
 .home-favs.editing .go { pointer-events: none; }
@@ -162,6 +164,9 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .r-side .o { display: block; margin-top: 4px; font-size: 12px; color: #6a6a6e; }
 .row.late .r-dep, .row.late .r-arr, .row.late .r-side { color: var(--late); }
 .row.departed { opacity: .35; }
+.fold-departed { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; padding: 12px 0; font-size: 13px; color: var(--sub); border-bottom: 1px solid var(--line); }
+.fold-departed svg { transform: rotate(180deg); }
+.fold-departed:active { opacity: .6; }
 .row.departed .r-type { color: inherit !important; }
 
 /* 10 分鐘內發車：兩顆交替閃爍的燈 */
@@ -199,6 +204,20 @@ body.tick-b .led-dot.bottom { opacity: 1; box-shadow: 0 0 6px var(--accent); }
     display: grid; place-items: center; z-index: 100; opacity: 0; transform: translateY(10px); transition: all .25s; pointer-events: none;
 }
 .back-to-top.visible { opacity: 1; transform: none; pointer-events: auto; }
+.back-peek { position: fixed; inset: 0; z-index: 990; background: var(--bg); border-right: 1px solid var(--line-strong); transform: translateX(-100%); overflow: hidden; pointer-events: none; }
+.back-peek .route { width: fit-content; margin: 48px auto 0; }
+.back-peek .stn.empty b { font-size: 32px; }
+.back-peek .logo-back { display: none; }
+.undo-bar {
+    position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 16px); width: calc(100% - 32px); max-width: 420px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 0 16px; height: 48px;
+    background: #eee; color: #000; border-radius: var(--radius); font-size: 14px; font-weight: 600; white-space: nowrap;
+    box-shadow: 0 6px 24px rgba(0,0,0,.8); z-index: 950; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.undo-bar.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.undo-bar span { overflow: hidden; text-overflow: ellipsis; }
+.undo-bar button { height: 100%; padding: 0 18px; color: var(--accent); font-weight: 700; font-size: 14px; border-left: 1px solid #ccc; }
+.undo-bar .route-arrow { margin: 0 4px; }
 .toast-msg {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1c1c1e; color: #fff;
     padding: 12px 18px; border: 1px solid var(--line-strong); border-radius: var(--radius); font-size: 14px;
