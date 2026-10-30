@@ -1273,10 +1273,10 @@ const routeText = r => `${r.start}<span class="route-arrow">→</span>${r.end}`;
 function addCurrentFavorite() {
     const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
     const favs = getFavs();
-    if (favs.some(f => f.start === cur.start && f.end === cur.end)) return;
+    if (favs.some(f => f.start === cur.start && f.end === cur.end)) { showToast('已經收藏了'); return; }
     if (favs.length >= MAX_FAV) { showToast(`收藏最多 ${MAX_FAV} 條`); return; }
     favs.push(cur); saveFavs(favs); logSystem("Fav: Added");
-    renderFavs();
+    renderFavs(); showToast('已加入收藏');
 }
 function loadRoute(s, e) {
     const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
@@ -1308,6 +1308,13 @@ function renderFavs() {
     }).join('');
     if (hasRoute && !isFavorite(cur.start, cur.end)) html += `<button class="add" onclick="addCurrentFavorite()">＋ 收藏這條路線</button>`;
     favPanel.innerHTML = html;
+    const saved = hasRoute && isFavorite(cur.start, cur.end);
+    const btnAdd = document.getElementById('btnFavAdd');
+    btnAdd.classList.toggle('on', saved);
+    btnAdd.setAttribute('aria-label', saved ? '已收藏' : '收藏這條路線');
+    btnAdd.innerHTML = saved
+        ? '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5l3 3 6-7"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg>';
 
     // 首頁的收藏清單
     if (!favs.length) homeEditing = false;
