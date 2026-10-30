@@ -363,24 +363,24 @@ textarea.field { resize: none; border: 1px solid var(--line-strong); padding: 10
 
 .ios-steps { margin: 0; padding-left: 20px; font-size: 15px; line-height: 2.2; color: #ccc; }
 
-/* ===== 過場動畫：短、安靜，不跳動；選單「動畫」關掉時 body 加 no-motion ===== */
+/* ===== 過場動畫：短、安靜，不跳動 ===== */
 @media (prefers-reduced-motion: no-preference) {
     @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } }
     @keyframes fadeDown { from { opacity: 0; transform: translateY(-4px); } }
     /* 查到班次：列表由上往下依序淡入 */
-    body:not(.no-motion) #cardList.enter .row, body:not(.no-motion) #cardList.enter .message, body:not(.no-motion) #cardList.enter .fold-departed { animation: fadeUp .28s ease-out both; }
-    body:not(.no-motion) #cardList.enter .row:nth-child(2) { animation-delay: .03s; }
-    body:not(.no-motion) #cardList.enter .row:nth-child(3) { animation-delay: .06s; }
-    body:not(.no-motion) #cardList.enter .row:nth-child(4) { animation-delay: .09s; }
-    body:not(.no-motion) #cardList.enter .row:nth-child(5) { animation-delay: .12s; }
-    body:not(.no-motion) #cardList.enter .row:nth-child(n+6) { animation-delay: .15s; }
+    #cardList.enter .row, #cardList.enter .message, #cardList.enter .fold-departed { animation: fadeUp .28s ease-out both; }
+    #cardList.enter .row:nth-child(2) { animation-delay: .03s; }
+    #cardList.enter .row:nth-child(3) { animation-delay: .06s; }
+    #cardList.enter .row:nth-child(4) { animation-delay: .09s; }
+    #cardList.enter .row:nth-child(5) { animation-delay: .12s; }
+    #cardList.enter .row:nth-child(n+6) { animation-delay: .15s; }
     @keyframes fadeIn { from { opacity: 0; } }
     /* 從收藏點進時刻表：站名飛上去時，圓點、線條、縣市晚一點淡入 */
-    body:not(.no-motion) .route.dots-in .stn b { position: relative; z-index: 101; }
-    body:not(.no-motion) .route.dots-in .stn::before, body:not(.no-motion) .route.dots-in .stn.from::after, body:not(.no-motion) .route.dots-in .stn span { animation: fadeIn .25s .15s both; }
+    .route.dots-in .stn b { position: relative; z-index: 101; }
+    .route.dots-in .stn::before, .route.dots-in .stn.from::after, .route.dots-in .stn span { animation: fadeIn .25s .15s both; }
     /* 收藏選單往下展開 */
-    body:not(.no-motion) .fav-panel:not([hidden]) { animation: fadeDown .18s ease-out; }
+    .fav-panel:not([hidden]) { animation: fadeDown .18s ease-out; }
     /* 按下去稍微縮一點 */
-    body:not(.no-motion) .action-btn, body:not(.no-motion) .fav-group, body:not(.no-motion) .swap, body:not(.no-motion) .menu-item .seg span { transition: transform .1s; }
-    body:not(.no-motion) .action-btn:active:not(:disabled), body:not(.no-motion) .fav-group:active, body:not(.no-motion) .swap:active { transform: scale(.97); }
+    .action-btn, .fav-group, .swap, .menu-item .seg span { transition: transform .1s; }
+    .action-btn:active:not(:disabled), .fav-group:active, .swap:active { transform: scale(.97); }
 }
