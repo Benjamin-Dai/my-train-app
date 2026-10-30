@@ -562,12 +562,19 @@ function markAsChanged() {
 
     if(!startStation.value||!endStation.value) return;
     isNextDayLoaded = false;
+    // 換成別條路線：舊路線的自動重試、3 分鐘提示、網路恢復自動查都不該套到新路線（不自動查詢）
+    if (!routeIsCurrent()) stopAutoRefresh();
     // 首頁不套快取：不然 1 分鐘內再選同一條路線，按鈕會在首頁變成冷卻中的「更新」按不下去
     if (isHome()) { updateActionButton(); return; }
     
     attemptLoadCache(false);
     renderFavs();
     updateActionButton();
+}
+function stopAutoRefresh() {
+    if (retryTimer) { clearInterval(retryTimer); retryTimer = null; statusMsg.innerText = ""; statusMsg.className = "status-left"; }
+    if (autoResumeTimer) { clearTimeout(autoResumeTimer); autoResumeTimer = null; }
+    showingSaved = false; offlineFailed = false;
 }
 function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
 
@@ -626,6 +633,21 @@ function attemptLoadCache(isInit) {
     updateActionButton();
 }
 
+// 每條查過的路線都會存一份，用久了會把 localStorage 塞滿：塞滿就從最舊的刪起
+function saveRouteCache(key, val) {
+    for (let i = 0; i < 20; i++) {
+        try { localStorage.setItem(key, val); return; } catch (e) {}
+        let oldest = null, oldestT = Infinity;
+        for (let j = 0; j < localStorage.length; j++) {
+            const k = localStorage.key(j);
+            if (!k || !k.startsWith(CACHE_PREFIX) || k === key) continue;
+            let t = 0; try { t = JSON.parse(localStorage.getItem(k)).timestamp || 0; } catch (e) {}
+            if (t < oldestT) { oldestT = t; oldest = k; }
+        }
+        if (!oldest) return;
+        localStorage.removeItem(oldest);
+    }
+}
 // 沒網路或連不上時，拿這條路線最後一次存下來的結果（不管多舊）
 function getSavedRoute() {
     const base = getCacheKey();
@@ -821,7 +843,9 @@ function getSkeletonHTML() {
     return html;
 }
 
+let fetchSeq = 0;
 async function fetchData(mode) {
+    const seq = ++fetchSeq;
     isFetching = true; updateActionButton();
     showTimetable();
     
@@ -849,6 +873,7 @@ async function fetchData(mode) {
         const age = res.headers.get('Age');
         const isVercelCache = age && parseInt(age) > 0;
         const json=await res.json();
+        if (seq !== fetchSeq) return;
         if(json.error) throw new Error(json.error);
 
         lastFetchedPair={start:s,end:e};
@@ -858,7 +883,7 @@ async function fetchData(mode) {
 
         const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
         
-        localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
+        saveRouteCache(cacheKey, JSON.stringify({timestamp:Date.now(),payload:json}));
         renderCards(json); playListEnter();
 
         logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
@@ -901,6 +926,7 @@ async function fetchData(mode) {
         }, 180000); // 3分鐘
 
     } catch(err) {
+        if (seq !== fetchSeq) return;
         console.error(err); logSystem("API Error: " + err.message);
         const offline = navigator.onLine === false || err instanceof TypeError;
         // 沒有存檔可顯示時，清掉舊路線的資料，不然 15 秒重畫會把上一條路線的班次畫回來
@@ -927,8 +953,7 @@ async function fetchData(mode) {
             if (!hadSaved) showMessage(`<div class="message">連線失敗<small>30 秒後會自動重試</small></div>`);
         }
     } finally {
-        isFetching = false;
-        updateActionButton();
+        if (seq === fetchSeq) { isFetching = false; updateActionButton(); }
     }
 }
 
@@ -1377,10 +1402,11 @@ function goHome() {
     const pair = getCurrentPair(), fromNames = stnB().map(rectOf);
     if (pair.start && pair.end) lastRoute = pair;
     document.body.classList.add('home');
-    if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
-    if (autoResumeTimer) { clearTimeout(autoResumeTimer); autoResumeTimer = null; }
+    stopAutoRefresh();
     closeResumePill();
-    currentTrainData = null; showingSaved = false; isNextDayLoaded = false; isShowAll = false;
+    // 還在載入的查詢作廢，不然回首頁後按鈕卡在「載入中」，結果回來還會畫到首頁
+    fetchSeq++; isFetching = false;
+    currentTrainData = null; isNextDayLoaded = false; isShowAll = false;
     lastFetchedPair = { start: '', end: '' };
     list.innerHTML = '';
     statusMsg.innerText = ''; statusMsg.className = 'status-left';
