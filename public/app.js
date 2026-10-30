@@ -62,10 +62,16 @@ function openSheet(id, reopen) {
     const modal = document.getElementById('aboutModal');
     modal.style.display = 'flex';
     document.body.classList.add('noscroll');
+    setBackgroundInert(true);
     setTimeout(() => modal.classList.add('active'), 10);
     // iOS Safari 的左右滑是同一串紀錄：存了紀錄，關掉後往左滑（下一頁）又會滑出這個視窗，所以 iOS 不存
     if (!reopen && !SHEET_NO_HISTORY) history.pushState({ modal: true, page: id, pick: pickerType, depth: histDepth() + 1 }, '', '');
     goToPage(id);
+}
+
+// 視窗開著時，螢幕閱讀器不要讀到後面的畫面
+function setBackgroundInert(on) {
+    document.querySelectorAll('.container, #btnBackToTop').forEach(el => { el.inert = on; });
 }
 
 function handleInstall() {
@@ -328,7 +334,7 @@ function updateToggleBtns() {
 }
 
 function toggleTimeFormat() { setTimeFormat(!is24Hour); }
-function setTimeFormat(v) { if (v === is24Hour) return; is24Hour=v; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
+function setTimeFormat(v) { if (v === is24Hour) return; is24Hour=v; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); renderUpdateText(); reRenderLocal(); scrollToFirstActive();}
 function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); playListEnter(); scrollToFirstActive();}
 // 列表淡入只在查到新資料或展開／收起時播一次，每秒重畫時不要重播
 function playListEnter() {
@@ -336,13 +342,22 @@ function playListEnter() {
     clearTimeout(playListEnter.t); playListEnter.t = setTimeout(() => list.classList.remove('enter'), 700);
 }
 
+function splitTime(t) {
+    const p = t.split(':'); if(p.length < 2) return null;
+    let h = parseInt(p[0]); let suffix = "上午";
+    if(h >= 12) { suffix = "下午"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; }
+    return [suffix, `${h}:${p[1]}`];
+}
 function formatTime(t) {
     if(!t) return "";
     if(is24Hour) return t;
-    const p = t.split(':'); if(p.length < 2) return t;
-    let h = parseInt(p[0]); let suffix = "上午";
-    if(h >= 12) { suffix = "下午"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; }
-    return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
+    const r = splitTime(t); if(!r) return t;
+    return `<span class="ampm">${r[0]}</span> ${r[1]}`;
+}
+// 純文字版（狀態列用）
+function formatTimeText(t) {
+    if(!t || is24Hour) return t || "";
+    const r = splitTime(t); return r ? `${r[0]} ${r[1]}` : t;
 }
 
 let lastScroll = 0; let currentTranslate = 0;
@@ -437,6 +452,7 @@ function updateStationDisplay() {
         el.classList.toggle('empty', !has);
         el.querySelector('b').innerText = has ? sSel.value : '';
         el.querySelector('span').innerText = has ? rSel.value : '';
+        el.setAttribute('aria-label', `${type === 'start' ? '出發站' : '抵達站'} ${has ? sSel.value : '未選'}`);
     });
     document.body.classList.toggle('nostation', !(startStation.value && endStation.value));
     fitRouteNames();
@@ -503,12 +519,12 @@ function renderPickerStations() {
         const b = document.createElement('button');
         const cls = [];
         if (MAJOR_STATIONS.has(s)) cls.push('major');
-        if (s === current) cls.push('on');
+        if (s === current) { cls.push('on'); b.setAttribute('aria-current', 'true'); }
         b.className = cls.join(' ');
         const name = document.createElement('span'); name.innerText = s;
         b.appendChild(name);
         if (s === current) {
-            b.insertAdjacentHTML('beforeend', '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>');
+            b.insertAdjacentHTML('beforeend', '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>');
         } else if (showRegion) {
             const sm = document.createElement('small'); sm.innerText = r; b.appendChild(sm);
         }
@@ -593,7 +609,7 @@ function attemptLoadCache(isInit) {
     if(hitData) {
         if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
         renderCards(hitData.payload); 
-        setUpdateText(`${String(hitData.payload.update_time).slice(0,5)} 更新`);
+        setUpdateText(hitData.payload.update_time);
         statusMsg.innerText=""; statusMsg.className="status-left"; 
         list.style.opacity="1"; 
         lastFetchedPair={start:startStation.value,end:endStation.value}; 
@@ -622,11 +638,12 @@ function getSavedRoute() {
     });
     return best;
 }
-function savedTimeLabel(d) {
+// 存檔時間：不是今天的話前面加日期
+function savedTime(d) {
     const t = new Date(d.timestamp);
     const sameDay = t.toDateString() === new Date().toDateString();
     const hm = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
-    return sameDay ? hm : `${t.getMonth()+1}/${t.getDate()} ${hm}`;
+    return { hm, day: sameDay ? '' : `${t.getMonth()+1}/${t.getDate()} ` };
 }
 let showingSaved = false;
 let offlineFailed = false;  // 離線時查詢失敗、又沒有存檔：網路恢復後要自動查一次
@@ -635,10 +652,10 @@ function showSavedRoute(reason) {
     if (!d) return false;
     renderCards(d.payload);
     list.style.opacity = "1";
-    setUpdateText(`${savedTimeLabel(d)} 更新`);
+    const st = savedTime(d); setUpdateText(st.hm, '', st.day);
     showingSaved = true;
     lastFetchedPair = { start: startStation.value, end: endStation.value };
-    statusMsg.innerText = `${reason}，顯示 ${savedTimeLabel(d)} 的資料`;
+    statusMsg.innerText = `${reason}，顯示 ${st.day}${formatTimeText(st.hm)} 的資料`;
     statusMsg.className = "status-left warning";
     return true;
 }
@@ -848,9 +865,9 @@ async function fetchData(mode) {
 
         if(json.delay_failed) {
             scheduleRetry("誤點資料失敗", "status-left warning");
-            setUpdateText(`${String(json.update_time).slice(0,5)} 更新 · 誤點資料暫缺`);
+            setUpdateText(json.update_time, ' · 誤點資料暫缺');
         } else {
-            setUpdateText(`${String(json.update_time).slice(0,5)} 更新`);
+            setUpdateText(json.update_time);
             statusMsg.innerText = ""; statusMsg.className = "status-left";
         }
         
@@ -915,7 +932,10 @@ async function fetchData(mode) {
     }
 }
 
-function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
+// 存原始時間，切 12／24 小時制時重畫
+let updateInfo = null;
+function setUpdateText(time, note, day){updateInfo=time?{time:String(time).slice(0,5),note:note||'',day:day||''}:null;renderUpdateText();}
+function renderUpdateText(){updateTimeDiv.innerText=updateInfo?`${updateInfo.day}${formatTimeText(updateInfo.time)} 更新${updateInfo.note}`:'';}
 
 function scheduleRetry(msg="誤點資訊無法取得", cls="status-left warning") {
     let c=30; 
@@ -1015,12 +1035,16 @@ function renderCards(data) {
         const typeColor = t.color && t.color.toLowerCase() !== '#ffffff' ? t.color : '#ddd';
         const side = isDeparted ? '已發車' : (isLate ? `晚 ${t.delay} 分<span class="o">原定 ${formatTime(t.sch_dep)}</span>` : '');
         const url = `https://railway.chienwen.net/taiwan/train/TRA-${encodeURIComponent(t.no)}/live`;
+        // 隔天才到：舊快取沒有日期就比時間
+        const nextDayArr = t.dep_date && t.arr_date ? t.arr_date > t.dep_date : t.act_arr < t.act_dep;
+        const plus1 = nextDayArr ? '<sup class="d1" aria-label="隔天">+1</sup>' : '';
 
-        html += `<a class="${cls.join(' ')}" style="--tc:${typeColor}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="markRowTapped()">
+        html += `<a class="${cls.join(' ')}" style="--tc:${typeColor}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="return openTrainLink(event, this)">
                     ${led}
-                    <div class="r-time"><span class="r-dep">${formatTime(t.act_dep)}</span><span class="r-arr">${formatTime(t.act_arr)}</span></div>
+                    <div class="r-time"><span class="r-dep">${formatTime(t.act_dep)}</span><span class="r-arr">${formatTime(t.act_arr)}${plus1}</span></div>
                     <div class="r-meta"><span class="r-type" style="color:${typeColor}">${t.type}</span><span>${t.no}</span></div>
                     <div class="r-side">${side}</div>
+                    <span class="sr-only">（外部網站，開新分頁）</span>
                 </a>`;
         shown++;
     });
@@ -1054,6 +1078,23 @@ function renderAlerts(alerts) {
 
 function markRowTapped() {
     try { localStorage.setItem(LS_ROW_TAPPED, '1'); } catch (e) {}
+}
+// 第一次點班次先說明會開外部網站，按過「開啟」之後就直接開
+const LS_EXT_OK = "tl_ext_ok";
+let pendingExtUrl = null;
+function openTrainLink(e, a) {
+    markRowTapped();
+    try { if (localStorage.getItem(LS_EXT_OK) === '1') return true; } catch (err) { return true; }
+    e.preventDefault();
+    pendingExtUrl = a.href;
+    openSheet('Ext');
+    return false;
+}
+function confirmExtLink() {
+    try { localStorage.setItem(LS_EXT_OK, '1'); } catch (e) {}
+    if (pendingExtUrl) window.open(pendingExtUrl, '_blank', 'noopener');
+    pendingExtUrl = null;
+    closeModal();
 }
 
 // [新增] 關閉教學並判斷 Checkbox
@@ -1091,6 +1132,7 @@ function hideModal() {
     if (modal.style.display !== 'flex') return;
     modal.classList.remove('active');
     document.querySelectorAll('.modal-page.active').forEach(p => p.classList.remove('active'));
+    setBackgroundInert(false);
     setTimeout(() => {
         modal.style.display = 'none';
         document.body.classList.remove('noscroll');
@@ -1414,6 +1456,7 @@ const routeText = r => `<span class="rt">${r.start}</span><span class="route-arr
 
 function addCurrentFavorite() {
     const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
+    if (cur.start === cur.end) { showToast('起訖站不能相同'); return; }
     const favs = getFavs();
     // 已收藏再按一次就取消（下面會出現「復原」）
     const i = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
@@ -1447,7 +1490,7 @@ function renderFavs() {
     renderRecent();
     const favs = getFavs();
     const cur = getCurrentPair();
-    const hasRoute = !!(cur.start && cur.end);
+    const hasRoute = !!(cur.start && cur.end) && cur.start !== cur.end;
 
     // 時刻表的收藏欄：目前路線綠字，還沒收藏就多一行「＋ 收藏這條路線」
     let html = favs.map(r => {
@@ -1470,11 +1513,11 @@ function renderFavs() {
     if (!favs.length) { homeFavs.innerHTML = `<div class="home-favs-empty">目前無收藏路線</div>`; return; }
     homeFavs.innerHTML = `<div class="home-favs-head"><span>收藏</span><button class="${homeEditing ? 'done' : ''}" onclick="toggleHomeEdit()">${homeEditing ? '完成' : '編輯'}</button></div>` +
         favs.map((r, i) => `<div class="home-fav" data-i="${i}">
-            <button class="swipe-del" onclick="deleteFavorite(${i})" tabindex="-1">刪除</button>
+            <button class="swipe-del" onclick="deleteFavorite(${i})" tabindex="-1" aria-hidden="true">刪除</button>
             <div class="fav-inner">
-            <span class="handle" aria-label="拖曳排序"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h10M3 8h10M3 11h10"/></svg></span>
+            <span class="handle" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h10M3 8h10M3 11h10"/></svg></span>
             <button class="go" onclick="loadRoute('${r.start}','${r.end}', this)">${routeText(r)}</button>
-            <button class="del" onclick="deleteFavorite(${i})">刪除</button>
+            <button class="del" onclick="deleteFavorite(${i})" aria-label="刪除 ${r.start} 到 ${r.end}">刪除</button>
             </div>
         </div>`).join('');
 }
@@ -1535,7 +1578,7 @@ function deleteFavorite(i, collapsed) {
     logSystem("Fav: Removed"); renderFavs();
     undoFav = { i, r };
     document.getElementById('undoText').innerHTML = `已刪除　${routeText(r)}`;
-    const bar = document.getElementById('undoBar'); bar.classList.add('show');
+    const bar = document.getElementById('undoBar'); bar.classList.add('show'); bar.inert = false; bar.removeAttribute('aria-hidden');
     clearTimeout(deleteFavorite.t);
     deleteFavorite.t = setTimeout(hideUndo, 6000);
 }
@@ -1552,6 +1595,7 @@ function hideUndo() {
     undoFav = null; clearTimeout(deleteFavorite.t);
     const bar = document.getElementById('undoBar');
     bar.classList.remove('show'); bar.style.transform = ''; bar.style.opacity = ''; bar.style.transition = '';
+    bar.inert = true; bar.setAttribute('aria-hidden', 'true');
 }
 // 復原通知可以滑掉
 const undoBar = document.getElementById('undoBar');

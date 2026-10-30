@@ -187,15 +187,17 @@ body:not(.home) #homeRecent { display: none; }
 .r-arr { font-size: 17px; color: var(--sub); font-weight: 500; display: flex; align-items: baseline; }
 .r-arr::before { content: "→"; margin-right: 6px; }
 .ampm { font-size: .55em; margin-right: 3px; font-weight: 500; opacity: .75; }
+.d1 { font-size: .6em; font-weight: 500; margin-left: 2px; align-self: flex-start; line-height: 1; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .r-meta { grid-column: 1; grid-row: 1; font-size: 13px; color: var(--sub); display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
 .r-time { grid-column: 1; grid-row: 2; }
 .r-type { font-weight: 700; font-size: 15px; }
 .r-side { grid-row: 1 / 3; grid-column: 2; align-self: center; text-align: right; font-size: 13px; color: var(--sub); white-space: nowrap; }
 .r-side .o { display: block; margin-top: 4px; font-size: 12px; color: #6a6a6e; }
+.r-side .o .ampm { font-size: 1em; margin-right: 0; opacity: 1; }
 /* 12 小時制：原定時間不重複寫上午／下午，不然 320 寬的手機會被擠出畫面 */
-.r-side .o .ampm { display: none; }
 /* 320 寬的小手機（或有捲軸的 320 視窗）：12 小時制＋誤點時會差十幾 px，發車時間縮小、間距收一點 */
-@media (max-width: 359px) { .r-dep { font-size: 28px; } .r-time { gap: 7px; } .row { column-gap: 8px; } }
+@media (max-width: 359px) { .r-dep { font-size: 28px; } .r-time { gap: 7px; } .row { column-gap: 8px; } .r-side .o .ampm { display: none; } }
 .row.late .r-dep, .row.late .r-arr, .row.late .r-side { color: var(--late); }
 .row.departed { opacity: .35; }
 .fold-departed { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; padding: 12px 0; font-size: 13px; color: var(--sub); border-bottom: 1px solid var(--line); }
@@ -383,6 +385,7 @@ textarea.field { resize: none; border: 1px solid var(--line-strong); padding: 10
 .about-team a { display: inline; color: var(--accent); font-weight: 600; }
 .coach-next { background: #eee; color: #000; font-weight: 700; }
 
+.ext-note { margin: 0 0 20px; font-size: 15px; line-height: 1.8; color: #ccc; }
 .ios-steps { margin: 0; padding-left: 20px; font-size: 15px; line-height: 2.2; color: #ccc; }
 
 /* ===== 過場動畫：短、安靜，不跳動 ===== */
