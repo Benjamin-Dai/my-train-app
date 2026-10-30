@@ -36,8 +36,9 @@ a { display: block; text-decoration: none; color: inherit; }
 /* ===== 頂部 ===== */
 .header-static-part { padding-top: 18px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; height: 32px; margin-bottom: 22px; }
-.app-title { display: flex; align-items: center; gap: 6px; height: 32px; font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--sub); user-select: none; -webkit-user-select: none; cursor: pointer; }
-.app-title:active { opacity: .6; }
+.app-title { display: flex; align-items: center; gap: 6px; height: 32px; font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--sub); user-select: none; -webkit-user-select: none; }
+body:not(.home) .app-title { cursor: pointer; }
+body:not(.home) .app-title:active { opacity: .6; }
 .top-actions { display: flex; align-items: center; gap: 6px; }
 .text-btn { font-size: 13px; color: var(--sub); padding: 6px 8px; display: none; }
 .icon-btn { width: 32px; height: 32px; display: grid; place-items: center; color: var(--sub); }
