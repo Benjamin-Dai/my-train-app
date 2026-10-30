@@ -166,6 +166,7 @@ Vercel 預覽網址可能需要登入 Vercel 才看得到；要給朋友看的�
 | #15 | 刪掉沒在用的 weather-icon/ |
 | #17 | 省 TDX 額度：誤點快取 2 分鐘、營運公告快取 10 分鐘 |
 | #18 | 前端拆成 index.html／style.css／stations.js／app.js（內容不變） |
+| #23 | 通阻公告一律展開不收合；異常公告格式已驗證 |
 
 ---
 
