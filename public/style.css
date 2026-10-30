@@ -36,7 +36,8 @@ a { display: block; text-decoration: none; color: inherit; }
 /* ===== 頂部 ===== */
 .header-static-part { padding-top: 18px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; height: 32px; margin-bottom: 22px; }
-.app-title { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--sub); user-select: none; -webkit-user-select: none; }
+.app-title { display: flex; align-items: center; gap: 6px; height: 32px; font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--sub); user-select: none; -webkit-user-select: none; cursor: pointer; }
+.app-title:active { opacity: .6; }
 .top-actions { display: flex; align-items: center; gap: 6px; }
 .text-btn { font-size: 13px; color: var(--sub); padding: 6px 8px; display: none; }
 .icon-btn { width: 32px; height: 32px; display: grid; place-items: center; color: var(--sub); }
@@ -57,24 +58,49 @@ a { display: block; text-decoration: none; color: inherit; }
 .stn.empty b::before { content: attr(data-ph); position: absolute; left: 0; bottom: 6px; font-size: 15px; font-weight: 500; color: var(--dim); letter-spacing: .1em; }
 .stn.empty:active b { border-bottom-color: var(--accent); opacity: 1; }
 
-/* 第一次打開（還沒有班次）：起訖站放在畫面中間，其他都先藏起來 */
-body.fresh .container { padding-bottom: 0; }
-body.fresh .header { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
-body.fresh .header-static-part { flex: 1; display: flex; flex-direction: column; }
-body.fresh .route { margin-top: auto; width: fit-content; margin-left: auto; margin-right: auto; }
-.fresh-intro { display: none; }
-body.fresh .fresh-intro { display: block; text-align: center; margin: auto 0 36px; }
-body.fresh .fresh-intro + .route { margin-top: 0; }
-.fresh-intro b { display: block; font-size: 20px; font-weight: 700; letter-spacing: .04em; margin-bottom: 8px; }
-.fresh-intro span { font-size: 14px; color: var(--sub); }
-body.fresh #btnAction { max-width: 280px; margin: 0 auto; }
-body.fresh #stickyHeader { flex: 1; }
-body.fresh .stn b { font-size: 32px; }
-body.fresh .stn.empty b { font-size: 32px; }
-body.fresh #rowQuickRoute, body.fresh #rowTools, body.fresh #cardList { display: none !important; }
+/* 首頁：每次打開都在這，起訖站放中間，下面是收藏路線 */
+body.home .route { width: fit-content; margin: 48px auto 0; }
+body.home .stn b, body.home .stn.empty b { font-size: 32px; }
+body.home #btnAction { max-width: 280px; margin: 0 auto; }
+body.home .fav-btn, body.home #favPanel, body.home #rowTools, body.home #alertBar, body.home #cardList, body.home .logo-back { display: none !important; }
+body:not(.home) #homeFavs { display: none; }
 body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .stn:active b { opacity: .6; }
+.route-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .swap { width: 40px; height: 40px; display: grid; place-items: center; color: var(--sub); }
+body:not(.home) .swap { margin-right: -8px; }
+
+/* 收藏：站名右邊的按鈕，點開列出收藏路線 */
+.fav-btn { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--sub); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 5px 9px; }
+.fav-btn svg { transition: transform .2s; }
+.fav-btn.open { color: var(--text); border-color: var(--accent); }
+.fav-btn.open svg { transform: rotate(180deg); }
+.fav-btn:active { opacity: .6; }
+.fav-panel { margin-top: 14px; border-top: 1px solid var(--line); padding: 4px 0; }
+.fav-panel[hidden] { display: none; }
+.fav-panel button { display: flex; align-items: center; gap: 8px; width: 100%; height: 42px; font-size: 16px; text-align: left; }
+.fav-panel button:active { opacity: .6; }
+.fav-panel button.cur { color: var(--accent); }
+.fav-panel button.add { color: var(--accent); font-size: 15px; }
+.route-arrow { color: var(--accent); font-size: .8em; }
+
+/* 首頁的收藏清單 */
+.home-favs { margin-top: 34px; }
+.home-favs-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.home-favs-head span { font-size: 12px; color: var(--dim); letter-spacing: .1em; }
+.home-favs-head button { font-size: 13px; color: var(--sub); padding: 4px 0 4px 12px; }
+.home-favs-head button.done { color: var(--accent); font-weight: 600; }
+.home-fav { position: relative; display: flex; align-items: center; height: 58px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.home-fav:first-of-type { border-top: 1px solid var(--line); }
+.home-fav .go { flex: 1; display: flex; align-items: center; gap: 10px; height: 100%; font-size: 20px; font-weight: 600; text-align: left; min-width: 0; white-space: nowrap; }
+.home-fav .go:active { opacity: .6; }
+.home-fav .handle { width: 36px; height: 100%; display: none; place-items: center start; color: var(--dim); touch-action: none; cursor: grab; }
+.home-fav .del { display: none; font-size: 13px; color: var(--alert); padding: 10px 0 10px 12px; }
+.home-favs.editing .handle { display: grid; }
+.home-favs.editing .del { display: block; }
+.home-favs.editing .go { pointer-events: none; }
+.home-fav.dragging { z-index: 2; background: var(--panel); outline: 1px solid var(--line-strong); }
+.home-favs-empty { padding: 40px 0; text-align: center; font-size: 13px; color: var(--dim); }
 .swap:active { color: var(--text); }
 
 /* ===== 黏在上方的操作區 ===== */
@@ -96,16 +122,6 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .action-btn .cd { font-weight: 500; color: var(--dim); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .action-btn svg { flex-shrink: 0; }
 
-.chips-row { position: relative; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
-.chips { flex: 1; display: flex; gap: 18px; overflow-x: auto; white-space: nowrap; padding: 15px 0 14px; scrollbar-width: none; }
-.chips::-webkit-scrollbar { display: none; }
-.chip { font-size: 14px; color: var(--sub); flex-shrink: 0; }
-.chip.fav { color: var(--accent); }
-.chip:active { opacity: .6; }
-.scroll-hint-overlay { position: absolute; right: 36px; top: 0; bottom: 0; width: 32px; background: linear-gradient(to right, transparent, var(--bg)); pointer-events: none; opacity: 0; transition: opacity .3s; }
-.star-btn { width: 36px; height: 36px; display: grid; place-items: center; color: var(--sub); margin-right: -8px; flex-shrink: 0; }
-.star-btn.fav-active { color: var(--late); }
-
 /* 營運異常公告 */
 .alert-bar { margin: 12px 0 0; border: 1px solid rgba(230,184,0,.35); background: rgba(230,184,0,.08); border-radius: var(--radius); }
 .alert-bar[hidden] { display: none; }
@@ -118,7 +134,6 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .alert-item + .alert-item { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(230,184,0,.2); }
 .alert-item b { color: var(--late); display: block; }
 .alert-item a { display: inline; color: var(--late); text-decoration: underline; }
-body.fresh #alertBar { display: none !important; }
 
 .listhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--dim); min-height: 37px; }
 .status-left { color: var(--sub); }

@@ -2,8 +2,6 @@ const STATION_INDEX={};Object.keys(STATION_DATA).forEach(r=>{STATION_DATA[r].for
 const DEFAULT_STATIONS = {"基隆市": "基隆", "新北市": "板橋", "臺北市": "臺北", "桃園市": "桃園", "新竹縣市": "新竹", "苗栗縣": "苗栗", "臺中市": "臺中", "彰化縣": "彰化", "南投縣": "集集", "雲林縣": "斗六", "嘉義縣市": "嘉義", "臺南市": "臺南", "高雄市": "高雄", "屏東縣": "屏東", "宜蘭縣": "羅東", "花蓮縣": "花蓮", "臺東縣": "臺東"};
 
 const CACHE_PREFIX="train_data_v2_";
-const PREF_START_R_KEY="pref_start_region";const PREF_START_S_KEY="pref_start_station";
-const PREF_END_R_KEY="pref_end_region";const PREF_END_S_KEY="pref_end_station";
 
 const LS_SKELETON_COUNT="tl_skeleton_count";
 
@@ -44,8 +42,10 @@ try { localStorage.removeItem('tl_session_v2'); } catch(e) {}
 // 站名更正：侯硐 → 猴硐（舊的偏好設定和常用路線一起改）
 try {
     ['pref_start_station','pref_end_station'].forEach(k => { if (localStorage.getItem(k) === '侯硐') localStorage.setItem(k, '猴硐'); });
-    ['tl_favorites','tl_history'].forEach(k => { const v = localStorage.getItem(k); if (v && v.includes('侯硐')) localStorage.setItem(k, v.split('侯硐').join('猴硐')); });
+    const v = localStorage.getItem('tl_favorites'); if (v && v.includes('侯硐')) localStorage.setItem('tl_favorites', v.split('侯硐').join('猴硐'));
 } catch(e) {}
+// 不再記查詢紀錄、也不再自動帶上次的路線（每次打開都是首頁）
+try { ['tl_history','pref_start_region','pref_start_station','pref_end_region','pref_end_station'].forEach(k => localStorage.removeItem(k)); } catch(e) {}
 
 let deferredPrompt;
 const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -84,6 +84,8 @@ async function shareApp() {
 let adminToken = null;
 let logoClickCount = 0; let logoClickTimer = null;
 function handleLogoClick() {
+    // 時刻表裡點 LOGO 回首頁；首頁連點 5 下才進後台
+    if (!isHome()) { leaveTimetable(); return; }
     logoClickCount++;
     if (logoClickCount === 1) { logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 1000); }
     if (logoClickCount >= 5) { clearTimeout(logoClickTimer); logoClickCount = 0; activateGodMode(); }
@@ -372,19 +374,8 @@ function scrollToFirstActive() {
     }, 300); 
 }
 
-// 只有「從來沒查詢過」才顯示第一次打開的畫面（快取過期不算）
-const LS_HAS_QUERIED = "tl_has_queried";
-function hasQueriedBefore() {
-    try {
-        return localStorage.getItem(LS_HAS_QUERIED) === '1'
-            || JSON.parse(localStorage.getItem('tl_history') || '[]').length > 0
-            || JSON.parse(localStorage.getItem('tl_favorites') || '[]').length > 0;
-    } catch (e) { return false; }
-}
-
 function init() {
     logSystem("App Started"); 
-    if (!hasQueriedBefore()) document.body.classList.add('fresh');
     startTicker(); 
     updateToggleBtns();
     
@@ -393,26 +384,20 @@ function init() {
     // Cache 安全性檢查
     try {
         const regions=Object.keys(STATION_DATA); const rOpts=regions.map(r=>`<option value="${r}">${r}</option>`).join('');
-        const savedSR = localStorage.getItem(PREF_START_R_KEY);
         startRegion.innerHTML=`<option value=""></option>`+rOpts; endRegion.innerHTML=`<option value=""></option>`+rOpts;
-        if (savedSR) {
-            setMenu('start',savedSR,localStorage.getItem(PREF_START_S_KEY)||"屏東"); 
-            setMenu('end',localStorage.getItem(PREF_END_R_KEY)||"屏東縣",localStorage.getItem(PREF_END_S_KEY)||"潮州");
-            checkLocksOnLoad(); loadDataOrFetch();
-        } else {
-            startStation.innerHTML=endStation.innerHTML=`<option value=""></option>`;
-            list.innerHTML='';
-            checkLocksOnLoad();
-        }
+        clearStations();
+        list.innerHTML='';
+        checkLocksOnLoad();
     } catch(e) {
         console.error("Cache corrupted, clearing...", e);
         localStorage.clear();
         window.location.reload();
     }
     
+    // 重新整理時瀏覽器會留著上一頁的狀態，清掉才不會按返回又回到首頁
+    if (history.state && history.state.view) history.replaceState(null, '', '');
     updateStationDisplay();
-    renderQuickRoutes();
-    updateStarState();
+    renderFavs();
     updateActionButton();
 }
 
@@ -510,7 +495,7 @@ function pickStation(station, region) {
     logSystem(`Action: Pick ${pickerType} ${station}`);
     setMenu(pickerType, region, station);
     if (startStation.value && endStation.value) markAsChanged();
-    else { updateStarState(); updateActionButton(); }
+    else { renderFavs(); updateActionButton(); }
     closeModal();
 }
 
@@ -529,13 +514,10 @@ function markAsChanged() {
     }
 
     if(!startStation.value||!endStation.value) return;
-    localStorage.setItem(PREF_START_R_KEY,startRegion.value); localStorage.setItem(PREF_START_S_KEY,startStation.value);
-    localStorage.setItem(PREF_END_R_KEY,endRegion.value); localStorage.setItem(PREF_END_S_KEY,endStation.value);
-    
     isNextDayLoaded = false;
     
     attemptLoadCache(false);
-    updateStarState();
+    renderFavs();
     updateActionButton();
 }
 function getCacheKey(){return `${CACHE_PREFIX}${startStation.value}_${endStation.value}`;}
@@ -594,7 +576,6 @@ function attemptLoadCache(isInit) {
     }
     updateActionButton();
 }
-function loadDataOrFetch(){attemptLoadCache(true);}
 
 // 沒網路或連不上時，拿這條路線最後一次存下來的結果（不管多舊）
 function getSavedRoute() {
@@ -658,6 +639,7 @@ function updateActionButton() {
 }
 function handleAction() {
     if (btnAction.disabled) return;
+    showTimetable();
     if (routeIsCurrent()) doRefresh(); else doSearch();
 }
 
@@ -673,7 +655,6 @@ function doSearch() {
         const w=Math.ceil((60000-(now-rst))/1000); const safeW=w>0?w:60;
         setSearchLockedUntil(now+safeW*1000); lockSearchButton(safeW); logSystem("Limit: Search Limit"); return;
     }
-    addToHistory();
     cnt++; setSearchCount(cnt); 
     const spaces = "            "; 
     logSystem(`Action: Search(${cnt}/${MAX_SEARCH_PER_MIN})\n${spaces}${sS} -> ${eS}`); 
@@ -789,8 +770,7 @@ function getSkeletonHTML() {
 
 async function fetchData(mode) {
     isFetching = true; updateActionButton();
-    document.body.classList.remove('fresh');
-    try { localStorage.setItem(LS_HAS_QUERIED, '1'); } catch (e) {}
+    showTimetable();
     
     if(mode !== "load_next_day") {
         list.innerHTML = getSkeletonHTML(); 
@@ -916,7 +896,6 @@ function getStrictDateStr(ts) {
 
 function renderCards(data) {
     currentTrainData = data; 
-    document.body.classList.remove('fresh');
     if(data.trains) localStorage.setItem(LS_SKELETON_COUNT, data.trains.length);
 
     const elTools = document.getElementById('rowTools');
@@ -1061,6 +1040,8 @@ function closeModal(){
 
 window.addEventListener('popstate', () => {
     const modal = document.getElementById('aboutModal');
+    // 在時刻表按返回（或往右滑）回到首頁，而不是離開網站
+    if (!isHome() && !(history.state && history.state.view)) goHome();
     if (modal.style.display === 'flex') {
         modal.classList.remove('active');
         
@@ -1183,79 +1164,149 @@ document.addEventListener('touchend', (e) => {
     dragModal = null;
 });
 
-const LS_FAV = "tl_favorites"; const LS_HIST = "tl_history";
-const MAX_HIST = 3; const MAX_FAV = 6;
-const btnStar = document.getElementById('btnStar');
-const quickArea = document.getElementById('quickRouteArea');
+const LS_FAV = "tl_favorites";
+const MAX_FAV = 6;
+const homeFavs = document.getElementById('homeFavs');
+const favPanel = document.getElementById('favPanel');
+const btnFav = document.getElementById('btnFav');
 
+// ---------- 首頁／時刻表切換 ----------
+function isHome() { return document.body.classList.contains('home'); }
+function clearStations() {
+    startRegion.value = ''; endRegion.value = '';
+    startStation.innerHTML = endStation.innerHTML = `<option value=""></option>`;
+}
+// 進時刻表：多一筆瀏覽紀錄，讓返回鍵可以回首頁
+function showTimetable() {
+    if (!isHome()) return;
+    document.body.classList.remove('home');
+    homeEditing = false;
+    history.pushState({ view: 'timetable' }, '', '');
+    window.scrollTo(0, 0);
+}
+function leaveTimetable() {
+    if (history.state && history.state.view) history.back(); else goHome();
+}
+function goHome() {
+    if (isHome()) return;
+    document.body.classList.add('home');
+    if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
+    if (autoResumeTimer) { clearTimeout(autoResumeTimer); autoResumeTimer = null; }
+    closeResumePill();
+    currentTrainData = null; showingSaved = false; isNextDayLoaded = false; isShowAll = false;
+    lastFetchedPair = { start: '', end: '' };
+    list.innerHTML = '';
+    statusMsg.innerText = ''; statusMsg.className = 'status-left';
+    document.getElementById('rowTools').style.display = 'none';
+    document.getElementById('alertBar').hidden = true;
+    clearStations();
+    setFavPanel(false);
+    updateStationDisplay(); renderFavs(); updateActionButton();
+    window.scrollTo(0, 0);
+}
+
+// ---------- 收藏路線 ----------
+function getFavs() { try { return JSON.parse(localStorage.getItem(LS_FAV) || "[]"); } catch (e) { return []; } }
+function saveFavs(favs) { localStorage.setItem(LS_FAV, JSON.stringify(favs)); }
 function getCurrentPair() { return { start: startStation.value, end: endStation.value }; }
-function isFavorite(s, e) {
-    const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-    return favs.some(f => f.start === s && f.end === e);
-}
-function toggleFavorite() {
-    const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
-    let favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-    const idx = favs.findIndex(f => f.start === cur.start && f.end === cur.end);
-    if (idx >= 0) { favs.splice(idx, 1); logSystem("Fav: Removed"); } 
-    else { if (favs.length >= MAX_FAV) { alert(`常用路線最多 ${MAX_FAV} 組`); return; } favs.unshift(cur); logSystem("Fav: Added"); }
-    localStorage.setItem(LS_FAV, JSON.stringify(favs));
-    updateStarState(); renderQuickRoutes();
-}
-function addToHistory() {
-    const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
-    let hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-    hist = hist.filter(h => !(h.start === cur.start && h.end === cur.end));
-    hist.unshift(cur); if (hist.length > MAX_HIST) hist.pop();
-    localStorage.setItem(LS_HIST, JSON.stringify(hist));
-    renderQuickRoutes();
-}
-function updateStarState() {
-    const cur = getCurrentPair();
-    const on = isFavorite(cur.start, cur.end);
-    btnStar.classList.toggle('fav-active', on);
-    btnStar.setAttribute('aria-label', on ? '取消收藏' : '收藏路線');
-    btnStar.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 2.5l2.3 4.8 5.2.7-3.8 3.6.9 5.2L10 14.3l-4.6 2.5.9-5.2-3.8-3.6 5.2-.7z"/></svg>`;
-    renderQuickRoutes();
-}
+function isFavorite(s, e) { return getFavs().some(f => f.start === s && f.end === e); }
+const routeText = r => `${r.start}<span class="route-arrow">→</span>${r.end}`;
 
+function addCurrentFavorite() {
+    const cur = getCurrentPair(); if (!cur.start || !cur.end) return;
+    const favs = getFavs();
+    if (favs.some(f => f.start === cur.start && f.end === cur.end)) return;
+    if (favs.length >= MAX_FAV) { showToast(`收藏最多 ${MAX_FAV} 條`); return; }
+    favs.push(cur); saveFavs(favs); logSystem("Fav: Added");
+    renderFavs();
+}
 function loadRoute(s, e) {
     const sR = STATION_INDEX[s]; const eR = STATION_INDEX[e];
-    if (sR && eR) {
-        setMenu('start', sR, s); setMenu('end', eR, e);
-        markAsChanged(); doSearch(); 
-    }
-}
-function renderQuickRoutes() {
-    const favs = JSON.parse(localStorage.getItem(LS_FAV) || "[]");
-    const hist = JSON.parse(localStorage.getItem(LS_HIST) || "[]");
-    const chip = (r, cls) => `<button class="chip ${cls}" onclick="loadRoute('${r.start}', '${r.end}')">${r.start}–${r.end}</button>`;
-    let html = favs.map(r => chip(r, 'fav')).join('');
-    hist.forEach(r => { if (!isFavorite(r.start, r.end)) html += chip(r, 'hist'); });
-    quickArea.innerHTML = html;
-
-    const elRow = document.getElementById('rowQuickRoute');
-    const hasRoute = !!(startStation.value && endStation.value);
-    elRow.style.display = (favs.length || hist.length || (hasRoute && currentTrainData)) ? 'flex' : 'none';
-    setTimeout(updateScrollHint, 100);
+    if (!sR || !eR) return;
+    setFavPanel(false);
+    if (s === startStation.value && e === endStation.value && !isHome()) return;
+    showTimetable();
+    setMenu('start', sR, s); setMenu('end', eR, e);
+    markAsChanged(); doSearch();
 }
 
-function updateScrollHint() {
-    const el = document.getElementById('quickRouteArea');
-    const hint = document.getElementById('scrollHint');
-    if (el.scrollWidth > el.clientWidth) {
-        hint.style.opacity = '1';
-        el.onscroll = () => {
-            if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
-                hint.style.opacity = '0';
-            } else {
-                hint.style.opacity = '1';
-            }
-        };
-    } else {
-        hint.style.opacity = '0';
-    }
+function setFavPanel(open) {
+    favPanel.hidden = !open;
+    btnFav.classList.toggle('open', open);
+    btnFav.setAttribute('aria-expanded', open);
 }
+function toggleFavPanel() { setFavPanel(favPanel.hidden); }
+
+function renderFavs() {
+    const favs = getFavs();
+    const cur = getCurrentPair();
+    const hasRoute = !!(cur.start && cur.end);
+
+    // 時刻表的收藏欄：目前路線綠字，還沒收藏就多一行「＋ 收藏這條路線」
+    let html = favs.map(r => {
+        const on = r.start === cur.start && r.end === cur.end;
+        return `<button class="${on ? 'cur' : ''}" onclick="loadRoute('${r.start}','${r.end}')">${routeText(r)}</button>`;
+    }).join('');
+    if (hasRoute && !isFavorite(cur.start, cur.end)) html += `<button class="add" onclick="addCurrentFavorite()">＋ 收藏這條路線</button>`;
+    favPanel.innerHTML = html;
+
+    // 首頁的收藏清單
+    if (!favs.length) homeEditing = false;
+    homeFavs.classList.toggle('editing', homeEditing);
+    if (!favs.length) { homeFavs.innerHTML = `<div class="home-favs-empty">目前無收藏路線</div>`; return; }
+    homeFavs.innerHTML = `<div class="home-favs-head"><span>收藏</span><button class="${homeEditing ? 'done' : ''}" onclick="toggleHomeEdit()">${homeEditing ? '完成' : '編輯'}</button></div>` +
+        favs.map((r, i) => `<div class="home-fav" data-i="${i}">
+            <span class="handle" aria-label="拖曳排序"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h10M3 8h10M3 11h10"/></svg></span>
+            <button class="go" onclick="loadRoute('${r.start}','${r.end}')">${routeText(r)}</button>
+            <button class="del" onclick="deleteFavorite(${i})">刪除</button>
+        </div>`).join('');
+}
+
+// ---------- 首頁編輯：拖曳排序、刪除 ----------
+let homeEditing = false;
+function toggleHomeEdit() { homeEditing = !homeEditing; renderFavs(); }
+function deleteFavorite(i) {
+    const favs = getFavs(); favs.splice(i, 1); saveFavs(favs);
+    logSystem("Fav: Removed"); renderFavs();
+}
+
+let favDrag = null;
+homeFavs.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.handle'); if (!handle || !homeEditing) return;
+    const row = handle.closest('.home-fav');
+    const rows = [...homeFavs.querySelectorAll('.home-fav')];
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    favDrag = { row, rows, from: +row.dataset.i, to: +row.dataset.i, y0: e.clientY, h: row.offsetHeight };
+    row.classList.add('dragging');
+});
+homeFavs.addEventListener('pointermove', (e) => {
+    if (!favDrag) return;
+    const { row, rows, from, h } = favDrag;
+    const dy = e.clientY - favDrag.y0;
+    const to = Math.max(0, Math.min(rows.length - 1, from + Math.round(dy / h)));
+    favDrag.to = to;
+    row.style.transform = `translateY(${dy}px)`;
+    rows.forEach((r, i) => {
+        if (r === row) return;
+        let shift = 0;
+        if (from < to && i > from && i <= to) shift = -h;
+        if (from > to && i < from && i >= to) shift = h;
+        r.style.transition = 'transform .15s';
+        r.style.transform = shift ? `translateY(${shift}px)` : '';
+    });
+});
+function endFavDrag() {
+    if (!favDrag) return;
+    const { from, to } = favDrag; favDrag = null;
+    if (from !== to) {
+        const favs = getFavs(); const [m] = favs.splice(from, 1); favs.splice(to, 0, m); saveFavs(favs);
+        logSystem("Fav: Reordered");
+    }
+    renderFavs();
+}
+homeFavs.addEventListener('pointerup', endFavDrag);
+homeFavs.addEventListener('pointercancel', endFavDrag);
 
 // ---------- 第一次使用的教學提示 ----------
 const LS_COACH_LIST = "tl_coach_list_v1";
