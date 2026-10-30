@@ -20,7 +20,7 @@
 
     <link rel="stylesheet" href="/style.css">
 </head>
-<body class="tick-a nostation">
+<body class="tick-a nostation home">
     <div id="inAppOverlay" onclick="this.style.display='none'">
         <div class="big">請改用瀏覽器開啟</div>
         <ol>
@@ -55,7 +55,7 @@
         <div class="header">
             <div class="header-static-part">
                 <div class="topbar">
-                    <div class="app-title" onclick="handleLogoClick()">TRAIN LIVE</div>
+                    <div class="app-title" onclick="handleLogoClick()"><svg class="logo-back" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 1.5L3 5l3.5 3.5"/></svg>TRAIN LIVE</div>
                     <div class="top-actions">
                         <button id="btnInstall" class="text-btn" onclick="handleInstall()">安裝</button>
                         <button class="icon-btn" onclick="openMenu()" aria-label="選單">
@@ -64,7 +64,6 @@
                     </div>
                 </div>
 
-                <div class="fresh-intro"><b>台鐵時刻表</b><span>算好誤點後的時間</span></div>
                 <div class="route">
                     <div class="route-stops">
                         <button id="startPick" class="stn from empty" onclick="openStationPicker('start')" aria-label="出發站"><b data-ph="出發"></b><span></span></button>
@@ -73,7 +72,9 @@
                     <button class="swap" onclick="swapStations()" aria-label="交換起訖站">
                         <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2v12M2 5l3-3 3 3M11 14V2M8 11l3 3 3-3"/></svg>
                     </button>
+                    <button id="btnFav" class="fav-btn" onclick="toggleFavPanel()" aria-expanded="false">收藏<svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5l3 3 3-3"/></svg></button>
                 </div>
+                <div id="favPanel" class="fav-panel" hidden></div>
 
                 <!-- 實際的站點狀態（程式內部使用，不顯示） -->
                 <div class="hidden-state" aria-hidden="true">
@@ -84,12 +85,6 @@
 
             <div id="stickyHeader" class="header-sticky-part">
                 <button id="btnAction" class="action-btn" onclick="handleAction()">查詢</button>
-
-                <div id="rowQuickRoute" class="chips-row">
-                    <div id="quickRouteArea" class="chips"></div>
-                    <div id="scrollHint" class="scroll-hint-overlay"></div>
-                    <button id="btnStar" class="star-btn" onclick="toggleFavorite()" aria-label="收藏路線"></button>
-                </div>
 
                 <div id="alertBar" class="alert-bar" hidden>
                     <div class="alert-head"><span id="alertTitle"></span></div>
@@ -106,6 +101,7 @@
             <div id="stickyPlaceholder"></div>
         </div>
 
+        <div id="homeFavs" class="home-favs"></div>
         <div id="cardList"></div>
     </div>
 
