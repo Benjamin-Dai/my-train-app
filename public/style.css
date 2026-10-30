@@ -44,7 +44,7 @@ body:not(.home) .app-title:active { opacity: .6; }
 .icon-btn { width: 32px; height: 32px; display: grid; place-items: center; color: var(--sub); }
 
 /* ===== 起訖站 ===== */
-.route { position: relative; display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; padding-left: 22px; }
+.route { position: relative; display: grid; grid-template-columns: auto auto 1fr; align-items: center; padding-left: 22px; }
 .route-stops { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 /* 路線線條：從起站圓心畫到迄站圓心（兩列等高，所以長度 = 一列高度 + 間距） */
 .stn.from::after { content: ""; position: absolute; left: -18px; top: 50%; width: 2px; height: calc(100% + 4px); background: var(--accent); z-index: 0; }
@@ -63,7 +63,7 @@ body:not(.home) .app-title:active { opacity: .6; }
 body.home .route { width: fit-content; margin: 48px auto 0; }
 body.home .stn b, body.home .stn.empty b { font-size: 32px; }
 body.home #btnAction { max-width: 280px; margin: 0 auto; }
-body.home .fav-btn, body.home .fav-add, body.home #favPanel, body.home #rowTools, body.home #alertBar, body.home #cardList, body.home .logo-back { display: none !important; }
+body.home .fav-group, body.home #favPanel, body.home #rowTools, body.home #alertBar, body.home #cardList, body.home .logo-back { display: none !important; }
 body:not(.home) #homeFavs { display: none; }
 body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .stn:active b { opacity: .6; }
@@ -71,14 +71,17 @@ body.nostation #btnAction, body.nostation .swap { visibility: hidden; }
 .swap { width: 40px; height: 40px; display: grid; place-items: center; color: var(--sub); margin-left: 4px; }
 
 /* 收藏：站名右邊的按鈕，點開列出收藏路線 */
-.fav-btn { justify-self: end; align-self: center; display: flex; white-space: nowrap; align-items: center; gap: 5px; font-size: 13px; color: var(--sub); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 5px 9px; }
+/* 「＋｜收藏」連在同一個框裡，中間一條細線 */
+.fav-group { justify-self: end; align-self: center; display: flex; align-items: stretch; border: 1px solid var(--line-strong); border-radius: var(--radius); }
+.fav-group:has(.fav-btn.open) { border-color: var(--accent); }
+.fav-btn { display: flex; white-space: nowrap; align-items: center; gap: 5px; font-size: 13px; color: var(--sub); padding: 5px 9px; }
 .fav-btn svg { transition: transform .2s; }
-.fav-btn.open { color: var(--text); border-color: var(--accent); }
+.fav-btn.open { color: var(--text); }
 .fav-btn.open svg { transform: rotate(180deg); }
 .fav-btn:active { opacity: .6; }
-/* 收藏旁邊的 +：一按就收藏；已收藏變綠色打勾 */
-.fav-add { align-self: center; width: 30px; height: 28px; margin-left: 6px; display: grid; place-items: center; color: var(--sub); border: 1px solid var(--line-strong); border-radius: var(--radius); }
-.fav-add.on { color: var(--accent); border-color: var(--accent); }
+/* 收藏左邊的 +：一按就收藏；已收藏變綠色打勾 */
+.fav-add { width: 30px; display: grid; place-items: center; color: var(--sub); border-right: 1px solid var(--line-strong); }
+.fav-add.on { color: var(--accent); }
 .fav-add:active { opacity: .6; }
 .fav-panel { margin-top: 14px; border-top: 1px solid var(--line); padding: 4px 0; }
 .fav-panel[hidden] { display: none; }
