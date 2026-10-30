@@ -319,7 +319,12 @@ function updateToggleBtns() {
 
 function toggleTimeFormat() { setTimeFormat(!is24Hour); }
 function setTimeFormat(v) { if (v === is24Hour) return; is24Hour=v; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
-function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
+function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); playListEnter(); scrollToFirstActive();}
+// 列表淡入只在查到新資料或展開／收起時播一次，每秒重畫時不要重播
+function playListEnter() {
+    list.classList.remove('enter'); void list.offsetWidth; list.classList.add('enter');
+    clearTimeout(playListEnter.t); playListEnter.t = setTimeout(() => list.classList.remove('enter'), 700);
+}
 
 function formatTime(t) {
     if(!t) return "";
@@ -810,7 +815,7 @@ async function fetchData(mode) {
         const { rInfo, dInfo } = parseDiagnostics(json.diagnostics, isVercelCache);
         
         localStorage.setItem(cacheKey,JSON.stringify({timestamp:Date.now(),payload:json}));
-        renderCards(json);
+        renderCards(json); playListEnter();
 
         logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
 
@@ -1182,21 +1187,42 @@ function clearStations() {
     startRegion.value = ''; endRegion.value = '';
     startStation.innerHTML = endStation.innerHTML = `<option value=""></option>`;
 }
+// 首頁和時刻表切換時，站名從原本的位置平移、縮放到新位置（FLIP）
+function animateRoute(change) {
+    const el = document.querySelector('.route-stops');
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const a = el.getBoundingClientRect();
+    change();
+    if (reduce || !a.height) return;
+    const b = el.getBoundingClientRect();
+    if (!b.height) return;
+    el.style.transition = 'none';
+    el.style.transformOrigin = '0 0';
+    el.style.transform = `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.height / b.height})`;
+    el.getBoundingClientRect();
+    el.style.transition = 'transform .32s cubic-bezier(.2,.7,.2,1)';
+    el.style.transform = '';
+    setTimeout(() => { el.style.transition = ''; el.style.transformOrigin = ''; }, 360);
+}
 // 進時刻表：多一筆瀏覽紀錄，讓返回鍵可以回首頁
-function showTimetable() {
-    if (!isHome()) return;
+function showTimetable(beforeShow) {
+    if (!isHome()) { if (beforeShow) beforeShow(); return; }
     hideUndo(); closeFavSwipe();
-    document.body.classList.remove('home');
+    window.scrollTo(0, 0);
+    animateRoute(() => {
+        if (beforeShow) beforeShow();
+        document.body.classList.remove('home');
+    });
     homeEditing = false;
     history.pushState({ view: 'timetable' }, '', '');
-    window.scrollTo(0, 0);
 }
 function leaveTimetable() {
     if (history.state && history.state.view) history.back(); else goHome();
 }
 function goHome() {
     if (isHome()) return;
-    document.body.classList.add('home');
+    window.scrollTo(0, 0);
+    animateRoute(() => { document.body.classList.add('home'); clearStations(); updateStationDisplay(); });
     if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
     if (autoResumeTimer) { clearTimeout(autoResumeTimer); autoResumeTimer = null; }
     closeResumePill();
@@ -1285,8 +1311,8 @@ function loadRoute(s, e) {
     if (!sR || !eR) return;
     setFavPanel(false);
     if (s === startStation.value && e === endStation.value && !isHome()) return;
-    showTimetable();
-    setMenu('start', sR, s); setMenu('end', eR, e);
+    // 先換好站名再切畫面，動畫才會從首頁的收藏位置接到時刻表上的站名
+    showTimetable(() => { setMenu('start', sR, s); setMenu('end', eR, e); });
     markAsChanged(); doSearch();
 }
 

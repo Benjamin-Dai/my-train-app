@@ -361,3 +361,22 @@ textarea.field { resize: none; border: 1px solid var(--line-strong); padding: 10
 .coach-next { background: #eee; color: #000; font-weight: 700; }
 
 .ios-steps { margin: 0; padding-left: 20px; font-size: 15px; line-height: 2.2; color: #ccc; }
+
+/* ===== 過場動畫：短、安靜，不跳動 ===== */
+@media (prefers-reduced-motion: no-preference) {
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } }
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-4px); } }
+    /* 查到班次：列表由上往下依序淡入 */
+    #cardList.enter .row, #cardList.enter .message, #cardList.enter .fold-departed { animation: fadeUp .28s ease-out both; }
+    #cardList.enter .row:nth-child(2) { animation-delay: .03s; }
+    #cardList.enter .row:nth-child(3) { animation-delay: .06s; }
+    #cardList.enter .row:nth-child(4) { animation-delay: .09s; }
+    #cardList.enter .row:nth-child(5) { animation-delay: .12s; }
+    #cardList.enter .row:nth-child(n+6) { animation-delay: .15s; }
+    /* 回首頁：收藏清單淡入；收藏選單往下展開 */
+    body.home #homeFavs { animation: fadeUp .3s ease-out both; }
+    .fav-panel:not([hidden]) { animation: fadeDown .18s ease-out; }
+    /* 按下去稍微縮一點 */
+    .action-btn, .fav-group, .swap, .menu-item .seg span { transition: transform .1s; }
+    .action-btn:active:not(:disabled), .fav-group:active, .swap:active { transform: scale(.97); }
+}
