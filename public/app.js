@@ -334,7 +334,7 @@ function updateToggleBtns() {
 }
 
 function toggleTimeFormat() { setTimeFormat(!is24Hour); }
-function setTimeFormat(v) { if (v === is24Hour) return; is24Hour=v; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); reRenderLocal(); scrollToFirstActive();}
+function setTimeFormat(v) { if (v === is24Hour) return; is24Hour=v; localStorage.setItem(LS_IS_24H, is24Hour); updateToggleBtns(); renderUpdateText(); reRenderLocal(); scrollToFirstActive();}
 function toggleShowAll() { isShowAll=!isShowAll; updateToggleBtns(); reRenderLocal(); playListEnter(); scrollToFirstActive();}
 // 列表淡入只在查到新資料或展開／收起時播一次，每秒重畫時不要重播
 function playListEnter() {
@@ -342,13 +342,22 @@ function playListEnter() {
     clearTimeout(playListEnter.t); playListEnter.t = setTimeout(() => list.classList.remove('enter'), 700);
 }
 
+function splitTime(t) {
+    const p = t.split(':'); if(p.length < 2) return null;
+    let h = parseInt(p[0]); let suffix = "上午";
+    if(h >= 12) { suffix = "下午"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; }
+    return [suffix, `${h}:${p[1]}`];
+}
 function formatTime(t) {
     if(!t) return "";
     if(is24Hour) return t;
-    const p = t.split(':'); if(p.length < 2) return t;
-    let h = parseInt(p[0]); let suffix = "上午";
-    if(h >= 12) { suffix = "下午"; if(h > 12) h -= 12; } else if(h === 0) { h = 12; }
-    return `<span class="ampm">${suffix}</span> ${h}:${p[1]}`;
+    const r = splitTime(t); if(!r) return t;
+    return `<span class="ampm">${r[0]}</span> ${r[1]}`;
+}
+// 純文字版（狀態列用）
+function formatTimeText(t) {
+    if(!t || is24Hour) return t || "";
+    const r = splitTime(t); return r ? `${r[0]} ${r[1]}` : t;
 }
 
 let lastScroll = 0; let currentTranslate = 0;
@@ -600,7 +609,7 @@ function attemptLoadCache(isInit) {
     if(hitData) {
         if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
         renderCards(hitData.payload); 
-        setUpdateText(`${String(hitData.payload.update_time).slice(0,5)} 更新`);
+        setUpdateText(hitData.payload.update_time);
         statusMsg.innerText=""; statusMsg.className="status-left"; 
         list.style.opacity="1"; 
         lastFetchedPair={start:startStation.value,end:endStation.value}; 
@@ -629,11 +638,12 @@ function getSavedRoute() {
     });
     return best;
 }
-function savedTimeLabel(d) {
+// 存檔時間：不是今天的話前面加日期
+function savedTime(d) {
     const t = new Date(d.timestamp);
     const sameDay = t.toDateString() === new Date().toDateString();
     const hm = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
-    return sameDay ? hm : `${t.getMonth()+1}/${t.getDate()} ${hm}`;
+    return { hm, day: sameDay ? '' : `${t.getMonth()+1}/${t.getDate()} ` };
 }
 let showingSaved = false;
 let offlineFailed = false;  // 離線時查詢失敗、又沒有存檔：網路恢復後要自動查一次
@@ -642,10 +652,10 @@ function showSavedRoute(reason) {
     if (!d) return false;
     renderCards(d.payload);
     list.style.opacity = "1";
-    setUpdateText(`${savedTimeLabel(d)} 更新`);
+    const st = savedTime(d); setUpdateText(st.hm, '', st.day);
     showingSaved = true;
     lastFetchedPair = { start: startStation.value, end: endStation.value };
-    statusMsg.innerText = `${reason}，顯示 ${savedTimeLabel(d)} 的資料`;
+    statusMsg.innerText = `${reason}，顯示 ${st.day}${formatTimeText(st.hm)} 的資料`;
     statusMsg.className = "status-left warning";
     return true;
 }
@@ -855,9 +865,9 @@ async function fetchData(mode) {
 
         if(json.delay_failed) {
             scheduleRetry("誤點資料失敗", "status-left warning");
-            setUpdateText(`${String(json.update_time).slice(0,5)} 更新 · 誤點資料暫缺`);
+            setUpdateText(json.update_time, ' · 誤點資料暫缺');
         } else {
-            setUpdateText(`${String(json.update_time).slice(0,5)} 更新`);
+            setUpdateText(json.update_time);
             statusMsg.innerText = ""; statusMsg.className = "status-left";
         }
         
@@ -922,7 +932,10 @@ async function fetchData(mode) {
     }
 }
 
-function setUpdateText(t){updateTimeDiv.innerText=t;localStorage.setItem("last_update_text",t);}
+// 存原始時間，切 12／24 小時制時重畫
+let updateInfo = null;
+function setUpdateText(time, note, day){updateInfo=time?{time:String(time).slice(0,5),note:note||'',day:day||''}:null;renderUpdateText();}
+function renderUpdateText(){updateTimeDiv.innerText=updateInfo?`${updateInfo.day}${formatTimeText(updateInfo.time)} 更新${updateInfo.note}`:'';}
 
 function scheduleRetry(msg="誤點資訊無法取得", cls="status-left warning") {
     let c=30; 
@@ -1022,12 +1035,16 @@ function renderCards(data) {
         const typeColor = t.color && t.color.toLowerCase() !== '#ffffff' ? t.color : '#ddd';
         const side = isDeparted ? '已發車' : (isLate ? `晚 ${t.delay} 分<span class="o">原定 ${formatTime(t.sch_dep)}</span>` : '');
         const url = `https://railway.chienwen.net/taiwan/train/TRA-${encodeURIComponent(t.no)}/live`;
+        // 隔天才到：舊快取沒有日期就比時間
+        const nextDayArr = t.dep_date && t.arr_date ? t.arr_date > t.dep_date : t.act_arr < t.act_dep;
+        const plus1 = nextDayArr ? '<sup class="d1" aria-label="隔天">+1</sup>' : '';
 
-        html += `<a class="${cls.join(' ')}" style="--tc:${typeColor}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="markRowTapped()">
+        html += `<a class="${cls.join(' ')}" style="--tc:${typeColor}" href="${url}" target="_blank" rel="noopener" ${activeId} onclick="return openTrainLink(event, this)">
                     ${led}
-                    <div class="r-time"><span class="r-dep">${formatTime(t.act_dep)}</span><span class="r-arr">${formatTime(t.act_arr)}</span></div>
+                    <div class="r-time"><span class="r-dep">${formatTime(t.act_dep)}</span><span class="r-arr">${formatTime(t.act_arr)}${plus1}</span></div>
                     <div class="r-meta"><span class="r-type" style="color:${typeColor}">${t.type}</span><span>${t.no}</span></div>
                     <div class="r-side">${side}</div>
+                    <span class="sr-only">（外部網站，開新分頁）</span>
                 </a>`;
         shown++;
     });
@@ -1061,6 +1078,23 @@ function renderAlerts(alerts) {
 
 function markRowTapped() {
     try { localStorage.setItem(LS_ROW_TAPPED, '1'); } catch (e) {}
+}
+// 第一次點班次先說明會開外部網站，按過「開啟」之後就直接開
+const LS_EXT_OK = "tl_ext_ok";
+let pendingExtUrl = null;
+function openTrainLink(e, a) {
+    markRowTapped();
+    try { if (localStorage.getItem(LS_EXT_OK) === '1') return true; } catch (err) { return true; }
+    e.preventDefault();
+    pendingExtUrl = a.href;
+    openSheet('Ext');
+    return false;
+}
+function confirmExtLink() {
+    try { localStorage.setItem(LS_EXT_OK, '1'); } catch (e) {}
+    if (pendingExtUrl) window.open(pendingExtUrl, '_blank', 'noopener');
+    pendingExtUrl = null;
+    closeModal();
 }
 
 // [新增] 關閉教學並判斷 Checkbox
