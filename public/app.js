@@ -59,12 +59,13 @@ if (!isInStandaloneMode) { btnInstall.style.display = 'flex'; }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 
 // 打開彈出視窗並切到指定頁面
-function openSheet(id) {
+// reopen：往下一頁滑回已關掉的視窗，紀錄已經在了，不要再加一筆
+function openSheet(id, reopen) {
     const modal = document.getElementById('aboutModal');
     modal.style.display = 'flex';
     document.body.classList.add('noscroll');
     setTimeout(() => modal.classList.add('active'), 10);
-    history.pushState({ modal: true, depth: histDepth() + 1 }, '', '');
+    if (!reopen) history.pushState({ modal: true, page: id, pick: pickerType, depth: histDepth() + 1 }, '', '');
     goToPage(id);
 }
 
@@ -440,7 +441,7 @@ function updateStationDisplay() {
 
 // ---------- 選站畫面 ----------
 let pickerType = 'start'; let pickerRegion = '';
-function openStationPicker(type) {
+function openStationPicker(type, reopen) {
     pickerType = type;
     const sSel = type === 'start' ? startStation : endStation;
     const rSel = type === 'start' ? startRegion : endRegion;
@@ -450,7 +451,7 @@ function openStationPicker(type) {
     document.getElementById('pickerSearch').value = '';
     renderPickerRegions();
     renderPickerStations();
-    openSheet('Station');
+    openSheet('Station', reopen);
     setTimeout(() => {
         const on = document.querySelector('#pickerStations .on');
         if (on) on.scrollIntoView({ block: 'center' });
@@ -1065,8 +1066,15 @@ function histDepth() { return (history.state && history.state.depth) || 0; }
 window.addEventListener('popstate', () => {
     const modal = document.getElementById('aboutModal');
     const st = history.state || {};
-    // iOS 往左滑（下一頁）會走到已經關掉的紀錄：選單那筆直接退回；時刻表那筆就重新打開剛剛那條路線（不自動查詢）
-    if (st.modal && modal.style.display !== 'flex') { history.back(); return; }
+    // iOS 往左滑（下一頁）會走到已經關掉的紀錄，Safari 先秀那頁的截圖：
+    // 把那頁真的打開，畫面才會跟截圖一樣（不然截圖會一直卡在畫面上）；回報、後台不重開，直接退回
+    if (st.modal && modal.style.display !== 'flex') {
+        if (st.page === 'Station') openStationPicker(st.pick || 'start', true);
+        else if (['Menu', 'Author', 'IOS'].includes(st.page)) openSheet(st.page, true);
+        else history.back();
+        return;
+    }
+    // 時刻表那筆就重新打開剛剛那條路線（不自動查詢）
     if (st.view && isHome()) {
         if (lastRoute) { const r = lastRoute; loadRoute(r.start, r.end, null, true); } else history.back();
         return;
@@ -1089,6 +1097,7 @@ window.addEventListener('popstate', () => {
 function goToPage(id){
     document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
     document.getElementById('page'+id).classList.add('active');
+    if (history.state && history.state.modal) history.replaceState({ ...history.state, page: id }, '', '');
     if(id==='Report'){ uploadReport(); }
 }
 
