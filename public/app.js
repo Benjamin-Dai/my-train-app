@@ -75,9 +75,14 @@ function handleInstall() {
         deferredPrompt.userChoice.then((c) => { if(c.outcome==='accepted') btnInstall.style.display='none'; deferredPrompt=null; });
         return;
     }
+    // 沒有瀏覽器的安裝視窗時，依系統顯示對應的步驟
+    document.getElementById('installSteps').innerHTML = isIos
+        ? '<li>點 Safari 下方的「分享」按鈕</li><li>選「加入主畫面」</li><li>點右上角的「加入」</li>'
+        : '<li>點瀏覽器的選單（⋮）</li><li>選「安裝應用程式」或「加到主畫面」</li>';
     openSheet('IOS');
 }
 async function shareApp() {
+    closeModal();
     const data = { url: window.location.href };
     if (navigator.share) try { await navigator.share(data); } catch(e){} else { try{await navigator.clipboard.writeText(window.location.href);alert('連結已複製');}catch(e){} }
 }
@@ -251,7 +256,7 @@ function startTicker() {
 
     // 2. 資料倒數計時器 (15s)
     dataInterval = setInterval(() => {
-        if (currentTrainData) renderCards(currentTrainData);
+        if (currentTrainData && !isFetching) renderCards(currentTrainData);
     }, 15000);
     
     console.log("App Woke Up: Timers Started");
@@ -270,7 +275,9 @@ document.addEventListener("visibilitychange", () => {
     } else {
         startTicker(); // 頁面開啟 -> 恢復運作
         // 回來時順便立刻更新一次畫面，修正時間差
-        if(currentTrainData) renderCards(currentTrainData); 
+        if(currentTrainData && !isFetching) renderCards(currentTrainData); 
+        // 資料超過 3 分鐘就再提示一次更新（就算之前按 × 關過）
+        if (!isHome() && routeIsCurrent() && lastUpdateTime && Date.now() - lastUpdateTime >= 180000 && !isFetching) showResumeHint();
     }
 });
 
@@ -282,7 +289,7 @@ window.addEventListener('offline', () => {
 window.addEventListener('online', () => {
     statusMsg.innerText = "網路已恢復"; statusMsg.className = "status-left";
     // 剛才是顯示舊資料的話，自動更新一次
-    if (showingSaved && startStation.value && endStation.value) setTimeout(() => doRefresh(true), 800);
+    if ((showingSaved || offlineFailed) && startStation.value && endStation.value) setTimeout(() => doRefresh(true), 800);
     else setTimeout(() => { if (statusMsg.innerText === "網路已恢復") statusMsg.innerText = ""; }, 2000);
 });
 
@@ -432,7 +439,15 @@ function updateStationDisplay() {
         el.querySelector('span').innerText = has ? rSel.value : '';
     });
     document.body.classList.toggle('nostation', !(startStation.value && endStation.value));
+    fitRouteNames();
 }
+// 站名＋縣市超出可用寬度時（會蓋到交換鍵），先拿掉縣市
+function fitRouteNames() {
+    const r = document.querySelector('.route-stops');
+    r.classList.remove('tight');
+    if (r.scrollWidth > r.clientWidth + 1) r.classList.add('tight');
+}
+if (window.ResizeObserver) new ResizeObserver(fitRouteNames).observe(document.querySelector('.route'));
 
 // ---------- 選站畫面 ----------
 let pickerType = 'start'; let pickerRegion = '';
@@ -502,6 +517,8 @@ function renderPickerStations() {
     });
 }
 function pickStation(station, region) {
+    const other = pickerType === 'start' ? endStation.value : startStation.value;
+    if (station === other) { showToast('起訖站不能相同'); return; }
     logSystem(`Action: Pick ${pickerType} ${station}`);
     setMenu(pickerType, region, station);
     if (startStation.value && endStation.value) markAsChanged();
@@ -612,6 +629,7 @@ function savedTimeLabel(d) {
     return sameDay ? hm : `${t.getMonth()+1}/${t.getDate()} ${hm}`;
 }
 let showingSaved = false;
+let offlineFailed = false;  // 離線時查詢失敗、又沒有存檔：網路恢復後要自動查一次
 function showSavedRoute(reason) {
     const d = getSavedRoute();
     if (!d) return false;
@@ -631,9 +649,16 @@ const ICON_REFRESH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none
 function updateActionButton() {
     const now = Date.now();
     const sL = getSearchLockedUntil(); const uL = getUiLockedUntil();
-    // UI 冷卻結束時，同步解除更新鎖（沿用原本的行為）
-    if (uL && uL <= now) { setUiLockedUntil(0); setRefreshLockedUntil(0); }
-    if (sL && sL <= now) { setSearchLockedUntil(0); }
+    // UI 冷卻 30 秒結束後還在 90 秒更新鎖內，按更新只重畫本機資料（顯示「已是最新資料」），不打 API
+    if (uL && uL <= now) { setUiLockedUntil(0); }
+    if (sL && sL <= now) {
+        setSearchLockedUntil(0);
+        // 查詢次數鎖解除：把「查詢太頻繁」的提示換回原本的狀態
+        if (statusMsg.innerText === "查詢太頻繁，請稍等") {
+            if (!routeIsCurrent() && currentTrainData) { statusMsg.innerText = "已換站，按查詢看新的班次"; statusMsg.className = "status-left warning"; }
+            else { statusMsg.innerText = ""; statusMsg.className = "status-left"; }
+        }
+    }
 
     let html = '查詢', disabled = false;
     const secs = t => Math.ceil((t - now) / 1000);
@@ -663,6 +688,7 @@ function handleAction() {
 function doSearch() {
     const sS=startStation.value; const eS=endStation.value;
     if(!sS||!eS) { showToast("請先選擇起訖站"); return; }
+    if(sS===eS) { showToast("起訖站不能相同"); return; }
     markAsChanged();
     if(sS===lastFetchedPair.start&&eS===lastFetchedPair.end) { doRefresh(); return; }
     const now=Date.now(); let cnt=getSearchCount(); let rst=getSearchResetTime();
@@ -727,7 +753,7 @@ async function uploadReportInternal(desc, isAuto) {
         total_requests: requestHistory.length,
         diagnostics: lastDiagnostics,
         logs: systemLogs,
-        user_desc: desc || "(Auto Upload on Open)"
+        user_desc: desc || "(沒有填寫)"
     };
 
     try {
@@ -754,9 +780,6 @@ async function uploadReportInternal(desc, isAuto) {
     }
 }
 
-function uploadReport() {
-    uploadReportInternal("", true);
-}
 
 function manualUploadReport() {
     const desc = document.getElementById('userDesc').value;
@@ -817,7 +840,7 @@ async function fetchData(mode) {
         if(json.error) throw new Error(json.error);
 
         lastFetchedPair={start:s,end:e};
-        showingSaved = false;
+        showingSaved = false; offlineFailed = false;
         
         if (needNextDay) isNextDayLoaded = true;
 
@@ -868,17 +891,28 @@ async function fetchData(mode) {
     } catch(err) {
         console.error(err); logSystem("API Error: " + err.message);
         const offline = navigator.onLine === false || err instanceof TypeError;
+        // 沒有存檔可顯示時，清掉舊路線的資料，不然 15 秒重畫會把上一條路線的班次畫回來
+        const showMessage = html => { currentTrainData = null; showingSaved = false; document.getElementById('rowTools').style.display = 'none'; list.style.opacity = "1"; list.innerHTML = html; };
         if (err.message === 'Too Many Requests') {
             // 後端次數限制：不自動重試，等使用者自己再按
             statusMsg.innerText = "查詢太頻繁，請稍等一分鐘"; statusMsg.className = "status-left alert";
-            if (!showSavedRoute('查詢太頻繁')) list.innerHTML = `<div class="message">查詢太頻繁<small>請稍等一分鐘再試</small></div>`;
+            if (!showSavedRoute('查詢太頻繁')) showMessage(`<div class="message">查詢太頻繁<small>請稍等一分鐘再試</small></div>`);
+        } else if (err.message === 'TDX Busy') {
+            // 資料來源（TDX）同時太多人查：30 秒後自動重試
+            const hadSaved = showSavedRoute('查詢的人太多');
+            scheduleRetry(hadSaved ? statusMsg.innerText : "查詢的人太多", hadSaved ? "status-left warning" : "status-left alert");
+            if (!hadSaved) showMessage(`<div class="message">查詢的人太多<small>30 秒後會自動重試</small></div>`);
         } else if (offline) {
             // 沒有網路：顯示上次的結果，網路恢復時自動更新一次
-            if (!showSavedRoute('離線中')) list.innerHTML = `<div class="message">目前沒有網路<small>網路恢復後會自動更新</small></div>`;
+            offlineFailed = true;
+            if (!showSavedRoute('離線中')) {
+                showMessage(`<div class="message">目前沒有網路<small>網路恢復後會自動更新</small></div>`);
+                statusMsg.innerText = "離線中"; statusMsg.className = "status-left warning";
+            }
         } else {
             const hadSaved = showSavedRoute('連線失敗');
             scheduleRetry(hadSaved ? statusMsg.innerText : "連線錯誤", hadSaved ? "status-left warning" : "status-left alert");
-            if (!hadSaved) list.innerHTML=`<div class="message">連線失敗<small>30 秒後會自動重試</small></div>`;
+            if (!hadSaved) showMessage(`<div class="message">連線失敗<small>30 秒後會自動重試</small></div>`);
         }
     } finally {
         isFetching = false;
@@ -1095,7 +1129,6 @@ function goToPage(id){
     document.querySelectorAll('.modal-page').forEach(p=>p.classList.remove('active'));
     document.getElementById('page'+id).classList.add('active');
     if (history.state && history.state.modal) history.replaceState({ ...history.state, page: id }, '', '');
-    if(id==='Report'){ uploadReport(); }
 }
 
 // [Advanced] 1:1 Interactive Swipe Gestures

@@ -54,6 +54,8 @@ body:not(.home) .app-title:active { opacity: .6; }
 .stn.to::before { border: 2px solid var(--accent); background: var(--bg); }
 .stn b { font-size: 28px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
 .stn span { font-size: 12px; color: var(--sub); white-space: nowrap; }
+/* 窄螢幕放不下（例如 320 寬的四字站名）就不顯示縣市，見 fitRouteNames() */
+.route-stops.tight .stn span { display: none; }
 /* 還沒選站：只留一條空白的底線，不寫字 */
 .stn.empty b { display: inline-block; width: 4.2em; height: 1.2em; border-bottom: 2px solid var(--line-strong); position: relative; }
 .stn.empty b::before { content: attr(data-ph); position: absolute; left: 0; bottom: 6px; font-size: 15px; font-weight: 500; color: var(--dim); letter-spacing: .1em; }
