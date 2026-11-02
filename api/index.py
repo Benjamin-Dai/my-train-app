@@ -663,8 +663,8 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
-            # 一般查詢保持 60 秒快取
-            self.send_header('Cache-Control', 'public, max-age=60, s-maxage=60')
+            # 一般查詢保持 60 秒快取；誤點抓失敗的話只快取 15 秒，前端 30 秒後重試才拿得到新的
+            self.send_header('Cache-Control', 'public, max-age=15, s-maxage=15' if delay_failed else 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
             if need_yesterday: diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
@@ -696,5 +696,8 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(500)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Cache-Control', 'no-store')
         self.end_headers()
+        # 原本沒有內容，前端 res.json() 會解析失敗，回報紀錄看不到真正的錯誤
+        self.wfile.write(json.dumps({"error": msg}).encode())
         self.wfile.write(json.dumps({"error": msg}).encode())
