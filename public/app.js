@@ -1595,8 +1595,13 @@ function deleteFavorite(i, collapsed) {
     if (!collapsed && row && isHome() && row.animate && !reduceMotion()) {
         if (row.dataset.removing) return;
         row.dataset.removing = '1';
+        // 收起來的 0.2 秒內可能又刪了別條，順序會變：結束時用路線重新找位置，不要用舊的編號
+        const target = getFavs()[i];
         row.animate([{ height: row.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0 }],
-            { duration: 200, easing: 'ease-in', fill: 'forwards' }).onfinish = () => deleteFavorite(i, true);
+            { duration: 200, easing: 'ease-in', fill: 'forwards' }).onfinish = () => {
+            const j = target ? getFavs().findIndex(f => f.start === target.start && f.end === target.end) : -1;
+            if (j >= 0) deleteFavorite(j, true); else renderFavs();
+        };
         return;
     }
     const favs = getFavs(); const [r] = favs.splice(i, 1); if (!r) return;
