@@ -7,6 +7,8 @@ import time
 import re
 import hmac
 import hashlib
+import zlib
+import base64
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
@@ -47,6 +49,12 @@ REPORT_ID_RE = re.compile(r"^report:\d{8}_\d{6}_\d{4}$")
 
 ROUTE_CACHE_TTL = 7200          # 時刻表快取 2 小時（TDX 時刻表約 4 小時更新一次；即時停駛靠營運通阻公告）
 EMPTY_ROUTE_CACHE_TTL = 300     # TDX 回空的時刻表只快取 5 分鐘：常常是 TDX 暫時沒資料，不能當成「沒有直達車」卡 2 小時
+GENERAL_KEY = "v3_general_tt"  # 定期時刻表（壓縮過），每日時刻表空的時候備援用
+DAY_ALL_KEY = "v3_dayall_"      # + 日期：當天全部班次（壓縮過），起訖站查詢回空時的第一個備援
+DAY_ALL_TTL = 2 * 3600
+GENERAL_CACHE_TTL = 6 * 3600     # 定期時刻表很少變
+GENERAL_ROUTE_TTL = 1800         # 用定期時刻表算出來的路線只快取 30 分鐘，TDX 每日時刻表恢復後很快換回來
+WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 QUERY_RATE_MAX = 40            # 同一個 IP 每分鐘最多查詢幾次（正常使用遠低於這個數字）
 QUERY_RATE_WINDOW = 60
 RATE_LIMIT_WAIT = 0.8           # TDX 回 429（太頻繁）時，等這麼久再重試一次
@@ -131,6 +139,45 @@ def route_key(start_id, end_id, date_str):
     return f"v3_route_{start_id}_{end_id}_{date_str}"
 
 
+def compact_general(raw_list):
+    """定期時刻表整份很大（約 900 班），只留查詢需要的欄位再壓縮，才放得進 Redis。"""
+    out = []
+    for it in raw_list:
+        info = it.get('TrainInfo', {})
+        sd = it.get('ServiceDay') or {}
+        days = "".join("1" if sd.get(d, 1) else "0" for d in WEEKDAYS) if sd else "1111111"
+        stops = [f"{st.get('StationID','')}|{st.get('ArrivalTime') or ''}|{st.get('DepartureTime') or ''}" for st in it.get('StopTimes', [])]
+        out.append([info.get('TrainNo'), info.get('TrainTypeName', {}).get('Zh_tw', ''), days, stops, _flag(info.get('SuspendedFlag'))])
+    return base64.b64encode(zlib.compress(json.dumps(out, ensure_ascii=False).encode())).decode()
+
+
+def general_route(packed, start_id, end_id, date_str):
+    """從壓縮的定期時刻表挑出這天有開、先停 start 再停 end 的班次，轉成跟每日時刻表一樣的格式。"""
+    trains = json.loads(zlib.decompress(base64.b64decode(packed)))
+    wd = datetime.strptime(date_str, "%Y-%m-%d").weekday()
+    out = []
+    for row in trains:
+        no, type_zh, days, stops = row[:4]
+        if len(days) == 7 and days[wd] != "1":
+            continue
+        if len(row) > 4 and row[4] == 1:  # 整班停駛（部分停駛無法判斷是哪幾站，照樣列出）
+            continue
+        ids = [x.split("|")[0] for x in stops]
+        if start_id not in ids or end_id not in ids:
+            continue
+        i, j = ids.index(start_id), ids.index(end_id)
+        if i >= j:
+            continue
+        _, _, dep = stops[i].split("|")
+        _, arr, arr_dep = stops[j].split("|")
+        dep = dep or stops[i].split("|")[1]
+        arr = arr or arr_dep
+        out.append({"TrainInfo": {"TrainNo": no, "TrainTypeName": {"Zh_tw": type_zh}},
+                    "StopTimes": [{"StationID": start_id, "DepartureTime": dep},
+                                  {"StationID": end_id, "ArrivalTime": arr}]})
+    return out
+
+
 def tdx_get(url, headers):
     """打 TDX；碰到 429（請求太頻繁）就等一下再試一次。"""
     res = HTTP.get(url, headers=headers, timeout=TDX_TIMEOUT)
@@ -203,12 +250,7 @@ class handler(BaseHTTPRequestHandler):
     def get_delays(self, cached_raw, get_headers, allow_api=True):
         if cached_raw:
             try:
-                val = json.loads(cached_raw)
-                if isinstance(val, dict) and val.get("empty"):
-                    return ([], "Redis")
-                # 舊版把 TDX 回的空清單也快取 2 小時；空的 list 一律當成沒快取，重新問 TDX
-                if isinstance(val, list) and val:
-                    return (val, "Redis")
+                return (json.loads(cached_raw), "Redis")
             except Exception:
                 pass
 
@@ -261,6 +303,9 @@ class handler(BaseHTTPRequestHandler):
                 val = json.loads(cached_raw)
                 if isinstance(val, dict) and val.get("empty"):
                     return ([], "Redis")
+                if isinstance(val, dict) and "general" in val:
+                    self.used_general = True
+                    return (val["general"], "Redis/General")
                 # 舊版把 TDX 回的空清單也快取 2 小時；空的 list 一律當成沒快取，重新問 TDX
                 if isinstance(val, list) and val:
                     return (val, "Redis")
@@ -273,14 +318,60 @@ class handler(BaseHTTPRequestHandler):
             raw_list = res.json().get('TrainTimetables') or []
             if raw_list:
                 redis_set(route_key(start_id, end_id, date_str), json.dumps(raw_list), ROUTE_CACHE_TTL)
-            else:
-                redis_set(route_key(start_id, end_id, date_str), json.dumps({"empty": True}), EMPTY_ROUTE_CACHE_TTL)
+                return (raw_list, status_str)
+            # TDX 每日時刻表整個空掉（2026-11-23 全部路線都 0 班）：改用定期時刻表，不要直接說沒有車
+            gen, src = self.general_fallback(start_id, end_id, date_str, get_headers)
+            if gen and src == "Daily":
+                # 當天全部班次篩出來的就是正式的每日時刻表，照一般快取
+                redis_set(route_key(start_id, end_id, date_str), json.dumps(gen), ROUTE_CACHE_TTL)
+                return (gen, "API/Daily")
+            if gen:
+                self.used_general = True
+                redis_set(route_key(start_id, end_id, date_str), json.dumps({"general": gen}), GENERAL_ROUTE_TTL)
+                return (gen, "General")
+            redis_set(route_key(start_id, end_id, date_str), json.dumps({"empty": True}), EMPTY_ROUTE_CACHE_TTL)
             return (raw_list, status_str)
         elif res.status_code == 429:
             # 重試後 TDX 還是嫌太頻繁：回給前端「查詢的人太多」，不要當成連線錯誤
             raise Exception("TDX Busy")
         else:
             raise Exception(f"Timetable Error: {res.status_code}")
+
+    def packed_timetable(self, key, url, ttl, get_headers):
+        """整份時刻表（當天全部班次或定期時刻表）：先看 Redis，沒有才打 TDX，壓縮後給所有路線共用。"""
+        if redis_client:
+            try:
+                c = redis_client.get(key)
+                if c:
+                    return c.decode()
+            except Exception as e:
+                print(f"{key} cache read failed: {e}")
+        res = tdx_get(url, get_headers())
+        if res.status_code != 200:
+            print(f"{url}: {res.status_code}")
+            return None
+        raw = res.json().get('TrainTimetables') or []
+        if not raw:
+            return None
+        packed = compact_general(raw)
+        redis_set(key, packed, ttl)
+        return packed
+
+    def general_fallback(self, start_id, end_id, date_str, get_headers):
+        """起訖站查詢回空時：先用當天全部班次自己篩；還是沒有再用定期時刻表。回傳 (班次, 來源)。"""
+        for key, url, ttl, src in (
+            (DAY_ALL_KEY + date_str, f"{API_BASE_V3}/DailyTrainTimetable/TrainDate/{date_str}", DAY_ALL_TTL, "Daily"),
+            (GENERAL_KEY, f"{API_BASE_V3}/GeneralTrainTimetable", GENERAL_CACHE_TTL, "General"),
+        ):
+            try:
+                packed = self.packed_timetable(key, url, ttl, get_headers)
+                if packed:
+                    found = general_route(packed, start_id, end_id, date_str)
+                    if found:
+                        return (found, src)
+            except Exception as e:
+                print(f"{src} fallback failed: {e}")
+        return ([], None)
 
     def process_daily_list(self, raw_list, date_str, start_id, end_id, delays, now_aware, fix_crossing_night=False):
         processed = []
@@ -527,9 +618,19 @@ class handler(BaseHTTPRequestHandler):
             out["train_count"] = len(items)
             out["route"] = f"{start} → {end}"
             try:
+                g = redis_client.get(GENERAL_KEY)
+                out["general_cache"] = f"有（{len(g) // 1024} KB）" if g else "沒有快取"
+                d = redis_client.get(DAY_ALL_KEY + now_aware.strftime('%Y-%m-%d'))
+                out["day_all_cache"] = f"有（{len(d) // 1024} KB）" if d else "沒有快取"
+            except Exception as e:
+                out["general_cache"] = f"讀取失敗：{e}"
+            try:
                 c = redis_client.get(route_key(start, end, now_aware.strftime('%Y-%m-%d')))
                 v = json.loads(c) if c else None
-                out["route_cache"] = "沒有快取" if v is None else ("空（5 分鐘）" if isinstance(v, dict) else f"{len(v)} 班")
+                if v is None: out["route_cache"] = "沒有快取"
+                elif isinstance(v, dict) and "general" in v: out["route_cache"] = f"定期時刻表 {len(v['general'])} 班"
+                elif isinstance(v, dict): out["route_cache"] = "空（5 分鐘）"
+                else: out["route_cache"] = f"{len(v)} 班"
             except Exception as e:
                 out["route_cache"] = f"讀取失敗：{e}"
             flags = {}
@@ -543,6 +644,17 @@ class handler(BaseHTTPRequestHandler):
                 out["sample_stop_keys"] = sorted(st[0].keys())
         except Exception as e:
             out["timetable_error"] = str(e)
+        if out.get("train_count") == 0:
+            # 每日時刻表是空的：順便試備援的定期時刻表，看抓不抓得到
+            try:
+                time.sleep(0.5)
+                t0 = time.perf_counter()
+                found, src = self.general_fallback(start, end, now_aware.strftime('%Y-%m-%d'), get_headers)
+                out["fallback_source"] = src or "都沒有"
+                out["fallback_train_count"] = len(found)
+                out["fallback_ms"] = round((time.perf_counter() - t0) * 1000)
+            except Exception as e:
+                out["general_error"] = str(e)
         return out
 
     def station_check(self):
@@ -612,6 +724,7 @@ class handler(BaseHTTPRequestHandler):
         # 一次 MGET 取回 token、時刻表、誤點的快取（原本是一個一個 GET）
         keys = [TOKEN_KEY, DELAY_KEY, ALERT_KEY, route_key(start_id, end_id, today_str)]
         self.suspended_count = 0
+        self.used_general = False
         if want_next_day: keys.append(route_key(start_id, end_id, tomorrow_str))
         if need_yesterday: keys.append(route_key(start_id, end_id, yesterday_str))
         cached, query_count = redis_mget_and_count(keys, f"rl:query:{self.client_ip()}", QUERY_RATE_WINDOW)
@@ -698,7 +811,7 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "update_time": now_aware.strftime("%H:%M:%S"),
                 "start": start_station, "end": end_station, "delay_failed": delay_failed,
-                "trains": result, "stats": { "original_count": len(final_result), "suspended": self.suspended_count, "route_empty": route_empty },
+                "trains": result, "stats": { "original_count": len(final_result), "suspended": self.suspended_count, "route_empty": route_empty, "general": self.used_general },
                 "alerts": alerts,
                 "diagnostics": { "route_status": diag_route_status, "delay_status": delay_status }
             }).encode())

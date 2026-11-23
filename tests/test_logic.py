@@ -176,7 +176,7 @@ class EmptyRouteCacheTests(unittest.TestCase):
         return calls
 
     def get(self, cached):
-        ctx = types.SimpleNamespace(get_header_info=lambda res: "API")
+        ctx = types.SimpleNamespace(get_header_info=lambda res: "API", general_fallback=lambda *a: ([], None))
         return index.handler.get_route_timetable(ctx, "3360", "1020", "2026-11-23", cached, lambda: {})
 
     def test_empty_response_cached_short(self):
@@ -211,3 +211,97 @@ class EmptyRouteCacheTests(unittest.TestCase):
         calls = self.fake_tdx({})
         raw, src = self.get(index.json.dumps([train()]).encode())
         self.assertEqual((len(raw), src, calls), (1, "Redis", []))
+
+
+class GeneralFallbackTests(unittest.TestCase):
+    """TDX 每日時刻表空掉時改用定期時刻表。"""
+
+    def gen(self, no, stops, days=None):
+        item = {"TrainInfo": {"TrainNo": no, "TrainTypeName": {"Zh_tw": "自強(推拉式自強號)"}},
+                "StopTimes": [{"StationID": sid, "ArrivalTime": a, "DepartureTime": d} for sid, a, d in stops]}
+        if days is not None:
+            item["ServiceDay"] = days
+        return item
+
+    def test_direction_weekday_and_format(self):
+        everyday = {d: 1 for d in index.WEEKDAYS}
+        no_monday = dict(everyday, Monday=0)
+        raw = [
+            self.gen("101", [("4400", "", "08:00"), ("3360", "10:00", "10:02"), ("1020", "12:00", "12:01"), ("1000", "12:10", "")], everyday),
+            self.gen("102", [("1000", "", "09:00"), ("1020", "09:08", "09:09"), ("3360", "11:00", "11:02")], everyday),  # 反方向
+            self.gen("103", [("3360", "", "13:00"), ("1020", "15:00", "15:01")], no_monday),  # 週一停開
+            self.gen("104", [("3360", "", "14:00"), ("1020", "16:00", "")]),  # 沒有 ServiceDay 當成每天
+        ]
+        packed = index.compact_general(raw)
+        out = index.general_route(packed, "3360", "1020", "2026-11-23")  # 週一
+        self.assertEqual([t["TrainInfo"]["TrainNo"] for t in out], ["101", "104"])
+        self.assertEqual(out[0]["StopTimes"][0]["DepartureTime"], "10:02")
+        self.assertEqual(out[0]["StopTimes"][1]["ArrivalTime"], "12:00")
+        # 起站是始發站時沒有 ArrivalTime 也要有出發時間
+        self.assertEqual(out[1]["StopTimes"][0]["DepartureTime"], "14:00")
+        procd, _ = (lambda c: (index.handler.process_daily_list(c, out, "2026-11-23", "3360", "1020", {}, NOW), 0))(types.SimpleNamespace())
+        self.assertEqual(len(procd), 2)
+
+    def test_empty_daily_uses_general(self):
+        saved = []
+        orig = (index.tdx_get, index.redis_set)
+        everyday = {d: 1 for d in index.WEEKDAYS}
+        general = {"TrainTimetables": [self.gen("101", [("3360", "", "10:02"), ("1020", "12:00", "")], everyday)]}
+        def get(url, headers):
+            body = general if "GeneralTrainTimetable" in url else {"TrainTimetables": []}  # 起訖站和當天全部都空
+            return types.SimpleNamespace(status_code=200, headers={}, json=lambda: body)
+        index.tdx_get = get
+        index.redis_set = lambda k, v, ex: saved.append((k, ex))
+        try:
+            ctx = types.SimpleNamespace(get_header_info=lambda r: "API")
+            ctx.packed_timetable = lambda *a: index.handler.packed_timetable(ctx, *a)
+            ctx.general_fallback = lambda *a: index.handler.general_fallback(ctx, *a)
+            raw, src = index.handler.get_route_timetable(ctx, "3360", "1020", "2026-11-23", None, lambda: {})
+            self.assertEqual((len(raw), src, ctx.used_general), (1, "General", True))
+            self.assertIn((index.route_key("3360", "1020", "2026-11-23"), index.GENERAL_ROUTE_TTL), saved)
+            # 快取讀回來也要標記是定期時刻表
+            ctx2 = types.SimpleNamespace()
+            raw2, src2 = index.handler.get_route_timetable(ctx2, "3360", "1020", "2026-11-23", index.json.dumps({"general": raw}).encode(), lambda: {})
+            self.assertEqual((len(raw2), src2, ctx2.used_general), (1, "Redis/General", True))
+        finally:
+            index.tdx_get, index.redis_set = orig
+
+
+class DelayCacheTests(unittest.TestCase):
+    def test_cached_delays_used_without_tdx(self):
+        orig = index.tdx_get
+        index.tdx_get = lambda *a: self.fail("不該打 TDX")
+        try:
+            d, src = index.handler.get_delays(types.SimpleNamespace(), b'{"123": 5}', lambda: {})
+            self.assertEqual((d, src), ({"123": 5}, "Redis"))
+        finally:
+            index.tdx_get = orig
+
+
+class DayAllFallbackTests(unittest.TestCase):
+    def test_empty_od_uses_full_day_list_first(self):
+        saved, calls = [], []
+        orig = (index.tdx_get, index.redis_set)
+        day = {"TrainTimetables": [
+            {"TrainInfo": {"TrainNo": "111", "TrainTypeName": {"Zh_tw": "自強"}, "SuspendedFlag": 0},
+             "StopTimes": [{"StationID": "3360", "DepartureTime": "10:02"}, {"StationID": "1020", "ArrivalTime": "12:00"}]},
+            {"TrainInfo": {"TrainNo": "222", "TrainTypeName": {"Zh_tw": "自強"}, "SuspendedFlag": 1},
+             "StopTimes": [{"StationID": "3360", "DepartureTime": "11:02"}, {"StationID": "1020", "ArrivalTime": "13:00"}]},
+        ]}
+        def get(url, headers):
+            calls.append(url)
+            body = day if "/TrainDate/" in url else {"TrainTimetables": []}
+            return types.SimpleNamespace(status_code=200, headers={}, json=lambda: body)
+        index.tdx_get = get
+        index.redis_set = lambda k, v, ex: saved.append((k, ex))
+        try:
+            ctx = types.SimpleNamespace(get_header_info=lambda r: "API")
+            ctx.packed_timetable = lambda *a: index.handler.packed_timetable(ctx, *a)
+            ctx.general_fallback = lambda *a: index.handler.general_fallback(ctx, *a)
+            raw, src = index.handler.get_route_timetable(ctx, "3360", "1020", "2026-11-23", None, lambda: {})
+            self.assertEqual(([t["TrainInfo"]["TrainNo"] for t in raw], src), (["111"], "API/Daily"))
+            self.assertFalse(getattr(ctx, "used_general", False))
+            self.assertFalse(any("GeneralTrainTimetable" in u for u in calls))
+            self.assertIn((index.route_key("3360", "1020", "2026-11-23"), index.ROUTE_CACHE_TTL), saved)
+        finally:
+            index.tdx_get, index.redis_set = orig

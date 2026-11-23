@@ -616,7 +616,7 @@ function attemptLoadCache(isInit) {
     if(hitData) {
         if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
         renderCards(hitData.payload); 
-        setUpdateText(hitData.payload.update_time);
+        setUpdateText(hitData.payload.update_time, (hitData.payload.stats && hitData.payload.stats.general) ? ' · 暫用定期時刻表' : '');
         statusMsg.innerText=""; statusMsg.className="status-left"; 
         list.style.opacity="1"; 
         lastFetchedPair={start:startStation.value,end:endStation.value}; 
@@ -888,11 +888,13 @@ async function fetchData(mode) {
 
         logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
 
+        // TDX 今天的時刻表空掉時，後端改用定期時刻表（臨時加開或調整不會出現）
+        const genNote = (json.stats && json.stats.general) ? ' · 暫用定期時刻表' : '';
         if(json.delay_failed) {
             scheduleRetry("誤點資料失敗", "status-left warning");
-            setUpdateText(json.update_time, ' · 誤點資料暫缺');
+            setUpdateText(json.update_time, genNote + ' · 誤點資料暫缺');
         } else {
-            setUpdateText(json.update_time);
+            setUpdateText(json.update_time, genNote);
             statusMsg.innerText = ""; statusMsg.className = "status-left";
         }
         
