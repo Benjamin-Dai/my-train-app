@@ -259,12 +259,40 @@ class GeneralFallbackTests(unittest.TestCase):
             raw, src = index.handler.get_route_timetable(ctx, "3360", "1020", "2026-11-23", None, lambda: {})
             self.assertEqual((len(raw), src, ctx.used_general), (1, "General", True))
             self.assertIn((index.route_key("3360", "1020", "2026-11-23"), index.GENERAL_ROUTE_TTL), saved)
+            # 當天全部班次也是空的：記 5 分鐘，下一條路線不用再打一次
+            self.assertIn((index.DAY_ALL_KEY + "2026-11-23", index.EMPTY_PACKED_TTL), saved)
             # 快取讀回來也要標記是定期時刻表
             ctx2 = types.SimpleNamespace()
             raw2, src2 = index.handler.get_route_timetable(ctx2, "3360", "1020", "2026-11-23", index.json.dumps({"general": raw}).encode(), lambda: {})
             self.assertEqual((len(raw2), src2, ctx2.used_general), (1, "Redis/General", True))
         finally:
             index.tdx_get, index.redis_set = orig
+
+
+class PackedEmptyCacheTests(unittest.TestCase):
+    def test_empty_mark_skips_tdx(self):
+        orig = (index.tdx_get, index.redis_client)
+        index.tdx_get = lambda *a: self.fail("不該打 TDX")
+        index.redis_client = types.SimpleNamespace(get=lambda k: index.EMPTY_MARK.encode())
+        try:
+            self.assertIsNone(index.handler.packed_timetable(types.SimpleNamespace(), "k", "u", 1, lambda: {}))
+        finally:
+            index.tdx_get, index.redis_client = orig
+
+    def test_429_not_marked_empty(self):
+        saved = []
+        orig = (index.tdx_get, index.redis_set)
+        index.tdx_get = lambda *a: types.SimpleNamespace(status_code=429, headers={})
+        index.redis_set = lambda k, v, ex: saved.append(k)
+        try:
+            self.assertIsNone(index.handler.packed_timetable(types.SimpleNamespace(), "k", "u", 1, lambda: {}))
+            self.assertEqual(saved, [])
+        finally:
+            index.tdx_get, index.redis_set = orig
+
+    def test_route_key_not_shared_with_old_version(self):
+        # 正式站舊版讀 v3_route_*，讀到 {"general": …} 會 500；新版不能寫到同一個 key
+        self.assertFalse(index.route_key("1000", "3300", "2026-11-23").startswith("v3_route_"))
 
 
 class DelayCacheTests(unittest.TestCase):

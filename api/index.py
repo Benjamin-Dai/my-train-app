@@ -52,6 +52,8 @@ EMPTY_ROUTE_CACHE_TTL = 300     # TDX 回空的時刻表只快取 5 分鐘：常
 GENERAL_KEY = "v3_general_tt"  # 定期時刻表（壓縮過），每日時刻表空的時候備援用
 DAY_ALL_KEY = "v3_dayall_"      # + 日期：當天全部班次（壓縮過），起訖站查詢回空時的第一個備援
 DAY_ALL_TTL = 2 * 3600
+EMPTY_PACKED_TTL = 300          # 整份時刻表 TDX 回空或失敗：5 分鐘內不再打，不然每條新路線都多打一次 TDX，連續查就撞 429
+EMPTY_MARK = "-"
 GENERAL_CACHE_TTL = 6 * 3600     # 定期時刻表很少變
 GENERAL_ROUTE_TTL = 1800         # 用定期時刻表算出來的路線只快取 30 分鐘，TDX 每日時刻表恢復後很快換回來
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -136,7 +138,25 @@ def parse_alerts(data, now_aware):
 
 
 def route_key(start_id, end_id, date_str):
-    return f"v3_route_{start_id}_{end_id}_{date_str}"
+    # v4：快取內容多了 {"general": …}／{"empty": …} 兩種格式。預覽版和正式站共用同一個 Redis，
+    # 舊版程式讀到新格式會 500，所以換一個 key 前綴，新舊版各用各的。
+    return f"v4_route_{start_id}_{end_id}_{date_str}"
+
+
+def raw_summary(res):
+    """「檢查 TDX」用：TDX 原始回應的狀態、大小、最上層欄位、日期與更新時間、開頭一段內容。"""
+    body = res.text or ""
+    out = {"status": res.status_code, "bytes": len(body.encode()), "head": body[:300]}
+    try:
+        d = res.json()
+        if isinstance(d, dict):
+            out["keys"] = {k: (f"list[{len(v)}]" if isinstance(v, list) else v) for k, v in d.items()
+                           if isinstance(v, list) or k in ("TrainDate", "UpdateTime", "SrcUpdateTime", "UpdateInterval", "SrcUpdateInterval")}
+        elif isinstance(d, list):
+            out["keys"] = f"list[{len(d)}]"
+    except Exception:
+        pass
+    return out
 
 
 def compact_general(raw_list):
@@ -343,15 +363,19 @@ class handler(BaseHTTPRequestHandler):
             try:
                 c = redis_client.get(key)
                 if c:
-                    return c.decode()
+                    c = c.decode()
+                    return None if c == EMPTY_MARK else c
             except Exception as e:
                 print(f"{key} cache read failed: {e}")
         res = tdx_get(url, get_headers())
         if res.status_code != 200:
             print(f"{url}: {res.status_code}")
+            if res.status_code != 429:  # 429 是太頻繁，不代表沒資料，不記
+                redis_set(key, EMPTY_MARK, EMPTY_PACKED_TTL)
             return None
         raw = res.json().get('TrainTimetables') or []
         if not raw:
+            redis_set(key, EMPTY_MARK, EMPTY_PACKED_TTL)
             return None
         packed = compact_general(raw)
         redis_set(key, packed, ttl)
@@ -617,11 +641,12 @@ class handler(BaseHTTPRequestHandler):
             out["timetable_status"] = res.status_code
             out["train_count"] = len(items)
             out["route"] = f"{start} → {end}"
+            out["od_raw"] = raw_summary(res)
             try:
                 g = redis_client.get(GENERAL_KEY)
-                out["general_cache"] = f"有（{len(g) // 1024} KB）" if g else "沒有快取"
+                out["general_cache"] = ("空（5 分鐘）" if g == EMPTY_MARK.encode() else f"有（{len(g) // 1024} KB）") if g else "沒有快取"
                 d = redis_client.get(DAY_ALL_KEY + now_aware.strftime('%Y-%m-%d'))
-                out["day_all_cache"] = f"有（{len(d) // 1024} KB）" if d else "沒有快取"
+                out["day_all_cache"] = ("空（5 分鐘）" if d == EMPTY_MARK.encode() else f"有（{len(d) // 1024} KB）") if d else "沒有快取"
             except Exception as e:
                 out["general_cache"] = f"讀取失敗：{e}"
             try:
@@ -645,7 +670,16 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             out["timetable_error"] = str(e)
         if out.get("train_count") == 0:
-            # 每日時刻表是空的：順便試備援的定期時刻表，看抓不抓得到
+            # 每日時刻表是空的：看原始回應，分辨是「TDX 真的沒資料」還是「格式改了、我們讀錯欄位」
+            date_str = now_aware.strftime('%Y-%m-%d')
+            for name, url in (("train_date_raw", f"{API_BASE_V3}/DailyTrainTimetable/TrainDate/{date_str}?$top=1"),
+                              ("v2_od_raw", f"{API_BASE_V2}/DailyTimetable/OD/{start}/to/{end}/{date_str}?$top=1")):
+                try:
+                    time.sleep(0.5)
+                    out[name] = raw_summary(tdx_get(url, get_headers()))
+                except Exception as e:
+                    out[name] = f"失敗：{e}"
+            # 順便試備援，看抓不抓得到
             try:
                 time.sleep(0.5)
                 t0 = time.perf_counter()

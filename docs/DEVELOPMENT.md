@@ -86,6 +86,11 @@
 2. 還是沒有，改抓 `GeneralTrainTimetable`（定期時刻表，依 `ServiceDay` 挑星期幾），壓縮後放 Redis 6 小時。沒有臨時加開／調整，狀態列標「暫用定期時刻表」。
 
 兩個備援都**沒有用真實 TDX 資料驗證過**（雲端連不到 TDX），上線後用後台「檢查 TDX」看 `fallback_source`／`fallback_train_count`。
+整份時刻表 TDX 回空或失敗（429 除外）時記 5 分鐘，避免每條新路線都多打一次 TDX 而撞到 429。
+
+路線快取 key 從 `v3_route_` 改成 `v4_route_`：預覽版和正式站**共用同一個 Redis**，新格式（`{"general": …}`）寫進舊 key 會讓正式站舊程式 500（2026-11-23 實測發生過，約 30 分鐘後自己過期）。之後改快取格式一律換 key 前綴。
+
+原因還沒確定：是 TDX 每日時刻表真的沒資料，還是回傳格式改了、我們讀錯欄位。「檢查 TDX」在 0 班時會列出 `od_raw`、`train_date_raw`、`v2_od_raw`（狀態、大小、最上層欄位、`TrainDate`／`UpdateTime`／`SrcUpdateTime`、開頭 300 字）來分辨。
 
 ### 站碼
 - `stations.py` 曾經有兩段整段錯位（手打時漏站，後面全部差一號）：
@@ -118,6 +123,9 @@
 | `timetable_status` | 200（429 = 太頻繁，等一兩分鐘） |
 | `suspended_flag_counts` | 有數字；出現「沒有這個欄位」代表 TDX 改了格式 |
 | `alert_parsed` | 營運正常時是空的 |
+| `od_raw` | `keys` 裡有 `TrainTimetables: list[N]`；N 是 0 但 `bytes` 很大或出現別的 list 欄位 = TDX 改了格式 |
+| `route_cache`／`day_all_cache`／`general_cache` | 目前 Redis 裡的路線／當天全部／定期時刻表快取 |
+| `fallback_source`／`fallback_train_count` | 只在 0 班時出現：備援用了哪一份、篩出幾班 |
 
 ---
 
