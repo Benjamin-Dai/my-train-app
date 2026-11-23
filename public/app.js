@@ -1023,7 +1023,11 @@ function renderCards(data) {
     if (trains.length === 0) {
         list.innerHTML = originalCount > 0
             ? `<div class="message">今天的班次都已經開走了<small>今日共 ${originalCount} 班</small></div>${loadNextBtn}`
-            : `<div class="message">這兩站之間沒有直達車</div>`;
+            : susp > 0
+                ? `<div class="message">今天的班次都停駛了<small>${susp} 班停駛</small></div>`
+                : (data.stats && data.stats.route_empty)
+                    ? `<div class="message">查不到直達車<small>可能是資料暫缺，稍後再更新</small></div>`
+                    : `<div class="message">這兩站之間沒有直達車</div>`;
         return;
     }
 

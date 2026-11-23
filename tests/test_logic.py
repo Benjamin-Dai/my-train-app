@@ -154,3 +154,60 @@ class RouteKeyTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class EmptyRouteCacheTests(unittest.TestCase):
+    """TDX 回空的時刻表不能快取 2 小時（彰化→板橋顯示「沒有直達車」）。"""
+
+    def setUp(self):
+        self.saved = []
+        self._orig = (index.tdx_get, index.redis_set)
+        index.redis_set = lambda k, v, ex: self.saved.append((k, v, ex))
+
+    def tearDown(self):
+        index.tdx_get, index.redis_set = self._orig
+
+    def fake_tdx(self, body):
+        calls = []
+        def get(url, headers):
+            calls.append(url)
+            return types.SimpleNamespace(status_code=200, headers={}, json=lambda: body)
+        index.tdx_get = get
+        return calls
+
+    def get(self, cached):
+        ctx = types.SimpleNamespace(get_header_info=lambda res: "API")
+        return index.handler.get_route_timetable(ctx, "3360", "1020", "2026-11-23", cached, lambda: {})
+
+    def test_empty_response_cached_short(self):
+        self.fake_tdx({"TrainTimetables": []})
+        raw, _ = self.get(None)
+        self.assertEqual(raw, [])
+        self.assertEqual(self.saved[0][2], index.EMPTY_ROUTE_CACHE_TTL)
+
+    def test_missing_key_or_null_is_empty(self):
+        self.fake_tdx({"TrainTimetables": None})
+        raw, _ = self.get(None)
+        self.assertEqual(raw, [])
+
+    def test_normal_response_cached_long(self):
+        self.fake_tdx({"TrainTimetables": [train()]})
+        raw, _ = self.get(None)
+        self.assertEqual(len(raw), 1)
+        self.assertEqual(self.saved[0][2], index.ROUTE_CACHE_TTL)
+
+    def test_old_empty_list_cache_is_ignored(self):
+        calls = self.fake_tdx({"TrainTimetables": [train()]})
+        raw, src = self.get(b"[]")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(raw), 1)
+
+    def test_new_empty_marker_is_used(self):
+        calls = self.fake_tdx({"TrainTimetables": [train()]})
+        raw, src = self.get(b'{"empty": true}')
+        self.assertEqual((raw, src, calls), ([], "Redis", []))
+
+    def test_cached_trains_used(self):
+        calls = self.fake_tdx({})
+        raw, src = self.get(index.json.dumps([train()]).encode())
+        self.assertEqual((len(raw), src, calls), (1, "Redis", []))

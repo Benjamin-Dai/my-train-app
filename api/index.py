@@ -46,6 +46,7 @@ REPORT_TTL = 604800             # 回報保留 7 天
 REPORT_ID_RE = re.compile(r"^report:\d{8}_\d{6}_\d{4}$")
 
 ROUTE_CACHE_TTL = 7200          # 時刻表快取 2 小時（TDX 時刻表約 4 小時更新一次；即時停駛靠營運通阻公告）
+EMPTY_ROUTE_CACHE_TTL = 300     # TDX 回空的時刻表只快取 5 分鐘：常常是 TDX 暫時沒資料，不能當成「沒有直達車」卡 2 小時
 QUERY_RATE_MAX = 40            # 同一個 IP 每分鐘最多查詢幾次（正常使用遠低於這個數字）
 QUERY_RATE_WINDOW = 60
 RATE_LIMIT_WAIT = 0.8           # TDX 回 429（太頻繁）時，等這麼久再重試一次
@@ -202,7 +203,12 @@ class handler(BaseHTTPRequestHandler):
     def get_delays(self, cached_raw, get_headers, allow_api=True):
         if cached_raw:
             try:
-                return (json.loads(cached_raw), "Redis")
+                val = json.loads(cached_raw)
+                if isinstance(val, dict) and val.get("empty"):
+                    return ([], "Redis")
+                # 舊版把 TDX 回的空清單也快取 2 小時；空的 list 一律當成沒快取，重新問 TDX
+                if isinstance(val, list) and val:
+                    return (val, "Redis")
             except Exception:
                 pass
 
@@ -252,15 +258,23 @@ class handler(BaseHTTPRequestHandler):
     def get_route_timetable(self, start_id, end_id, date_str, cached_raw, get_headers):
         if cached_raw:
             try:
-                return (json.loads(cached_raw), "Redis")
+                val = json.loads(cached_raw)
+                if isinstance(val, dict) and val.get("empty"):
+                    return ([], "Redis")
+                # 舊版把 TDX 回的空清單也快取 2 小時；空的 list 一律當成沒快取，重新問 TDX
+                if isinstance(val, list) and val:
+                    return (val, "Redis")
             except Exception:
                 pass
 
         res = tdx_get(f"{API_BASE_V3}/DailyTrainTimetable/OD/{start_id}/to/{end_id}/{date_str}", get_headers())
         if res.status_code == 200:
             status_str = self.get_header_info(res)
-            raw_list = res.json().get('TrainTimetables', [])
-            redis_set(route_key(start_id, end_id, date_str), json.dumps(raw_list), ROUTE_CACHE_TTL)
+            raw_list = res.json().get('TrainTimetables') or []
+            if raw_list:
+                redis_set(route_key(start_id, end_id, date_str), json.dumps(raw_list), ROUTE_CACHE_TTL)
+            else:
+                redis_set(route_key(start_id, end_id, date_str), json.dumps({"empty": True}), EMPTY_ROUTE_CACHE_TTL)
             return (raw_list, status_str)
         elif res.status_code == 429:
             # 重試後 TDX 還是嫌太頻繁：回給前端「查詢的人太多」，不要當成連線錯誤
@@ -511,6 +525,13 @@ class handler(BaseHTTPRequestHandler):
             items = res.json().get('TrainTimetables', []) if res.status_code == 200 else []
             out["timetable_status"] = res.status_code
             out["train_count"] = len(items)
+            out["route"] = f"{start} → {end}"
+            try:
+                c = redis_client.get(route_key(start, end, now_aware.strftime('%Y-%m-%d')))
+                v = json.loads(c) if c else None
+                out["route_cache"] = "沒有快取" if v is None else ("空（5 分鐘）" if isinstance(v, dict) else f"{len(v)} 班")
+            except Exception as e:
+                out["route_cache"] = f"讀取失敗：{e}"
             flags = {}
             for it in items:
                 k = str(it.get('TrainInfo', {}).get('SuspendedFlag', '（沒有這個欄位）'))
@@ -659,12 +680,15 @@ class handler(BaseHTTPRequestHandler):
                     final_result.append(p)
 
             result = sorted(final_result, key=lambda x: x['sort_key'])
+            # TDX 時刻表整個是空的（不是被過濾掉）：可能是 TDX 暫時沒資料，前端不能直接說「沒有直達車」
+            route_empty = not raw_today and not raw_tmrw and not raw_yest
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             # 一般查詢保持 60 秒快取；誤點抓失敗的話只快取 15 秒，前端 30 秒後重試才拿得到新的
-            self.send_header('Cache-Control', 'public, max-age=15, s-maxage=15' if delay_failed else 'public, max-age=60, s-maxage=60')
+            # 時刻表空的也只快取 15 秒，TDX 恢復後很快就查得到
+            self.send_header('Cache-Control', 'public, max-age=15, s-maxage=15' if (delay_failed or route_empty) else 'public, max-age=60, s-maxage=60')
             self.end_headers()
 
             if need_yesterday: diag_route_status = f"Y:{status_yest} / T:{status_today} / N:{status_tmrw}"
@@ -674,7 +698,7 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "update_time": now_aware.strftime("%H:%M:%S"),
                 "start": start_station, "end": end_station, "delay_failed": delay_failed,
-                "trains": result, "stats": { "original_count": len(final_result), "suspended": self.suspended_count },
+                "trains": result, "stats": { "original_count": len(final_result), "suspended": self.suspended_count, "route_empty": route_empty },
                 "alerts": alerts,
                 "diagnostics": { "route_status": diag_route_status, "delay_status": delay_status }
             }).encode())
