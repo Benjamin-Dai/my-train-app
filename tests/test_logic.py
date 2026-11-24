@@ -333,3 +333,52 @@ class DayAllFallbackTests(unittest.TestCase):
             self.assertIn((index.route_key("3360", "1020", "2026-11-23"), index.ROUTE_CACHE_TTL), saved)
         finally:
             index.tdx_get, index.redis_set = orig
+
+
+class V2FallbackTests(unittest.TestCase):
+    def v2_item(self, no, dep, arr, flag=0, start="3360", end="1020"):
+        return {"TrainDate": "2026-11-24",
+                "DailyTrainInfo": {"TrainNo": no, "TrainTypeName": {"Zh_tw": "自強(推拉式自強號且無自行車車廂)"}, "SuspendedFlag": flag},
+                "OriginStopTime": {"StationID": start, "DepartureTime": dep, "SuspendedFlag": 0},
+                "DestinationStopTime": {"StationID": end, "ArrivalTime": arr, "SuspendedFlag": 0}}
+
+    def test_convert_and_process(self):
+        items = [self.v2_item("111", "10:02", "12:00"), self.v2_item("222", "11:02", "13:00", flag=1),
+                 self.v2_item("333", "12:00", "14:00", start="1000")]  # 起站不對的不要
+        out = index.v2_od_to_v3(items, "3360", "1020")
+        self.assertEqual([t["TrainInfo"]["TrainNo"] for t in out], ["111", "222"])
+        ctx = types.SimpleNamespace()
+        procd = index.handler.process_daily_list(ctx, out, "2026-11-24", "3360", "1020", {}, NOW)
+        self.assertEqual([(p["no"], p["type"], p["sch_dep"], p["sch_arr"]) for p in procd], [("111", "自強號", "10:02", "12:00")])
+        self.assertEqual(ctx.suspended_count, 1)
+
+    def test_garbage_is_empty(self):
+        for bad in (None, {}, {"TrainTimetables": []}, [None, 1, {}]):
+            self.assertEqual(index.v2_od_to_v3(bad, "3360", "1020"), [])
+
+    def test_empty_v3_uses_v2_before_day_list_and_general(self):
+        saved, calls = [], []
+        orig = (index.tdx_get, index.redis_set)
+        def get(url, headers):
+            calls.append(url)
+            body = [self.v2_item("111", "10:02", "12:00")] if "/v2/" in url else {"TrainTimetables": []}
+            return types.SimpleNamespace(status_code=200, headers={}, json=lambda: body)
+        index.tdx_get = get
+        index.redis_set = lambda k, v, ex: saved.append((k, ex))
+        try:
+            ctx = types.SimpleNamespace(get_header_info=lambda r: "API", general_fallback=lambda *a: self.fail("v2 有資料不該再往下找"))
+            raw, src = index.handler.get_route_timetable(ctx, "3360", "1020", "2026-11-24", None, lambda: {})
+            self.assertEqual(([t["TrainInfo"]["TrainNo"] for t in raw], src), (["111"], "API/v2"))
+            self.assertEqual(len(calls), 2)
+            self.assertIn("/v2/Rail/TRA/DailyTimetable/OD/3360/to/1020/2026-11-24", calls[1])
+            self.assertEqual(saved, [(index.route_key("3360", "1020", "2026-11-24"), index.ROUTE_CACHE_TTL)])
+        finally:
+            index.tdx_get, index.redis_set = orig
+
+    def test_v2_error_falls_through(self):
+        orig = index.tdx_get
+        index.tdx_get = lambda url, h: types.SimpleNamespace(status_code=500, headers={})
+        try:
+            self.assertEqual(index.fetch_v2_od("3360", "1020", "2026-11-24", lambda: {}), [])
+        finally:
+            index.tdx_get = orig

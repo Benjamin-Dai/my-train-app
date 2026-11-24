@@ -198,6 +198,39 @@ def general_route(packed, start_id, end_id, date_str):
     return out
 
 
+def v2_od_to_v3(items, start_id, end_id):
+    """v2 起訖站每日時刻表（DailyTrainInfo / OriginStopTime / DestinationStopTime）轉成 v3 的 TrainInfo / StopTimes。"""
+    out = []
+    if not isinstance(items, list):
+        return out
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        info = it.get('DailyTrainInfo') or {}
+        o = it.get('OriginStopTime') or {}
+        d = it.get('DestinationStopTime') or {}
+        if not info.get('TrainNo') or o.get('StationID') != start_id or d.get('StationID') != end_id:
+            continue
+        out.append({"TrainInfo": {"TrainNo": info.get('TrainNo'), "TrainTypeName": info.get('TrainTypeName') or {},
+                                  "SuspendedFlag": info.get('SuspendedFlag')},
+                    "StopTimes": [{"StationID": start_id, "DepartureTime": o.get('DepartureTime'), "SuspendedFlag": o.get('SuspendedFlag')},
+                                  {"StationID": end_id, "ArrivalTime": d.get('ArrivalTime'), "SuspendedFlag": d.get('SuspendedFlag')}]})
+    return out
+
+
+def fetch_v2_od(start_id, end_id, date_str, get_headers):
+    """v3 每日時刻表整個空掉時（2026-11-24 TDX「臺鐵靜態每日車次資料[Transform]」異常），v2 還有資料。失敗就回空。"""
+    try:
+        res = tdx_get(f"{API_BASE_V2}/DailyTimetable/OD/{start_id}/to/{end_id}/{date_str}", get_headers())
+        if res.status_code != 200:
+            print(f"v2 OD: {res.status_code}")
+            return []
+        return v2_od_to_v3(res.json(), start_id, end_id)
+    except Exception as e:
+        print(f"v2 OD failed: {e}")
+        return []
+
+
 def tdx_get(url, headers):
     """打 TDX；碰到 429（請求太頻繁）就等一下再試一次。"""
     res = HTTP.get(url, headers=headers, timeout=TDX_TIMEOUT)
@@ -339,7 +372,12 @@ class handler(BaseHTTPRequestHandler):
             if raw_list:
                 redis_set(route_key(start_id, end_id, date_str), json.dumps(raw_list), ROUTE_CACHE_TTL)
                 return (raw_list, status_str)
-            # TDX 每日時刻表整個空掉（2026-11-23 全部路線都 0 班）：改用定期時刻表，不要直接說沒有車
+            # v3 每日時刻表整個空掉（2026-11-23 起全部路線都 0 班）：先問 v2 每日時刻表（含當天停駛／加開）
+            v2 = fetch_v2_od(start_id, end_id, date_str, get_headers)
+            if v2:
+                redis_set(route_key(start_id, end_id, date_str), json.dumps(v2), ROUTE_CACHE_TTL)
+                return (v2, "API/v2")
+            # v2 也沒有：改用定期時刻表，不要直接說沒有車
             gen, src = self.general_fallback(start_id, end_id, date_str, get_headers)
             if gen and src == "Daily":
                 # 當天全部班次篩出來的就是正式的每日時刻表，照一般快取
