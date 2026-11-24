@@ -616,7 +616,7 @@ function attemptLoadCache(isInit) {
     if(hitData) {
         if(hitData.payload.diagnostics) parseDiagnostics(hitData.payload.diagnostics, false); 
         renderCards(hitData.payload); 
-        setUpdateText(hitData.payload.update_time);
+        setUpdateText(hitData.payload.update_time, (hitData.payload.stats && hitData.payload.stats.general) ? ' · 暫用定期時刻表' : '');
         statusMsg.innerText=""; statusMsg.className="status-left"; 
         list.style.opacity="1"; 
         lastFetchedPair={start:startStation.value,end:endStation.value}; 
@@ -888,11 +888,13 @@ async function fetchData(mode) {
 
         logSystem(`${rInfo.source}${rInfo.quota !== "--" ? `(剩:${rInfo.quota})` : ""} / ${dInfo.source}${dInfo.quota !== "--" ? `(剩:${dInfo.quota})` : ""}`);
 
+        // TDX 今天的時刻表空掉時，後端改用定期時刻表（臨時加開或調整不會出現）
+        const genNote = (json.stats && json.stats.general) ? ' · 暫用定期時刻表' : '';
         if(json.delay_failed) {
             scheduleRetry("誤點資料失敗", "status-left warning");
-            setUpdateText(json.update_time, ' · 誤點資料暫缺');
+            setUpdateText(json.update_time, genNote + ' · 誤點資料暫缺');
         } else {
-            setUpdateText(json.update_time);
+            setUpdateText(json.update_time, genNote);
             statusMsg.innerText = ""; statusMsg.className = "status-left";
         }
         
@@ -1023,7 +1025,11 @@ function renderCards(data) {
     if (trains.length === 0) {
         list.innerHTML = originalCount > 0
             ? `<div class="message">今天的班次都已經開走了<small>今日共 ${originalCount} 班</small></div>${loadNextBtn}`
-            : `<div class="message">這兩站之間沒有直達車</div>`;
+            : susp > 0
+                ? `<div class="message">今天的班次都停駛了<small>${susp} 班停駛</small></div>`
+                : (data.stats && data.stats.route_empty)
+                    ? `<div class="message">查不到直達車<small>可能是資料暫缺，稍後再更新</small></div>`
+                    : `<div class="message">這兩站之間沒有直達車</div>`;
         return;
     }
 
